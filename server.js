@@ -45,20 +45,20 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // ✅ Session configuration
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET || "*MusaShehu@6872#",
-    resave: false,
-    saveUninitialized: false,
-    store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI,
-    }),
-    cookie: {
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 24 * 60 * 60 * 1000, // 24 hours
-    },
-  })
-);
+// app.use(
+//   session({
+//     secret: process.env.SESSION_SECRET || "*MusaShehu@6872#",
+//     resave: false,
+//     saveUninitialized: false,
+//     store: MongoStore.create({
+//       mongoUrl: process.env.MONGODB_URI,
+//     }),
+//     cookie: {
+//       secure: process.env.NODE_ENV === "production",
+//       maxAge: 24 * 60 * 60 * 1000, // 24 hours
+//     },
+//   })
+// );
 
 // ✅ Connect DB
 connectDB();
