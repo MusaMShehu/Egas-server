@@ -32,10 +32,14 @@ const app = express();
 // ✅ Allow CORS
 app.use(
   cors({
-    origin: "http://localhost:3000", // frontend URL
+    origin: [
+      "http://localhost:3000",
+      "https://egas-ng.netlify.app/",
+    ],
     credentials: true,
   })
 );
+
 
 // ✅ Proper JSON and URL-encoded body parsing
 app.use(express.json({ limit: "10mb" }));
