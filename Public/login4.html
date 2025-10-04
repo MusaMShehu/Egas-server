@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>User Dashboard</title>
+  <style>
+    body { font-family: Arial, sans-serif; }
+    #dashboard { display: none; }
+    .card {
+      border: 1px solid #ccc;
+      padding: 15px;
+      margin: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .container { display: flex; gap: 20px; }
+  </style>
+</head>
+<body>
+  <!-- Login Form -->
+  <div id="loginBox">
+    <h2>Login</h2>
+    <form id="loginForm">
+      <input type="text" id="username" placeholder="Username" required><br><br>
+      <input type="password" id="password" placeholder="Password" required><br><br>
+      <button type="submit">Login</button>
+    </form>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="dashboard">
+    <h2>Welcome, <span id="userName"></span></h2>
+    <div class="container">
+      <div class="card">
+        <h3>Profile</h3>
+        <p>Email: <span id="userEmail"></span></p>
+        <p>Role: <span id="userRole"></span></p>
+      </div>
+      <div class="card">
+        <h3>Statistics</h3>
+        <p>Messages: <span id="userMessages"></span></p>
+        <p>Balance: $<span id="userBalance"></span></p>
+      </div>
+      <div class="card">
+        <h3>Notifications</h3>
+        <ul id="userNotifications"></ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const username = document.getElementById("username").value;
+      const password = document.getElementById("password").value;
+
+      // Send login request
+      const response = await fetch("http://localhost:5000/api/v1/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password })
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        // Hide login
+        document.getElementById("loginBox").style.display = "none";
+        // Show dashboard
+        document.getElementById("dashboard").style.display = "block";
+
+        // Fill dashboard data
+        document.getElementById("userName").innerText = data.username;
+        document.getElementById("userEmail").innerText = data.email;
+        document.getElementById("userRole").innerText = data.role;
+        document.getElementById("userMessages").innerText = data.stats.messages;
+        document.getElementById("userBalance").innerText = data.stats.balance;
+
+        Notifications
+        const notificationsList = document.getElementById("userNotifications");
+        notificationsList.innerHTML = "";
+        data.notifications.forEach(note => {
+          let li = document.createElement("li");
+          li.innerText = note;
+          notificationsList.appendChild(li);
+        });
+      } else {
+        alert("Invalid login!");
+      }
+    });
+  </script>
+</body>
+</html>

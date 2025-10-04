@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mini App</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f4f4f9;
+    }
+    h2 {
+      margin-top: 30px;
+      color: #333;
+    }
+    form, .data-section {
+      background: #fff;
+      padding: 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      margin-bottom: 20px;
+    }
+    input, button {
+      padding: 8px;
+      margin: 5px 0;
+      width: 100%;
+    }
+    button {
+      background: #007BFF;
+      color: #fff;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+    pre {
+      background: #222;
+      color: #0f0;
+      padding: 10px;
+      border-radius: 5px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Mini App - API Ready</h1>
+
+  <!-- Login -->
+  <h2>Login</h2>
+  <form id="loginForm">
+    <input type="text" id="email" placeholder="Email" required />
+    <input type="password" id="password" placeholder="Password" required />
+    <button type="submit">Login</button>
+  </form>
+  <pre id="loginResponse"></pre>
+
+  <!-- Products -->
+  <h2>Products</h2>
+  <button onclick="getProducts()">Fetch Products</button>
+  <pre id="productsResponse"></pre>
+
+  <!-- Subscriptions -->
+  <h2>Subscriptions</h2>
+  <button onclick="getSubscriptions()">Fetch Subscriptions</button>
+  <pre id="subscriptionsResponse"></pre>
+
+  <!-- User Profile -->
+  <h2>User Profile</h2>
+  <button onclick="getProfile()">Fetch Profile</button>
+  <pre id="profileResponse"></pre>
+
+  <script>
+    let authToken = "";
+
+    // LOGIN
+    document.getElementById("loginForm").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+
+      try {
+        const res = await fetch("http://localhost:5000/api/v1/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await res.json();
+        document.getElementById("loginResponse").innerText = JSON.stringify(data, null, 2);
+
+        if (data.token) {
+          authToken = data.token;
+          alert("Login successful!");
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    });
+
+    // PRODUCTS
+    async function getProducts() {
+      try {
+        const res = await fetch("http://localhost:5000/api/v1/products", {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        document.getElementById("productsResponse").innerText = JSON.stringify(data, null, 2);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // SUBSCRIPTIONS
+    async function getSubscriptions() {
+      try {
+        const res = await fetch("http://localhost:5000/api/v1/subscriptions", {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        document.getElementById("subscriptionsResponse").innerText = JSON.stringify(data, null, 2);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    // PROFILE
+    async function getProfile() {
+      try {
+        const res = await fetch("http://localhost:5000/api/v1/auth/me", {
+          headers: { Authorization: `Bearer ${authToken}` }
+        });
+        const data = await res.json();
+        document.getElementById("profileResponse").innerText = JSON.stringify(data, null, 2);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  </script>
+</body>
+</html>

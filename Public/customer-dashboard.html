@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-GAS - Customer Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-blue-800 text-white p-4">
+            <div class="flex items-center space-x-2 mb-8">
+                <i class="fas fa-fire text-2xl"></i>
+                <h1 class="text-xl font-bold">e-GAS</h1>
+            </div>
+            <nav>
+                <a href="#" class="block py-2 px-4 bg-blue-700 rounded mb-2">
+                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2">
+                    <i class="fas fa-gas-pump mr-2"></i> Order Gas
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2">
+                    <i class="fas fa-calendar-check mr-2"></i> Subscriptions
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2">
+                    <i class="fas fa-history mr-2"></i> Order History
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2">
+                    <i class="fas fa-wallet mr-2"></i> Payments
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2">
+                    <i class="fas fa-user mr-2"></i> Profile
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2">
+                    <i class="fas fa-headset mr-2"></i> Support
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-auto">
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-bold">Customer Dashboard</h1>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-700">Welcome, John Doe</span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-4 rounded shadow">
+                    <h3 class="text-gray-500">Active Orders</h3>
+                    <p class="text-2xl font-bold">2</p>
+                </div>
+                <div class="bg-white p-4 rounded shadow">
+                    <h3 class="text-gray-500">Upcoming Deliveries</h3>
+                    <p class="text-2xl font-bold">1</p>
+                </div>
+                <div class="bg-white p-4 rounded shadow">
+                    <h3 class="text-gray-500">Subscription Status</h3>
+                    <p class="text-2xl font-bold text-green-500">Active</p>
+                </div>
+                <div class="bg-white p-4 rounded shadow">
+                    <h3 class="text-gray-500">Account Balance</h3>
+                    <p class="text-2xl font-bold">₦15,250</p>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="bg-white p-6 rounded shadow mb-8">
+                <h2 class="text-xl font-bold mb-4">Quick Actions</h2>
+                <div class="flex space-x-4">
+                    <button class="bg-blue-600 text-white px-6 py-3 rounded flex items-center">
+                        <i class="fas fa-gas-pump mr-2"></i> Order Gas
+                    </button>
+                    <button class="bg-green-600 text-white px-6 py-3 rounded flex items-center">
+                        <i class="fas fa-calendar-plus mr-2"></i> Manage Subscription
+                    </button>
+                    <button class="bg-purple-600 text-white px-6 py-3 rounded flex items-center">
+                        <i class="fas fa-wallet mr-2"></i> Top Up Wallet
+                    </button>
+                </div>
+            </div>
+
+            <!-- Recent Orders -->
+            <div class="bg-white p-6 rounded shadow mb-8">
+                <h2 class="text-xl font-bold mb-4">Recent Orders</h2>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-2 px-4">Order ID</th>
+                                <th class="py-2 px-4">Date</th>
+                                <th class="py-2 px-4">Product</th>
+                                <th class="py-2 px-4">Quantity</th>
+                                <th class="py-2 px-4">Status</th>
+                                <th class="py-2 px-4">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="py-2 px-4">#EG-1001</td>
+                                <td class="py-2 px-4">15 May 2023</td>
+                                <td class="py-2 px-4">12kg Gas Cylinder</td>
+                                <td class="py-2 px-4">1</td>
+                                <td class="py-2 px-4">
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Processing</span>
+                                </td>
+                                <td class="py-2 px-4">
+                                    <button class="text-blue-600 hover:underline">Track</button>
+                                </td>
+                            </tr>
+                            <tr class="border-b">
+                                <td class="py-2 px-4">#EG-0998</td>
+                                <td class="py-2 px-4">10 May 2023</td>
+                                <td class="py-2 px-4">6kg Gas Cylinder</td>
+                                <td class="py-2 px-4">2</td>
+                                <td class="py-2 px-4">
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded">Delivered</span>
+                                </td>
+                                <td class="py-2 px-4">
+                                    <button class="text-blue-600 hover:underline">Invoice</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Subscription Status -->
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-xl font-bold mb-4">Subscription Details</h2>
+                <div class="flex justify-between items-center">
+                    <div>
+                        <h3 class="font-semibold">Monthly Auto-Refill</h3>
+                        <p class="text-gray-600">Next delivery: 25 May 2023</p>
+                        <p class="text-gray-600">12kg Cylinder - ₦10,500/month</p>
+                    </div>
+                    <div class="space-x-2">
+                        <button class="bg-blue-600 text-white px-4 py-2 rounded">Modify</button>
+                        <button class="bg-gray-200 text-gray-800 px-4 py-2 rounded">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./scripts/user-dashboard.js"></script>
+</body>
+</html>

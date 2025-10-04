@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Profile & Addresses</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h2>Your Profile</h2>
+  <div id="profileInfo"></div>
+
+  <h3>Your Addresses</h3>
+  <div id="addressList"></div>
+
+  <h3>Add / Edit Address</h3>
+  <form id="addressForm">
+    <input type="hidden" id="addressId">
+    <input type="text" id="label" placeholder="Label" required>
+    <input type="text" id="street" placeholder="Street" required>
+    <input type="text" id="city" placeholder="City" required>
+    <input type="text" id="state" placeholder="State" required>
+    <input type="text" id="zip" placeholder="ZIP Code" required>
+    <input type="number" id="lat" placeholder="Latitude" step="any">
+    <input type="number" id="lng" placeholder="Longitude" step="any">
+    <button type="submit">Save Address</button>
+  </form>
+
+  <button onclick="logout()">Logout</button>
+
+  <script src="main.js"></script>
+  <script>
+    document.getElementById("addressForm").addEventListener("submit", saveAddress);
+    loadProfile();
+  </script>
+</body>
+</html>

@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Page</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            overflow: hidden;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 30px 20px;
+            text-align: center;
+            color: white;
+        }
+        
+        .header h2 {
+            font-weight: 600;
+            font-size: 24px;
+        }
+        
+        .form-container {
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+            position: relative;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #333;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 16px;
+            transition: border 0.3s;
+        }
+        
+        .form-group input:focus {
+            border-color: #667eea;
+            outline: none;
+        }
+        
+        .form-group .error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+        
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 5px;
+            width: 100%;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: opacity 0.3s;
+        }
+        
+        .btn:hover {
+            opacity: 0.9;
+        }
+        
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .signup-link {
+            text-align: center;
+            margin-top: 20px;
+            color: #666;
+        }
+        
+        .signup-link a {
+            color: #667eea;
+            text-decoration: none;
+        }
+        
+        .loader {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin: 0 auto;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: #e74c3c;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 1000;
+        }
+        
+        .toast.success {
+            background-color: #2ecc71;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Welcome Back</h2>
+        </div>
+        <div class="form-container">
+            <form id="loginForm">
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" placeholder="Enter your email" required>
+                    <div class="error" id="emailError">Please enter a valid email address</div>
+                </div>
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" placeholder="Enter your password" required>
+                    <div class="error" id="passwordError">Password must be at least 6 characters</div>
+                </div>
+                <button type="submit" id="loginBtn" class="btn">
+                    <span id="btnText">Login</span>
+                    <div class="loader" id="loader"></div>
+                </button>
+            </form>
+            <div class="signup-link">
+                Don't have an account? <a href="#">Sign up</a>
+            </div>
+        </div>
+    </div>
+    
+    <div class="toast" id="toast"></div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const loginForm = document.getElementById('loginForm');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const emailError = document.getElementById('emailError');
+            const passwordError = document.getElementById('passwordError');
+            const loginBtn = document.getElementById('loginBtn');
+            const btnText = document.getElementById('btnText');
+            const loader = document.getElementById('loader');
+            const toast = document.getElementById('toast');
+            
+            // Real-time validation
+            emailInput.addEventListener('input', function() {
+                if (!validateEmail(emailInput.value)) {
+                    emailError.style.display = 'block';
+                } else {
+                    emailError.style.display = 'none';
+                }
+            });
+            
+            passwordInput.addEventListener('input', function() {
+                if (passwordInput.value.length < 6) {
+                    passwordError.style.display = 'block';
+                } else {
+                    passwordError.style.display = 'none';
+                }
+            });
+            
+            // Form submission
+            loginForm.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                // Validate inputs
+                const isEmailValid = validateEmail(emailInput.value);
+                const isPasswordValid = passwordInput.value.length >= 6;
+                
+                if (!isEmailValid) {
+                    emailError.style.display = 'block';
+                    return;
+                }
+                
+                if (!isPasswordValid) {
+                    passwordError.style.display = 'block';
+                    return;
+                }
+                
+                // Show loading state
+                btnText.style.display = 'none';
+                loader.style.display = 'block';
+                loginBtn.disabled = true;
+                
+                try {
+                    // Prepare data for API
+                    const loginData = {
+                        email: emailInput.value,
+                        password: passwordInput.value
+                    };
+                    
+                    // Simulate API call (replace with real API endpoint)
+                    const response = await simulateApiCall(loginData);
+                    
+                    if (response.success) {
+                        // Show success message
+                        showToast('Login successful! Redirecting...', 'success');
+                        
+                        // Store user data (in real scenario, you might use sessionStorage or cookies)
+                        localStorage.setItem('user', JSON.stringify(response.user));
+                        
+                        // Redirect to profile page after a short delay
+                        setTimeout(() => {
+                            window.location.href = '/profile.html'; // Replace with your profile page URL
+                        }, 1500);
+                    } else {
+                        // Show error message
+                        showToast(response.message || 'Login failed. Please try again.');
+                        
+                        // Reset form state
+                        btnText.style.display = 'block';
+                        loader.style.display = 'none';
+                        loginBtn.disabled = false;
+                    }
+                } catch (error) {
+                    // Show error message
+                    showToast('An error occurred. Please try again.');
+                    
+                    // Reset form state
+                    btnText.style.display = 'block';
+                    loader.style.display = 'none';
+                    loginBtn.disabled = false;
+                }
+            });
+            
+            // Email validation function
+            function validateEmail(email) {
+                const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                return re.test(email);
+            }
+            
+            // Show toast message
+            function showToast(message, type = 'error') {
+                toast.textContent = message;
+                toast.className = 'toast';
+                if (type === 'success') {
+                    toast.classList.add('success');
+                }
+                toast.style.display = 'block';
+                
+                // Hide after 3 seconds
+                setTimeout(() => {
+                    toast.style.display = 'none';
+                }, 3000);
+            }
+            
+            // Simulate API call (replace with actual fetch to your API)
+            function simulateApiCall(loginData) {
+                return new Promise((resolve) => {
+                    setTimeout(() => {
+                        // This is a mock response - replace with actual API call
+                        if (loginData.email === 'user@example.com' && loginData.password === 'password123') {
+                            resolve({
+                                success: true,
+                                user: {
+                                    id: 1,
+                                    name: 'John Doe',
+                                    email: loginData.email,
+                                    avatar: 'https://via.placeholder.com/150'
+                                },
+                                token: 'fake-jwt-token' // In real scenario, you would get a real token
+                            });
+                        } else {
+                            resolve({
+                                success: false,
+                                message: 'Invalid email or password'
+                            });
+                        }
+                    }, 1500); // Simulate network delay
+                });
+            }
+            
+            // In a real application, you would use fetch to call your API:
+            /*
+            async function realApiCall(loginData) {
+                try {
+                    const response = await fetch('https://your-api-endpoint.com/login', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(loginData)
+                    });
+                    
+                    const data = await response.json();
+                    return data;
+                } catch (error) {
+                    throw new Error('API call failed');
+                }
+            }
+            */
+        });
+    </script>
+</body>
+</html>

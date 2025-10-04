@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-GAS - System Settings</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-700 text-white p-4">
+            <div class="flex items-center space-x-2 mb-8">
+                <i class="fas fa-fire text-2xl"></i>
+                <h1 class="text-xl font-bold">e-GAS Admin</h1>
+            </div>
+            <nav>
+                <a href="admin-dashboard.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                </a>
+                <a href="admin-dashboard-users.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-users mr-2"></i> Users
+                </a>
+                <a href="admin-dashboard-orders.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-truck mr-2"></i> Orders
+                </a>
+                <a href="admin-dashboard-products.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-boxes mr-2"></i> Products
+                </a>
+                <a href="admin-dashboard-subscriptions.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-calendar-check mr-2"></i> Subscriptions
+                </a>
+                <a href="admin-dashboard-reports.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-chart-line mr-2"></i> Reports
+                </a>
+                <a href="admin-dashboard-settings.html" class="block py-2 px-4 bg-purple-700 rounded mb-2">
+                    <i class="fas fa-cog mr-2"></i> Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-auto">
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-bold">System Settings</h1>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-700">Administrator</span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </header>
+
+            <!-- Settings Tabs -->
+            <div class="bg-white rounded shadow mb-6">
+                <div class="border-b">
+                    <nav class="flex -mb-px">
+                        <button class="settings-tab-btn py-4 px-6 border-b-2 font-medium text-sm border-blue-500 text-blue-600" data-tab="general-settings">
+                            General
+                        </button>
+                        <button class="settings-tab-btn py-4 px-6 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="payment-settings">
+                            Payment
+                        </button>
+                        <button class="settings-tab-btn py-4 px-6 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="notification-settings">
+                            Notifications
+                        </button>
+                        <button class="settings-tab-btn py-4 px-6 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="delivery-settings">
+                            Delivery
+                        </button>
+                        <button class="settings-tab-btn py-4 px-6 border-b-2 font-medium text-sm border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300" data-tab="security-settings">
+                            Security
+                        </button>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- General Settings Form -->
+            <div id="general-settings" class="settings-tab-content bg-white p-6 rounded shadow mb-6">
+                <h2 class="text-xl font-bold mb-6">General Settings</h2>
+                
+                <form>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Business Name</label>
+                            <input type="text" value="e-GAS Nigeria Ltd" class="w-full border rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Contact Email</label>
+                            <input type="email" value="contact@egas.com" class="w-full border rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                            <input type="tel" value="+2348012345678" class="w-full border rounded px-3 py-2">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Address</label>
+                            <input type="text" value="123 Gas Street, Lagos" class="w-full border rounded px-3 py-2">
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Business Logo</label>
+                        <div class="flex items-center">
+                            <div class="w-16 h-16 bg-gray-200 rounded mr-4"></div>
+                            <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 mr-2">
+                                Upload New
+                            </button>
+                            <button class="text-red-600 hover:text-red-800">
+                                Remove
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Business Hours</label>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Monday - Friday</label>
+                                <div class="flex items-center">
+                                    <input type="time" value="08:00" class="border rounded px-3 py-2 w-24">
+                                    <span class="mx-2">to</span>
+                                    <input type="time" value="18:00" class="border rounded px-3 py-2 w-24">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Saturday</label>
+                                <div class="flex items-center">
+                                    <input type="time" value="09:00" class="border rounded px-3 py-2 w-24">
+                                    <span class="mx-2">to</span>
+                                    <input type="time" value="15:00" class="border rounded px-3 py-2 w-24">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-500 mb-1">Sunday</label>
+                                <select class="border rounded px-3 py-2 w-full">
+                                    <option>Closed</option>
+                                    <option>Open</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button class="bg-gray-200 text-gray-700 px-6 py-2 rounded hover:bg-gray-300 mr-4">
+                            Cancel
+                        </button>
+                        <button class="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
+                            Save Changes
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Payment Settings Tab -->
+            <div id="payment-settings" class="settings-tab-content hidden bg-white p-6 rounded shadow mb-6">
+                <h2 class="text-xl font-bold mb-6">Payment Settings</h2>
+                
+                <form id="payment-settings-form">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Default Currency</label>
+                            <select name="currency" class="form-input">
+                                <option value="NGN" selected>Nigerian Naira (₦)</option>
+                                <option value="USD">US Dollar ($)</option>
+                                <option value="EUR">Euro (€)</option>
+                                <option value="GBP">British Pound (£)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Payment Methods</label>
+                            <div class="space-y-2">
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="payment_methods[]" value="card" class="mr-2" checked>
+                                    Credit/Debit Card
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="payment_methods[]" value="bank_transfer" class="mr-2" checked>
+                                    Bank Transfer
+                                </label>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="payment_methods[]" value="cash" class="mr-2" checked>
+                                    Cash on Delivery
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-2">Payment Gateway Configuration</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Flutterwave Public Key</label>
+                                <input type="text" name="flutterwave_key" class="form-input" placeholder="FLWPUBK-XXXXXXXXXXXXXXXXXXXX">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Paystack Public Key</label>
+                                <input type="text" name="paystack_key" class="form-input" placeholder="pk_test_XXXXXXXXXXXXXXXXXXXX">
+                            </div>
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="test_mode" class="mr-2">
+                                    Enable Test Mode
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="button" class="btn btn-secondary mr-4 cancel-btn">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            Save Payment Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Notification Settings Tab -->
+            <div id="notification-settings" class="settings-tab-content hidden bg-white p-6 rounded shadow mb-6">
+                <h2 class="text-xl font-bold mb-6">Notification Settings</h2>
+                
+                <form id="notification-settings-form">
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-2">Email Notifications</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="email_order_confirmation" class="mr-2" checked>
+                                    Send order confirmation emails
+                                </label>
+                            </div>
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="email_delivery_updates" class="mr-2" checked>
+                                    Send delivery status updates
+                                </label>
+                            </div>
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="email_promotions" class="mr-2">
+                                    Send promotional emails
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Sender Email</label>
+                                <input type="email" name="sender_email" class="form-input" value="noreply@egas.com">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-2">SMS Notifications</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="sms_order_confirmation" class="mr-2" checked>
+                                    Send order confirmation SMS
+                                </label>
+                            </div>
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="sms_delivery_updates" class="mr-2">
+                                    Send delivery status SMS
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">SMS Gateway API Key</label>
+                                <input type="text" name="sms_api_key" class="form-input" placeholder="Enter your SMS gateway API key">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="button" class="btn btn-secondary mr-4 cancel-btn">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            Save Notification Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Delivery Settings Tab -->
+            <div id="delivery-settings" class="settings-tab-content hidden bg-white p-6 rounded shadow mb-6">
+                <h2 class="text-xl font-bold mb-6">Delivery Settings</h2>
+                
+                <form id="delivery-settings-form">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Delivery Fee (₦)</label>
+                            <input type="number" name="delivery_fee" class="form-input" min="0" value="1500">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Free Delivery Threshold (₦)</label>
+                            <input type="number" name="free_delivery_threshold" class="form-input" min="0" value="10000">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Estimated Delivery Time (hours)</label>
+                            <input type="number" name="delivery_time" class="form-input" min="1" value="24">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Maximum Delivery Distance (km)</label>
+                            <input type="number" name="max_delivery_distance" class="form-input" min="1" value="50">
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-2">Delivery Zones</h3>
+                        <div class="space-y-4">
+                            <div id="delivery-zones-container">
+                                <div class="flex items-center mb-2">
+                                    <input type="text" name="delivery_zones[]" class="form-input mr-2" placeholder="Zone name" value="Lagos Mainland">
+                                    <button type="button" class="btn btn-danger remove-zone-btn">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <button type="button" id="add-zone-btn" class="btn btn-secondary">
+                                <i class="fas fa-plus mr-2"></i> Add Zone
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="button" class="btn btn-secondary mr-4 cancel-btn">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            Save Delivery Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Security Settings Tab -->
+            <div id="security-settings" class="settings-tab-content hidden bg-white p-6 rounded shadow mb-6">
+                <h2 class="text-xl font-bold mb-6">Security Settings</h2>
+                
+                <form id="security-settings-form">
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-2">Password Policy</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="require_strong_password" class="mr-2" checked>
+                                    Require strong passwords (min 8 chars with special characters)
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Password Expiry (days)</label>
+                                <input type="number" name="password_expiry" class="form-input" min="0" value="90">
+                                <p class="text-sm text-gray-500 mt-1">Set to 0 to disable password expiry</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-2">Login Security</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="enable_2fa" class="mr-2">
+                                    Enable Two-Factor Authentication for admin accounts
+                                </label>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Failed Login Attempts Before Lockout</label>
+                                <input type="number" name="failed_attempts" class="form-input" min="1" value="5">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Account Lockout Duration (minutes)</label>
+                                <input type="number" name="lockout_duration" class="form-input" min="1" value="30">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <h3 class="text-lg font-semibold mb-2">Session Management</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Session Timeout (minutes)</label>
+                                <input type="number" name="session_timeout" class="form-input" min="1" value="30">
+                            </div>
+                            <div>
+                                <label class="flex items-center">
+                                    <input type="checkbox" name="single_session" class="mr-2">
+                                    Allow only one active session per user
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="button" class="btn btn-secondary mr-4 cancel-btn">
+                            Cancel
+                        </button>
+                        <button type="submit" class="btn btn-primary">
+                            Save Security Settings
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- System Info -->
+            <div class="bg-white p-6 rounded shadow">
+                <h2 class="text-xl font-bold mb-4">System Information</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="border rounded p-4">
+                        <h3 class="font-medium text-gray-700 mb-2">Application</h3>
+                        <p class="text-sm text-gray-600">Version: 2.1.4</p>
+                        <p class="text-sm text-gray-600">Last Updated: 2023-10-10</p>
+                    </div>
+                    <div class="border rounded p-4">
+                        <h3 class="font-medium text-gray-700 mb-2">Database</h3>
+                        <p class="text-sm text-gray-600">MySQL 8.0</p>
+                        <p class="text-sm text-gray-600">Size: 24.5 MB</p>
+                    </div>
+                    <div class="border rounded p-4">
+                        <h3 class="font-medium text-gray-700 mb-2">Server</h3>
+                        <p class="text-sm text-gray-600">Ubuntu 20.04 LTS</p>
+                        <p class="text-sm text-gray-600">PHP 8.1</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Tab switching functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Get all tab buttons and content sections
+            const tabButtons = document.querySelectorAll('.settings-tab-btn');
+            const tabContents = document.querySelectorAll('.settings-tab-content');
+            
+            // Show the first tab by default
+            if (tabButtons.length > 0 && tabContents.length > 0) {
+                tabContents[0].classList.remove('hidden');
+            }
+            
+            // Add click event listeners to all tab buttons
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    // Get the target tab ID from data attribute
+                    const targetTabId = this.getAttribute('data-tab');
+                    
+                    // Hide all tab contents
+                    tabContents.forEach(content => {
+                        content.classList.add('hidden');
+                    });
+                    
+                    // Show the selected tab content
+                    const targetTab = document.getElementById(targetTabId);
+                    if (targetTab) {
+                        targetTab.classList.remove('hidden');
+                    }
+                    
+                    // Update active tab styling
+                    tabButtons.forEach(btn => {
+                        btn.classList.remove('border-blue-500', 'text-blue-600');
+                        btn.classList.add('border-transparent', 'text-gray-500');
+                    });
+                    
+                    this.classList.remove('border-transparent', 'text-gray-500');
+                    this.classList.add('border-blue-500', 'text-blue-600');
+                });
+            });
+            
+            // Delivery zones management
+            const addZoneBtn = document.getElementById('add-zone-btn');
+            const zonesContainer = document.getElementById('delivery-zones-container');
+            
+            if (addZoneBtn && zonesContainer) {
+                addZoneBtn.addEventListener('click', function() {
+                    const zoneDiv = document.createElement('div');
+                    zoneDiv.className = 'flex items-center mb-2';
+                    zoneDiv.innerHTML = `
+                        <input type="text" name="delivery_zones[]" class="form-input mr-2" placeholder="Zone name">
+                        <button type="button" class="btn btn-danger remove-zone-btn">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    `;
+                    zonesContainer.appendChild(zoneDiv);
+                    
+                    // Add event listener to new remove button
+                    zoneDiv.querySelector('.remove-zone-btn').addEventListener('click', function() {
+                        zonesContainer.removeChild(zoneDiv);
+                    });
+                });
+                
+                // Add event listeners to existing remove buttons
+                document.querySelectorAll('.remove-zone-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        zonesContainer.removeChild(this.parentElement);
+                    });
+                });
+            }
+            
+            // Form submissions
+            const forms = [
+                'payment-settings-form',
+                'notification-settings-form',
+                'delivery-settings-form',
+                'security-settings-form'
+            ];
+            
+            forms.forEach(formId => {
+                const form = document.getElementById(formId);
+                if (form) {
+                    form.addEventListener('submit', function(e) {
+                        e.preventDefault();
+                        const formData = new FormData(this);
+                        const data = Object.fromEntries(formData.entries());
+                        
+                        // In a real app, you would send this to your API
+                        console.log(`Saving ${formId} data:`, data);
+                        
+                        // Show success message
+                        alert('Settings saved successfully!');
+                    });
+                }
+            });
+        });
+    </script>
+</body>
+</html>

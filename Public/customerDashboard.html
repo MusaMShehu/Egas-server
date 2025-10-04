@@ -1,0 +1,3248 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-GAS - Customer Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment"></script>
+</head>
+
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-blue-800 text-white p-4">
+            <div class="flex items-center space-x-2 mb-8">
+                <i class="fas fa-fire text-2xl"></i>
+                <h1 class="text-xl font-bold">e-GAS</h1>
+            </div>
+            <nav>
+                <a href="#" class="block py-2 px-4 rounded mb-2 nav-link active" data-page="dashboard">
+                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2 nav-link" data-page="order-gas">
+                    <i class="fas fa-gas-pump mr-2"></i> Order Gas
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2 nav-link" data-page="subscriptions">
+                    <i class="fas fa-calendar-check mr-2"></i> Subscriptions
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2 nav-link" data-page="order-history">
+                    <i class="fas fa-history mr-2"></i> Order History
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2 nav-link" data-page="payments">
+                    <i class="fas fa-wallet mr-2"></i> Payments
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2 nav-link" data-page="profile">
+                    <i class="fas fa-user mr-2"></i> Profile
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2 nav-link" data-page="support">
+                    <i class="fas fa-headset mr-2"></i> Support
+                </a>
+                <a href="#" class="block py-2 px-4 hover:bg-blue-700 rounded mb-2 nav-link" data-page="settings">
+                    <i class="fas fa-cog mr-2"></i> Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-auto">
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-bold" id="page-title">Customer Dashboard</h1>
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <i class="fas fa-bell text-gray-600 text-xl cursor-pointer" id="notification-bell"></i>
+                        <span
+                            class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-4 w-4 flex items-center justify-center hidden"
+                            id="notification-count">3</span>
+                    </div>
+                    <span class="text-gray-700">Welcome, <span id="username">John Doe</span></span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded" id="logout-btn">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </header>
+
+            <!-- Page Content Container -->
+            <div id="page-content">
+                <!-- Dashboard Page (default) -->
+                <div class="page" id="dashboard-page">
+                    <!-- Stats Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                        <div class="bg-white p-4 rounded shadow">
+                            <h3 class="text-gray-500">Active Orders</h3>
+                            <p class="text-2xl font-bold" id="active-orders-count">2</p>
+                            <div class="h-2 bg-gray-200 rounded-full mt-2">
+                                <div class="h-2 bg-blue-500 rounded-full" style="width: 60%"></div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded shadow">
+                            <h3 class="text-gray-500">Upcoming Deliveries</h3>
+                            <p class="text-2xl font-bold" id="upcoming-deliveries">1</p>
+                            <div class="text-sm text-gray-500" id="next-delivery-date">Next: 25 May 2023</div>
+                        </div>
+                        <div class="bg-white p-4 rounded shadow">
+                            <h3 class="text-gray-500">Subscription Status</h3>
+                            <p class="text-2xl font-bold text-green-500" id="subscription-status">Active</p>
+                            <div class="text-sm text-gray-500" id="subscription-type">Monthly Auto-Refill</div>
+                        </div>
+                        <div class="bg-white p-4 rounded shadow">
+                            <h3 class="text-gray-500">Account Balance</h3>
+                            <p class="text-2xl font-bold" id="account-balance">₦15,250</p>
+                            <button class="text-blue-600 text-sm mt-1" id="refresh-balance">
+                                <i class="fas fa-sync-alt mr-1"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Quick Actions -->
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <h2 class="text-xl font-bold mb-4">Quick Actions</h2>
+                        <div class="flex flex-wrap gap-4">
+                            <button class="bg-blue-600 text-white px-6 py-3 rounded flex items-center"
+                                id="quick-order-gas">
+                                <i class="fas fa-gas-pump mr-2"></i> Order Gas
+                            </button>
+                            <button class="bg-green-600 text-white px-6 py-3 rounded flex items-center"
+                                id="quick-manage-subscription">
+                                <i class="fas fa-calendar-plus mr-2"></i> Manage Subscription
+                            </button>
+                            <button class="bg-purple-600 text-white px-6 py-3 rounded flex items-center"
+                                id="quick-top-up">
+                                <i class="fas fa-wallet mr-2"></i> Top Up Wallet
+                            </button>
+                            <button class="bg-yellow-600 text-white px-6 py-3 rounded flex items-center"
+                                id="quick-support">
+                                <i class="fas fa-headset mr-2"></i> Contact Support
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Recent Orders -->
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <div class="flex justify-between items-center mb-4">
+                            <h2 class="text-xl font-bold">Recent Orders</h2>
+                            <button class="text-blue-600 hover:underline" id="view-all-orders">View All</button>
+                        </div>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white" id="recent-orders-table">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="py-2 px-4">Order ID</th>
+                                        <th class="py-2 px-4">Date</th>
+                                        <th class="py-2 px-4">Product</th>
+                                        <th class="py-2 px-4">Quantity</th>
+                                        <th class="py-2 px-4">Amount</th>
+                                        <th class="py-2 px-4">Status</th>
+                                        <th class="py-2 px-4">Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="recent-orders-body">
+                                    <!-- Orders will be loaded here dynamically -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <!-- Delivery Status -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+                        <!-- Subscription Status -->
+                        <div class="bg-white p-6 rounded shadow">
+                            <div class="flex justify-between items-center mb-4">
+                                <h2 class="text-xl font-bold">Subscription Details</h2>
+                                <button class="text-blue-600 hover:underline" id="manage-subscription">Manage</button>
+                            </div>
+                            <div class="space-y-3" id="subscription-details">
+                                <!-- Subscription details will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Delivery Tracking -->
+                        <div class="bg-white p-6 rounded shadow">
+                            <h2 class="text-xl font-bold mb-4">Current Delivery Status</h2>
+                            <div id="delivery-status-container">
+                                <!-- Delivery status will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Consumption Chart -->
+                    <div class="bg-white p-6 rounded shadow">
+                        <h2 class="text-xl font-bold mb-4">Gas Consumption</h2>
+                        <canvas id="consumption-chart" height="120"></canvas>
+                    </div>
+                </div>
+
+                <!-- Order Gas Page -->
+                <div class="page hidden" id="order-gas-page">
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <h2 class="text-xl font-bold mb-4">Order Gas</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <!-- Product Selection -->
+                            <div class="md:col-span-2">
+                                <h3 class="font-semibold mb-3">Select Product</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4" id="product-list">
+                                    <!-- Products will be loaded here -->
+                                </div>
+                            </div>
+
+                            <!-- Order Summary -->
+                            <div class="bg-gray-50 p-4 rounded border border-gray-200">
+                                <h3 class="font-semibold mb-3">Order Summary</h3>
+                                <div id="order-summary">
+                                    <p class="text-gray-500 mb-4">Select a product to continue</p>
+                                </div>
+                                <div class="mt-4 hidden" id="delivery-options">
+                                    <h4 class="font-medium mb-2">Delivery Options</h4>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="delivery" value="standard" checked class="mr-2">
+                                            Standard Delivery (3-5 days)
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="delivery" value="express" class="mr-2">
+                                            Express Delivery (24 hours) - +₦1,500
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="mt-6 hidden" id="payment-options">
+                                    <h4 class="font-medium mb-2">Payment Method</h4>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="payment" value="wallet" checked class="mr-2">
+                                            Pay from Wallet (Balance: ₦<span id="wallet-balance-summary">0</span>)
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="payment" value="card" class="mr-2">
+                                            Pay with Card
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="payment" value="transfer" class="mr-2">
+                                            Bank Transfer
+                                        </label>
+                                    </div>
+                                    <button class="w-full bg-blue-600 text-white py-2 rounded mt-4"
+                                        id="place-order-btn">
+                                        Place Order
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Subscriptions Page -->
+                <div class="page hidden" id="subscriptions-page">
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <div class="flex justify-between items-center mb-6">
+                            <h2 class="text-xl font-bold">My Subscriptions</h2>
+                            <button class="bg-blue-600 text-white px-4 py-2 rounded" id="new-subscription-btn">
+                                <i class="fas fa-plus mr-2"></i> New Subscription
+                            </button>
+                        </div>
+
+                        <div id="active-subscription-container">
+                            <!-- Active subscription will be shown here -->
+                        </div>
+
+                        <div class="mt-8">
+                            <h3 class="font-semibold mb-4">Available Subscription Plans</h3>
+                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4" id="subscription-plans">
+                                <!-- Subscription plans will be loaded here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Order History Page -->
+                <div class="page hidden" id="order-history-page">
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <h2 class="text-xl font-bold mb-6">Order History</h2>
+
+                        <div class="flex flex-wrap gap-4 mb-6">
+                            <select class="border rounded px-3 py-2" id="order-filter-status">
+                                <option value="all">All Statuses</option>
+                                <option value="processing">Processing</option>
+                                <option value="shipped">Shipped</option>
+                                <option value="delivered">Delivered</option>
+                                <option value="cancelled">Cancelled</option>
+                            </select>
+                            <select class="border rounded px-3 py-2" id="order-filter-period">
+                                <option value="all">All Time</option>
+                                <option value="month">This Month</option>
+                                <option value="3months">Last 3 Months</option>
+                                <option value="year">This Year</option>
+                            </select>
+                            <button class="bg-blue-600 text-white px-4 py-2 rounded" id="apply-order-filters">
+                                Apply Filters
+                            </button>
+                            <button class="bg-gray-200 text-gray-800 px-4 py-2 rounded" id="reset-order-filters">
+                                Reset
+                            </button>
+                        </div>
+
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full bg-white" id="order-history-table">
+                                <thead>
+                                    <tr class="bg-gray-100">
+                                        <th class="py-2 px-4">Order ID</th>
+                                        <th class="py-2 px-4">Date</th>
+                                        <th class="py-2 px-4">Product</th>
+                                        <th class="py-2 px-4">Qty</th>
+                                        <th class="py-2 px-4">Amount</th>
+                                        <th class="py-2 px-4">Status</th>
+                                        <th class="py-2 px-4">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="order-history-body">
+                                    <!-- Order history will be loaded here -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="flex justify-between items-center mt-4">
+                            <div class="text-gray-600" id="order-history-count">Showing 0 orders</div>
+                            <div class="flex space-x-2" id="order-history-pagination">
+                                <!-- Pagination will be added here -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Payments Page -->
+                <div class="page hidden" id="payments-page">
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <h2 class="text-xl font-bold mb-6">Payments</h2>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <div class="bg-blue-50 p-4 rounded border border-blue-100">
+                                <h3 class="font-medium text-blue-800 mb-2">Wallet Balance</h3>
+                                <p class="text-2xl font-bold" id="wallet-balance">₦15,250</p>
+                                <button class="text-blue-600 mt-2" id="refresh-wallet">
+                                    <i class="fas fa-sync-alt mr-1"></i> Refresh
+                                </button>
+                            </div>
+
+                            <div class="bg-green-50 p-4 rounded border border-green-100">
+                                <h3 class="font-medium text-green-800 mb-2">Total Spent</h3>
+                                <p class="text-2xl font-bold" id="total-spent">₦42,750</p>
+                                <p class="text-sm text-gray-600 mt-1">Last 12 months</p>
+                            </div>
+
+                            <div class="bg-purple-50 p-4 rounded border border-purple-100">
+                                <h3 class="font-medium text-purple-800 mb-2">Pending Payments</h3>
+                                <p class="text-2xl font-bold" id="pending-payments">₦0</p>
+                                <button class="text-purple-600 mt-2" id="view-pending-payments">
+                                    View Details
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mb-6">
+                            <h3 class="font-semibold mb-3">Top Up Wallet</h3>
+                            <div class="flex flex-wrap gap-4">
+                                <button class="border rounded px-4 py-2 amount-btn" data-amount="5000">₦5,000</button>
+                                <button class="border rounded px-4 py-2 amount-btn" data-amount="10000">₦10,000</button>
+                                <button class="border rounded px-4 py-2 amount-btn" data-amount="20000">₦20,000</button>
+                                <button class="border rounded px-4 py-2 amount-btn" data-amount="50000">₦50,000</button>
+                                <div class="flex items-center">
+                                    <span class="mr-2">or</span>
+                                    <input type="number" placeholder="Custom amount"
+                                        class="border rounded px-3 py-2 w-32" id="custom-amount">
+                                    <button class="ml-2 bg-blue-600 text-white px-3 py-2 rounded" id="custom-top-up">
+                                        Add
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="mt-4 hidden" id="payment-method-container">
+                                <h4 class="font-medium mb-2">Payment Method</h4>
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div class="border rounded p-3 cursor-pointer payment-method active"
+                                        data-method="card">
+                                        <i class="fas fa-credit-card text-blue-600 mr-2"></i>
+                                        <span>Credit/Debit Card</span>
+                                    </div>
+                                    <div class="border rounded p-3 cursor-pointer payment-method"
+                                        data-method="transfer">
+                                        <i class="fas fa-university text-green-600 mr-2"></i>
+                                        <span>Bank Transfer</span>
+                                    </div>
+                                    <div class="border rounded p-3 cursor-pointer payment-method" data-method="ussd">
+                                        <i class="fas fa-mobile-alt text-purple-600 mr-2"></i>
+                                        <span>USSD</span>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4 hidden" id="card-payment-details">
+                                    <div class="space-y-3">
+                                        <div>
+                                            <label class="block text-gray-700 mb-1">Card Number</label>
+                                            <input type="text" placeholder="1234 5678 9012 3456"
+                                                class="w-full border rounded px-3 py-2">
+                                        </div>
+                                        <div class="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label class="block text-gray-700 mb-1">Expiry Date</label>
+                                                <input type="text" placeholder="MM/YY"
+                                                    class="w-full border rounded px-3 py-2">
+                                            </div>
+                                            <div>
+                                                <label class="block text-gray-700 mb-1">CVV</label>
+                                                <input type="text" placeholder="123"
+                                                    class="w-full border rounded px-3 py-2">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <button class="w-full bg-green-600 text-white py-2 rounded mt-4" id="confirm-payment">
+                                    Pay ₦<span id="payment-amount">0</span>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h3 class="font-semibold mb-3">Transaction History</h3>
+                            <div class="overflow-x-auto">
+                                <table class="min-w-full bg-white" id="transaction-history-table">
+                                    <thead>
+                                        <tr class="bg-gray-100">
+                                            <th class="py-2 px-4">Date</th>
+                                            <th class="py-2 px-4">Transaction ID</th>
+                                            <th class="py-2 px-4">Description</th>
+                                            <th class="py-2 px-4">Amount</th>
+                                            <th class="py-2 px-4">Status</th>
+                                            <th class="py-2 px-4">Receipt</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="transaction-history-body">
+                                        <!-- Transaction history will be loaded here -->
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="flex justify-between items-center mt-4">
+                                <div class="text-gray-600" id="transaction-history-count">Showing 0 transactions</div>
+                                <div class="flex space-x-2" id="transaction-history-pagination">
+                                    <!-- Pagination will be added here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Profile Page -->
+                <div class="page hidden" id="profile-page">
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <h2 class="text-xl font-bold mb-6">My Profile</h2>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                            <div class="md:col-span-2">
+                                <form id="profile-form">
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label class="block text-gray-700 mb-1">First Name</label>
+                                            <input type="text" id="first-name" class="w-full border rounded px-3 py-2">
+                                        </div>
+                                        <div>
+                                            <label class="block text-gray-700 mb-1">Last Name</label>
+                                            <input type="text" id="last-name" class="w-full border rounded px-3 py-2">
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="block text-gray-700 mb-1">Email</label>
+                                        <input type="email" id="email" class="w-full border rounded px-3 py-2">
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="block text-gray-700 mb-1">Phone Number</label>
+                                        <input type="tel" id="phone" class="w-full border rounded px-3 py-2">
+                                    </div>
+
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                                        <div>
+                                            <label class="block text-gray-700 mb-1">Date of Birth</label>
+                                            <input type="date" id="dob" class="w-full border rounded px-3 py-2">
+                                        </div>
+                                        <div>
+                                            <label class="block text-gray-700 mb-1">Gender</label>
+                                            <select id="gender" class="w-full border rounded px-3 py-2">
+                                                <option value="male">Male</option>
+                                                <option value="female">Female</option>
+                                                <option value="other">Other</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <label class="block text-gray-700 mb-1">Address</label>
+                                        <textarea id="address" rows="3"
+                                            class="w-full border rounded px-3 py-2"></textarea>
+                                    </div>
+
+                                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">
+                                        Save Changes
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div>
+                                <div class="bg-gray-50 p-4 rounded border border-gray-200 mb-6">
+                                    <h3 class="font-semibold mb-3">Profile Picture</h3>
+                                    <div class="flex flex-col items-center">
+                                        <div class="relative mb-3">
+                                            <img src="https://via.placeholder.com/150" alt="Profile"
+                                                class="w-32 h-32 rounded-full object-cover" id="profile-picture">
+                                            <label for="profile-upload"
+                                                class="absolute bottom-0 right-0 bg-blue-600 text-white rounded-full p-2 cursor-pointer">
+                                                <i class="fas fa-camera"></i>
+                                            </label>
+                                            <input type="file" id="profile-upload" class="hidden" accept="image/*">
+                                        </div>
+                                        <button class="text-blue-600" id="remove-profile-pic">
+                                            Remove Picture
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="bg-gray-50 p-4 rounded border border-gray-200">
+                                    <h3 class="font-semibold mb-3">Change Password</h3>
+                                    <form id="password-form">
+                                        <div class="mb-3">
+                                            <label class="block text-gray-700 mb-1">Current Password</label>
+                                            <input type="password" id="current-password"
+                                                class="w-full border rounded px-3 py-2">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="block text-gray-700 mb-1">New Password</label>
+                                            <input type="password" id="new-password"
+                                                class="w-full border rounded px-3 py-2">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="block text-gray-700 mb-1">Confirm New Password</label>
+                                            <input type="password" id="confirm-password"
+                                                class="w-full border rounded px-3 py-2">
+                                        </div>
+                                        <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded">
+                                            Change Password
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Support Page -->
+                <div class="page hidden" id="support-page">
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <h2 class="text-xl font-bold mb-6">Support Center</h2>
+
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
+                            <div class="bg-blue-50 p-4 rounded border border-blue-100 cursor-pointer hover:bg-blue-100"
+                                id="new-ticket-card">
+                                <div class="flex items-center justify-center h-full">
+                                    <div class="text-center">
+                                        <i class="fas fa-plus-circle text-blue-600 text-4xl mb-2"></i>
+                                        <h3 class="font-semibold">New Support Ticket</h3>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-green-50 p-4 rounded border border-green-100">
+                                <h3 class="font-semibold mb-2">Open Tickets</h3>
+                                <p class="text-3xl font-bold mb-2" id="open-tickets-count">2</p>
+                                <button class="text-green-600" id="view-open-tickets">
+                                    View All
+                                </button>
+                            </div>
+
+                            <div class="bg-purple-50 p-4 rounded border border-purple-100">
+                                <h3 class="font-semibold mb-2">FAQ</h3>
+                                <p class="mb-2">Find answers to common questions</p>
+                                <button class="text-purple-600" id="view-faq">
+                                    Browse FAQs
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="ticket-list-container">
+                            <h3 class="font-semibold mb-4">Recent Tickets</h3>
+                            <div class="space-y-4" id="ticket-list">
+                                <!-- Tickets will be loaded here -->
+                            </div>
+                        </div>
+
+                        <div class="hidden" id="new-ticket-container">
+                            <h3 class="font-semibold mb-4">Create New Ticket</h3>
+                            <form id="ticket-form">
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 mb-1">Subject</label>
+                                    <input type="text" id="ticket-subject" class="w-full border rounded px-3 py-2">
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 mb-1">Category</label>
+                                    <select id="ticket-category" class="w-full border rounded px-3 py-2">
+                                        <option value="delivery">Delivery Issues</option>
+                                        <option value="payment">Payment Issues</option>
+                                        <option value="product">Product Questions</option>
+                                        <option value="account">Account Issues</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 mb-1">Description</label>
+                                    <textarea id="ticket-description" rows="5"
+                                        class="w-full border rounded px-3 py-2"></textarea>
+                                </div>
+
+                                <div class="mb-4">
+                                    <label class="block text-gray-700 mb-1">Attachments (optional)</label>
+                                    <input type="file" id="ticket-attachments" class="w-full border rounded px-3 py-2"
+                                        multiple>
+                                </div>
+
+                                <div class="flex justify-end space-x-3">
+                                    <button type="button" class="bg-gray-200 text-gray-800 px-4 py-2 rounded"
+                                        id="cancel-ticket">
+                                        Cancel
+                                    </button>
+                                    <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded">
+                                        Submit Ticket
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Settings Page -->
+                <div class="page hidden" id="settings-page">
+                    <div class="bg-white p-6 rounded shadow mb-8">
+                        <h2 class="text-xl font-bold mb-6">Settings</h2>
+
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                            <div class="md:col-span-1">
+                                <div class="space-y-1" id="settings-menu">
+                                    <button
+                                        class="block w-full text-left px-4 py-2 rounded bg-blue-100 text-blue-800 font-medium settings-menu-item active"
+                                        data-tab="account">
+                                        Account Settings
+                                    </button>
+                                    <button
+                                        class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 settings-menu-item"
+                                        data-tab="notifications">
+                                        Notifications
+                                    </button>
+                                    <button
+                                        class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 settings-menu-item"
+                                        data-tab="security">
+                                        Security
+                                    </button>
+                                    <button
+                                        class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 settings-menu-item"
+                                        data-tab="privacy">
+                                        Privacy
+                                    </button>
+                                    <button
+                                        class="block w-full text-left px-4 py-2 rounded hover:bg-gray-100 settings-menu-item"
+                                        data-tab="preferences">
+                                        Preferences
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="md:col-span-3">
+                                <div id="account-tab" class="settings-tab">
+                                    <h3 class="font-semibold mb-4">Account Settings</h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <label class="block text-gray-700 mb-1">Language</label>
+                                            <select class="w-full border rounded px-3 py-2">
+                                                <option>English</option>
+                                                <option>French</option>
+                                                <option>Spanish</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-gray-700 mb-1">Timezone</label>
+                                            <select class="w-full border rounded px-3 py-2">
+                                                <option>(GMT+1) West Africa Time</option>
+                                                <option>(GMT) Greenwich Mean Time</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label class="block text-gray-700 mb-1">Currency</label>
+                                            <select class="w-full border rounded px-3 py-2">
+                                                <option>Naira (₦)</option>
+                                                <option>Dollar ($)</option>
+                                                <option>Euro (€)</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="pt-4 border-t">
+                                            <button class="bg-red-500 text-white px-4 py-2 rounded">
+                                                Deactivate Account
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="notifications-tab" class="settings-tab hidden">
+                                    <h3 class="font-semibold mb-4">Notification Preferences</h3>
+                                    <div class="space-y-4">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="font-medium">Email Notifications</h4>
+                                                <p class="text-sm text-gray-600">Receive important updates via email</p>
+                                            </div>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" class="sr-only peer" checked>
+                                                <div
+                                                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                                </div>
+                                            </label>
+                                        </div>
+
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="font-medium">SMS Notifications</h4>
+                                                <p class="text-sm text-gray-600">Receive order updates via SMS</p>
+                                            </div>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" class="sr-only peer" checked>
+                                                <div
+                                                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                                </div>
+                                            </label>
+                                        </div>
+
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="font-medium">Push Notifications</h4>
+                                                <p class="text-sm text-gray-600">Receive app notifications</p>
+                                            </div>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" class="sr-only peer" checked>
+                                                <div
+                                                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="security-tab" class="settings-tab hidden">
+                                    <h3 class="font-semibold mb-4">Security Settings</h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <h4 class="font-medium mb-2">Two-Factor Authentication</h4>
+                                            <div class="flex items-center justify-between">
+                                                <p class="text-sm text-gray-600">Add an extra layer of security to your
+                                                    account</p>
+                                                <button class="bg-blue-600 text-white px-3 py-1 rounded text-sm">
+                                                    Enable
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="pt-4 border-t">
+                                            <h4 class="font-medium mb-2">Active Sessions</h4>
+                                            <div class="space-y-3" id="active-sessions">
+                                                <!-- Sessions will be listed here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="privacy-tab" class="settings-tab hidden">
+                                    <h3 class="font-semibold mb-4">Privacy Settings</h3>
+                                    <div class="space-y-4">
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="font-medium">Profile Visibility</h4>
+                                                <p class="text-sm text-gray-600">Who can see your profile</p>
+                                            </div>
+                                            <select class="border rounded px-3 py-1">
+                                                <option>Private</option>
+                                                <option>Public</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="font-medium">Data Sharing</h4>
+                                                <p class="text-sm text-gray-600">Allow anonymized data for analytics</p>
+                                            </div>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" class="sr-only peer">
+                                                <div
+                                                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div id="preferences-tab" class="settings-tab hidden">
+                                    <h3 class="font-semibold mb-4">Preferences</h3>
+                                    <div class="space-y-4">
+                                        <div>
+                                            <h4 class="font-medium mb-2">Default Delivery Address</h4>
+                                            <select class="w-full border rounded px-3 py-2">
+                                                <option>Home - 123 Main St, Lagos</option>
+                                                <option>Office - 456 Business Ave, Lagos</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <h4 class="font-medium mb-2">Preferred Payment Method</h4>
+                                            <select class="w-full border rounded px-3 py-2">
+                                                <option>Wallet</option>
+                                                <option>Card</option>
+                                                <option>Bank Transfer</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="flex items-center justify-between">
+                                            <div>
+                                                <h4 class="font-medium">Auto-Top Up</h4>
+                                                <p class="text-sm text-gray-600">Automatically top up wallet when
+                                                    balance is low</p>
+                                            </div>
+                                            <label class="relative inline-flex items-center cursor-pointer">
+                                                <input type="checkbox" class="sr-only peer">
+                                                <div
+                                                    class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600">
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notification Panel -->
+    <div class="fixed right-0 top-0 h-full w-80 bg-white shadow-lg transform translate-x-full transition-transform duration-300 z-50"
+        id="notification-panel">
+        <div class="p-4 border-b flex justify-between items-center">
+            <h3 class="font-bold">Notifications</h3>
+            <button class="text-gray-500" id="close-notifications">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="overflow-y-auto h-full" id="notification-list">
+            <!-- Notifications will be loaded here -->
+        </div>
+    </div>
+
+    <!-- Modal Overlay -->
+    <div class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden" id="modal-overlay"></div>
+
+    <script>
+    
+        // // DOM Elements
+        // const pageTitle = document.getElementById('page-title');
+        // const pageContent = document.getElementById('page-content');
+        // const navLinks = document.querySelectorAll('.nav-link');
+        // const pages = document.querySelectorAll('.page');
+        // const username = document.getElementById('username');
+        // const activeOrdersCount = document.getElementById('active-orders-count');
+        // const upcomingDeliveries = document.getElementById('upcoming-deliveries');
+        // const nextDeliveryDate = document.getElementById('next-delivery-date');
+        // const subscriptionStatus = document.getElementById('subscription-status');
+        // const subscriptionType = document.getElementById('subscription-type');
+        // const accountBalance = document.getElementById('account-balance');
+        // const recentOrdersBody = document.getElementById('recent-orders-body');
+        // const subscriptionDetails = document.getElementById('subscription-details');
+        // const deliveryStatusContainer = document.getElementById('delivery-status-container');
+        // const notificationBell = document.getElementById('notification-bell');
+        // const notificationCount = document.getElementById('notification-count');
+        // const notificationPanel = document.getElementById('notification-panel');
+        // const closeNotifications = document.getElementById('close-notifications');
+        // const notificationList = document.getElementById('notification-list');
+        // const modalOverlay = document.getElementById('modal-overlay');
+        // const refreshBalance = document.getElementById('refresh-balance');
+        // const quickOrderGas = document.getElementById('quick-order-gas');
+        // const quickManageSubscription = document.getElementById('quick-manage-subscription');
+        // const quickTopUp = document.getElementById('quick-top-up');
+        // const quickSupport = document.getElementById('quick-support');
+        // const viewAllOrders = document.getElementById('view-all-orders');
+        // const manageSubscription = document.getElementById('manage-subscription');
+        // const logoutBtn = document.getElementById('logout-btn');
+
+        // // Quick fetch without error handling
+        // const getDashboardData = () =>
+        //     fetch('http://localhost:5000/api/v1/dashboard', {
+        //         headers: {
+        //             'Authorization': `Bearer ${localStorage.getItem('authToken')}`
+        //         }
+        //     }).then(res => res.json());
+
+        // // Initialize the dashboard
+        // function initDashboard() {
+        //     // Set user data
+        //     username.textContent = `${userData.firstName} ${userData.lastName}`;
+
+        //     // Load dashboard stats
+        //     updateDashboardStats();
+
+        //     // Load recent orders
+        //     loadRecentOrders();
+
+        //     // Load subscription details
+        //     loadSubscriptionDetails();
+
+        //     // Load delivery status
+        //     loadDeliveryStatus();
+
+        //     // Load notifications
+        //     loadNotifications();
+
+        //     // Initialize chart
+        //     initConsumptionChart();
+
+        //     // Set up event listeners
+        //     setupEventListeners();
+        // }
+
+        // // Update dashboard statistics
+        // function updateDashboardStats() {
+        //     const activeOrders = userData.recentOrders.filter(order => order.status !== 'delivered').length;
+        //     activeOrdersCount.textContent = activeOrders;
+
+        //     upcomingDeliveries.textContent = userData.subscription.active ? 1 : 0;
+        //     nextDeliveryDate.textContent = `Next: ${formatDate(userData.subscription.nextDelivery)}`;
+
+        //     subscriptionStatus.textContent = userData.subscription.status;
+        //     subscriptionType.textContent = `${userData.subscription.type.replace(/^\w/, c => c.toUpperCase())} Auto-Refill`;
+
+        //     accountBalance.textContent = `₦${userData.walletBalance.toLocaleString()}`;
+        // }
+
+        // // Load recent orders
+        // function loadRecentOrders() {
+        //     recentOrdersBody.innerHTML = '';
+
+        //     userData.recentOrders.forEach(order => {
+        //         const row = document.createElement('tr');
+        //         row.className = 'border-b';
+        //         row.innerHTML = `
+        //             <td class="py-2 px-4">${order.id}</td>
+        //             <td class="py-2 px-4">${formatDate(order.date)}</td>
+        //             <td class="py-2 px-4">${order.product}</td>
+        //             <td class="py-2 px-4">${order.quantity}</td>
+        //             <td class="py-2 px-4">₦${order.amount.toLocaleString()}</td>
+        //             <td class="py-2 px-4">
+        //                 <span class="${getStatusClass(order.status)} px-2 py-1 rounded">
+        //                     ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+        //                 </span>
+        //             </td>
+        //             <td class="py-2 px-4">
+        //                 ${order.status === 'processing' ?
+        //                 '<button class="text-blue-600 hover:underline track-order" data-order="${order.id}">Track</button>' :
+        //                 '<button class="text-blue-600 hover:underline view-invoice" data-order="${order.id}">Invoice</button>'}
+        //             </td>
+        //         `;
+        //         recentOrdersBody.appendChild(row);
+        //     });
+        // }
+
+        // // Load subscription details
+        // function loadSubscriptionDetails() {
+        //     if (userData.subscription.active) {
+        //         subscriptionDetails.innerHTML = `
+        //             <div class="space-y-2">
+        //                 <div class="flex justify-between">
+        //                     <span class="text-gray-600">Plan:</span>
+        //                     <span class="font-medium">${userData.subscription.type.replace(/^\w/, c => c.toUpperCase())} Auto-Refill</span>
+        //                 </div>
+        //                 <div class="flex justify-between">
+        //                     <span class="text-gray-600">Product:</span>
+        //                     <span class="font-medium">${userData.subscription.product}</span>
+        //                 </div>
+        //                 <div class="flex justify-between">
+        //                     <span class="text-gray-600">Price:</span>
+        //                     <span class="font-medium">₦${userData.subscription.price.toLocaleString()}/month</span>
+        //                 </div>
+        //                 <div class="flex justify-between">
+        //                     <span class="text-gray-600">Next Delivery:</span>
+        //                     <span class="font-medium">${formatDate(userData.subscription.nextDelivery)}</span>
+        //                 </div>
+        //             </div>
+        //         `;
+        //     } else {
+        //         subscriptionDetails.innerHTML = `
+        //             <p class="text-gray-600">You don't have an active subscription.</p>
+        //             <button class="mt-2 bg-blue-600 text-white px-4 py-2 rounded" id="subscribe-now">
+        //                 Subscribe Now
+        //             </button>
+        //         `;
+        //     }
+        // }
+
+        // // Load delivery status
+        // function loadDeliveryStatus() {
+        //     const activeOrder = userData.recentOrders.find(order => order.status === 'processing');
+
+        //     if (activeOrder && activeOrder.tracking) {
+        //         deliveryStatusContainer.innerHTML = `
+        //             <div class="space-y-4">
+        //                 <div>
+        //                     <h3 class="font-medium">Order #${activeOrder.id}</h3>
+        //                     <p class="text-sm text-gray-600">Estimated delivery: ${formatDate(activeOrder.deliveryDate)}</p>
+        //                 </div>
+                        
+        //                 <div class="space-y-2">
+        //                     <div class="flex justify-between text-sm">
+        //                         <span>Order Placed</span>
+        //                         <span>Shipped</span>
+        //                         <span>In Transit</span>
+        //                         <span>Delivered</span>
+        //                     </div>
+        //                     <div class="h-2 bg-gray-200 rounded-full">
+        //                         <div class="h-2 bg-blue-500 rounded-full" style="width: ${activeOrder.tracking.progress}%"></div>
+        //                     </div>
+        //                 </div>
+                        
+        //                 <div class="bg-blue-50 p-3 rounded">
+        //                     <p class="text-sm">
+        //                         <span class="font-medium">Current Status:</span> 
+        //                         ${activeOrder.tracking.status.replace('-', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+        //                     </p>
+        //                     <p class="text-sm mt-1">
+        //                         <span class="font-medium">Location:</span> ${activeOrder.tracking.location}
+        //                     </p>
+        //                 </div>
+                        
+        //                 <button class="w-full bg-blue-600 text-white py-2 rounded mt-2" id="track-order">
+        //                     View Full Tracking
+        //                 </button>
+        //             </div>
+        //         `;
+        //     } else {
+        //         deliveryStatusContainer.innerHTML = `
+        //             <p class="text-gray-600">No active deliveries at the moment.</p>
+        //         `;
+        //     }
+        // }
+
+        // // Load notifications
+        // function loadNotifications() {
+        //     const unreadCount = userData.notifications.filter(n => !n.read).length;
+
+        //     if (unreadCount > 0) {
+        //         notificationCount.textContent = unreadCount;
+        //         notificationCount.classList.remove('hidden');
+        //     } else {
+        //         notificationCount.classList.add('hidden');
+        //     }
+
+        //     // Load notification panel content
+        //     notificationList.innerHTML = '';
+        //     userData.notifications.forEach(notification => {
+        //         const notificationItem = document.createElement('div');
+        //         notificationItem.className = `p-3 border-b ${notification.read ? 'bg-white' : 'bg-blue-50'}`;
+        //         notificationItem.innerHTML = `
+        //             <div class="flex justify-between">
+        //                 <h4 class="font-medium">${notification.title}</h4>
+        //                 <span class="text-xs text-gray-500">${formatDate(notification.date, true)}</span>
+        //             </div>
+        //             <p class="text-sm mt-1">${notification.message}</p>
+        //         `;
+        //         notificationList.appendChild(notificationItem);
+        //     });
+        // }
+
+        // // Initialize consumption chart
+        // function initConsumptionChart() {
+        //     const ctx = document.getElementById('consumption-chart').getContext('2d');
+
+        //     // Sample data - in a real app, this would come from an API
+        //     const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+        //     const data = [12, 19, 15, 12, 10, 8]; // kg of gas per month
+
+        //     new Chart(ctx, {
+        //         type: 'line',
+        //         data: {
+        //             labels: labels,
+        //             datasets: [{
+        //                 label: 'Gas Consumption (kg)',
+        //                 data: data,
+        //                 backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        //                 borderColor: 'rgba(59, 130, 246, 1)',
+        //                 borderWidth: 2,
+        //                 tension: 0.4,
+        //                 fill: true
+        //             }]
+        //         },
+        //         options: {
+        //             responsive: true,
+        //             plugins: {
+        //                 legend: {
+        //                     display: false
+        //                 }
+        //             },
+        //             scales: {
+        //                 y: {
+        //                     beginAtZero: true,
+        //                     title: {
+        //                         display: true,
+        //                         text: 'kg'
+        //                     }
+        //                 }
+        //             }
+        //         }
+        //     });
+        // }
+
+        // // Set up event listeners
+        // function setupEventListeners() {
+        //     // Navigation links
+        //     navLinks.forEach(link => {
+        //         link.addEventListener('click', (e) => {
+        //             e.preventDefault();
+        //             const page = link.getAttribute('data-page');
+        //             showPage(page);
+
+        //             // Update active state
+        //             navLinks.forEach(nav => nav.classList.remove('bg-blue-700', 'active'));
+        //             link.classList.add('bg-blue-700', 'active');
+        //         });
+        //     });
+
+        //     // Notification bell
+        //     notificationBell.addEventListener('click', () => {
+        //         notificationPanel.classList.toggle('translate-x-full');
+        //         modalOverlay.classList.toggle('hidden');
+
+        //         // Mark notifications as read when panel is opened
+        //         userData.notifications.forEach(n => n.read = true);
+        //         loadNotifications();
+        //     });
+
+        //     // Close notifications
+        //     closeNotifications.addEventListener('click', () => {
+        //         notificationPanel.classList.add('translate-x-full');
+        //         modalOverlay.classList.add('hidden');
+        //     });
+
+        //     // Modal overlay
+        //     modalOverlay.addEventListener('click', () => {
+        //         notificationPanel.classList.add('translate-x-full');
+        //         modalOverlay.classList.add('hidden');
+        //     });
+
+        //     // Quick actions
+        //     quickOrderGas.addEventListener('click', () => showPage('order-gas'));
+        //     quickManageSubscription.addEventListener('click', () => showPage('subscriptions'));
+        //     quickTopUp.addEventListener('click', () => showPage('payments'));
+        //     quickSupport.addEventListener('click', () => showPage('support'));
+        //     viewAllOrders.addEventListener('click', () => showPage('order-history'));
+        //     manageSubscription.addEventListener('click', () => showPage('subscriptions'));
+
+        //     // Refresh balance
+        //     refreshBalance.addEventListener('click', () => {
+        //         // Simulate balance refresh
+        //         accountBalance.textContent = `₦${userData.walletBalance.toLocaleString()}`;
+
+        //         // Show refresh feedback
+        //         refreshBalance.innerHTML = '<i class="fas fa-check mr-1"></i> Updated';
+        //         setTimeout(() => {
+        //             refreshBalance.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
+        //         }, 2000);
+        //     });
+
+        //     // Logout
+        //     logoutBtn.addEventListener('click', () => {
+        //         if (confirm('Are you sure you want to logout?')) {
+        //             // In a real app, this would redirect to logout endpoint
+        //             alert('You have been logged out. Redirecting to login page...');
+        //             window.location.href = 'login.html';
+        //         }
+        //     });
+        // }
+
+        // // Show specific page
+        // function showPage(page) {
+        //     // Hide all pages
+        //     pages.forEach(p => p.classList.add('hidden'));
+
+        //     // Show selected page
+        //     document.getElementById(`${page}-page`).classList.remove('hidden');
+
+        //     // Update page title
+        //     const title = document.querySelector(`.nav-link[data-page="${page}"]`).textContent.trim();
+        //     pageTitle.textContent = title;
+
+        //     // Load page-specific content
+        //     switch (page) {
+        //         case 'order-gas':
+        //             loadOrderGasPage();
+        //             break;
+        //         case 'subscriptions':
+        //             loadSubscriptionsPage();
+        //             break;
+        //         case 'order-history':
+        //             loadOrderHistoryPage();
+        //             break;
+        //         case 'payments':
+        //             loadPaymentsPage();
+        //             break;
+        //         case 'profile':
+        //             loadProfilePage();
+        //             break;
+        //         case 'support':
+        //             loadSupportPage();
+        //             break;
+        //         case 'settings':
+        //             loadSettingsPage();
+        //             break;
+        //     }
+        // }
+
+        // // Load Order Gas page
+        // function loadOrderGasPage() {
+        //     const productList = document.getElementById('product-list');
+        //     const orderSummary = document.getElementById('order-summary');
+        //     const deliveryOptions = document.getElementById('delivery-options');
+        //     const paymentOptions = document.getElementById('payment-options');
+        //     const walletBalanceSummary = document.getElementById('wallet-balance-summary');
+
+        //     // Load products
+        //     productList.innerHTML = '';
+        //     userData.products.forEach(product => {
+        //         const productCard = document.createElement('div');
+        //         productCard.className = 'border rounded p-4 cursor-pointer product-card hover:border-blue-500';
+        //         productCard.setAttribute('data-id', product.id);
+        //         productCard.innerHTML = `
+        //             <div class="flex items-start">
+        //                 <img src="${product.image}" alt="${product.name}" class="w-16 h-16 object-cover rounded mr-3">
+        //                 <div>
+        //                     <h4 class="font-medium">${product.name}</h4>
+        //                     <p class="text-gray-600 text-sm">${product.description}</p>
+        //                     <p class="text-blue-600 font-bold mt-1">₦${product.price.toLocaleString()}</p>
+        //                 </div>
+        //             </div>
+        //         `;
+        //         productList.appendChild(productCard);
+        //     });
+
+        //     // Set wallet balance
+        //     walletBalanceSummary.textContent = userData.walletBalance.toLocaleString();
+
+        //     // Product selection
+        //     document.querySelectorAll('.product-card').forEach(card => {
+        //         card.addEventListener('click', () => {
+        //             // Remove active state from all cards
+        //             document.querySelectorAll('.product-card').forEach(c =>
+        //                 c.classList.remove('border-blue-500', 'bg-blue-50'));
+
+        //             // Add active state to selected card
+        //             card.classList.add('border-blue-500', 'bg-blue-50');
+
+        //             const productId = parseInt(card.getAttribute('data-id'));
+        //             const product = userData.products.find(p => p.id === productId);
+
+        //             // Update order summary
+        //             orderSummary.innerHTML = `
+        //                 <div class="flex justify-between mb-2">
+        //                     <span class="text-gray-600">Product:</span>
+        //                     <span class="font-medium">${product.name}</span>
+        //                 </div>
+        //                 <div class="flex justify-between mb-2">
+        //                     <span class="text-gray-600">Unit Price:</span>
+        //                     <span class="font-medium">₦${product.price.toLocaleString()}</span>
+        //                 </div>
+        //                 <div class="flex justify-between mb-2">
+        //                     <span class="text-gray-600">Quantity:</span>
+        //                     <div class="flex items-center">
+        //                         <button class="px-2 border rounded quantity-btn" data-action="decrease">-</button>
+        //                         <span class="mx-2 w-8 text-center" id="quantity">1</span>
+        //                         <button class="px-2 border rounded quantity-btn" data-action="increase">+</button>
+        //                     </div>
+        //                 </div>
+        //                 <div class="border-t pt-2 mt-2">
+        //                     <div class="flex justify-between font-bold">
+        //                         <span>Total:</span>
+        //                         <span id="order-total">₦${product.price.toLocaleString()}</span>
+        //                     </div>
+        //                 </div>
+        //             `;
+
+        //             // Show delivery options
+        //             deliveryOptions.classList.remove('hidden');
+
+        //             // Set up quantity buttons
+        //             document.querySelectorAll('.quantity-btn').forEach(btn => {
+        //                 btn.addEventListener('click', () => {
+        //                     const action = btn.getAttribute('data-action');
+        //                     let quantity = parseInt(document.getElementById('quantity').textContent);
+        //                     const price = product.price;
+
+        //                     if (action === 'increase') {
+        //                         quantity++;
+        //                     } else if (action === 'decrease' && quantity > 1) {
+        //                         quantity--;
+        //                     }
+
+        //                     document.getElementById('quantity').textContent = quantity;
+        //                     document.getElementById('order-total').textContent = `₦${(price * quantity).toLocaleString()}`;
+        //                 });
+        //             });
+
+        //             // Show payment options when delivery option is selected
+        //             document.querySelectorAll('input[name="delivery"]').forEach(radio => {
+        //                 radio.addEventListener('change', () => {
+        //                     paymentOptions.classList.remove('hidden');
+        //                 });
+        //             });
+        //         });
+        //     });
+
+        //     // Place order button
+        //     document.getElementById('place-order-btn').addEventListener('click', () => {
+        //         alert('Order placed successfully!');
+        //         showPage('dashboard');
+        //         // In a real app, this would send the order to the server
+        //     });
+        // }
+
+        // // Load Subscriptions page
+        // function loadSubscriptionsPage() {
+        //     const activeSubscriptionContainer = document.getElementById('active-subscription-container');
+        //     const subscriptionPlans = document.getElementById('subscription-plans');
+
+        //     // Load active subscription
+        //     if (userData.subscription.active) {
+        //         activeSubscriptionContainer.innerHTML = `
+        //             <div class="bg-blue-50 p-4 rounded border border-blue-200">
+        //                 <div class="flex justify-between items-start">
+        //                     <div>
+        //                         <h3 class="font-bold">Active Subscription</h3>
+        //                         <p class="text-gray-600">${userData.subscription.type.replace(/^\w/, c => c.toUpperCase())} Auto-Refill</p>
+        //                     </div>
+        //                     <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">Active</span>
+        //                 </div>
+                        
+        //                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        //                     <div>
+        //                         <p class="text-gray-600 text-sm">Product</p>
+        //                         <p class="font-medium">${userData.subscription.product}</p>
+        //                     </div>
+        //                     <div>
+        //                         <p class="text-gray-600 text-sm">Price</p>
+        //                         <p class="font-medium">₦${userData.subscription.price.toLocaleString()}/month</p>
+        //                     </div>
+        //                     <div>
+        //                         <p class="text-gray-600 text-sm">Next Delivery</p>
+        //                         <p class="font-medium">${formatDate(userData.subscription.nextDelivery)}</p>
+        //                     </div>
+        //                 </div>
+                        
+        //                 <div class="flex space-x-3 mt-4">
+        //                     <button class="bg-blue-600 text-white px-4 py-2 rounded text-sm" id="modify-subscription">
+        //                         Modify
+        //                     </button>
+        //                     <button class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm" id="cancel-subscription">
+        //                         Cancel
+        //                     </button>
+        //                 </div>
+        //             </div>
+        //         `;
+        //     } else {
+        //         activeSubscriptionContainer.innerHTML = `
+        //             <div class="bg-gray-50 p-4 rounded border border-gray-200 text-center">
+        //                 <p class="text-gray-600 mb-3">You don't have an active subscription</p>
+        //                 <button class="bg-blue-600 text-white px-4 py-2 rounded" id="subscribe-now">
+        //                     Subscribe Now
+        //                 </button>
+        //             </div>
+        //         `;
+        //     }
+
+        //     // Load subscription plans
+        //     subscriptionPlans.innerHTML = '';
+        //     userData.subscriptionPlans.forEach(plan => {
+        //         const planCard = document.createElement('div');
+        //         planCard.className = 'border rounded p-4 hover:border-blue-500';
+        //         planCard.innerHTML = `
+        //             <h4 class="font-bold mb-1">${plan.name}</h4>
+        //             <p class="text-gray-600 text-sm mb-2">${plan.product}</p>
+        //             <p class="text-2xl font-bold mb-2">₦${plan.price.toLocaleString()}</p>
+        //             <p class="text-green-600 text-sm mb-3">${plan.savings}</p>
+        //             <button class="w-full bg-blue-600 text-white py-2 rounded subscribe-btn" data-plan="${plan.id}">
+        //                 Choose Plan
+        //             </button>
+        //         `;
+        //         subscriptionPlans.appendChild(planCard);
+        //     });
+
+        //     // Subscribe buttons
+        //     document.querySelectorAll('.subscribe-btn').forEach(btn => {
+        //         btn.addEventListener('click', () => {
+        //             const planId = parseInt(btn.getAttribute('data-plan'));
+        //             const plan = userData.subscriptionPlans.find(p => p.id === planId);
+
+        //             if (confirm(`Confirm subscription to ${plan.name} for ₦${plan.price.toLocaleString()} per month?`)) {
+        //                 // In a real app, this would send to the server
+        //                 alert('Subscription activated successfully!');
+        //                 userData.subscription = {
+        //                     active: true,
+        //                     type: "monthly",
+        //                     product: plan.product,
+        //                     price: plan.price,
+        //                     nextDelivery: getNextMonthDate(),
+        //                     status: "active"
+        //                 };
+        //                 loadSubscriptionsPage();
+        //                 updateDashboardStats();
+        //             }
+        //         });
+        //     });
+
+        //     // Cancel subscription button
+        //     if (document.getElementById('cancel-subscription')) {
+        //         document.getElementById('cancel-subscription').addEventListener('click', () => {
+        //             if (confirm('Are you sure you want to cancel your subscription?')) {
+        //                 // In a real app, this would send to the server
+        //                 alert('Subscription cancelled successfully!');
+        //                 userData.subscription.active = false;
+        //                 loadSubscriptionsPage();
+        //                 updateDashboardStats();
+        //             }
+        //         });
+        //     }
+        // }
+
+        // // Load Order History page
+        // function loadOrderHistoryPage() {
+        //     const orderHistoryBody = document.getElementById('order-history-body');
+        //     const orderHistoryCount = document.getElementById('order-history-count');
+
+        //     // Load orders
+        //     orderHistoryBody.innerHTML = '';
+        //     userData.orderHistory.forEach(order => {
+        //         const row = document.createElement('tr');
+        //         row.className = 'border-b';
+        //         row.innerHTML = `
+        //             <td class="py-2 px-4">${order.id}</td>
+        //             <td class="py-2 px-4">${formatDate(order.date)}</td>
+        //             <td class="py-2 px-4">${order.product}</td>
+        //             <td class="py-2 px-4">${order.quantity}</td>
+        //             <td class="py-2 px-4">₦${order.amount.toLocaleString()}</td>
+        //             <td class="py-2 px-4">
+        //                 <span class="${getStatusClass(order.status)} px-2 py-1 rounded">
+        //                     ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+        //                 </span>
+        //             </td>
+        //             <td class="py-2 px-4">
+        //                 <button class="text-blue-600 hover:underline mr-2 view-order" data-order="${order.id}">
+        //                     View
+        //                 </button>
+        //                 ${order.status === 'delivered' ?
+        //                 '<button class="text-blue-600 hover:underline view-invoice" data-order="' + order.id + '">Invoice</button>' : ''}
+        //             </td>
+        //         `;
+        //         orderHistoryBody.appendChild(row);
+        //     });
+
+        //     // Update order count
+        //     orderHistoryCount.textContent = `Showing ${userData.orderHistory.length} orders`;
+
+        //     // View order buttons
+        //     document.querySelectorAll('.view-order').forEach(btn => {
+        //         btn.addEventListener('click', () => {
+        //             const orderId = btn.getAttribute('data-order');
+        //             const order = userData.orderHistory.find(o => o.id === orderId);
+        //             showOrderDetails(order);
+        //         });
+        //     });
+
+        //     // View invoice buttons
+        //     document.querySelectorAll('.view-invoice').forEach(btn => {
+        //         btn.addEventListener('click', () => {
+        //             const orderId = btn.getAttribute('data-order');
+        //             alert(`Invoice for order ${orderId} would be displayed here`);
+        //         });
+        //     });
+        // }
+
+        // // Show order details modal
+        // function showOrderDetails(order) {
+        //     // In a real app, this would be a proper modal
+        //     alert(`Order Details:\n\nID: ${order.id}\nDate: ${formatDate(order.date)}\nProduct: ${order.product}\nQuantity: ${order.quantity}\nAmount: ₦${order.amount.toLocaleString()}\nStatus: ${order.status}`);
+        // }
+
+        // // Load Payments page
+        // function loadPaymentsPage() {
+        //     const walletBalance = document.getElementById('wallet-balance');
+        //     const totalSpent = document.getElementById('total-spent');
+        //     const pendingPayments = document.getElementById('pending-payments');
+        //     const transactionHistoryBody = document.getElementById('transaction-history-body');
+        //     const transactionHistoryCount = document.getElementById('transaction-history-count');
+
+        //     // Update wallet stats
+        //     walletBalance.textContent = `₦${userData.walletBalance.toLocaleString()}`;
+
+        //     // Calculate total spent (sum of all debit transactions)
+        //     const total = userData.transactions
+        //         .filter(tx => tx.type === 'debit')
+        //         .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+        //     totalSpent.textContent = `₦${total.toLocaleString()}`;
+
+        //     // Calculate pending payments
+        //     const pending = userData.transactions
+        //         .filter(tx => tx.status === 'pending')
+        //         .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+        //     pendingPayments.textContent = `₦${pending.toLocaleString()}`;
+
+        //     // Load transaction history
+        //     transactionHistoryBody.innerHTML = '';
+        //     userData.transactions.forEach(tx => {
+        //         const row = document.createElement('tr');
+        //         row.className = 'border-b';
+        //         row.innerHTML = `
+        //             <td class="py-2 px-4">${formatDate(tx.date)}</td>
+        //             <td class="py-2 px-4">${tx.id}</td>
+        //             <td class="py-2 px-4">${tx.description}</td>
+        //             <td class="py-2 px-4 ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}">
+        //                 ${tx.type === 'credit' ? '+' : '-'}₦${Math.abs(tx.amount).toLocaleString()}
+        //             </td>
+        //             <td class="py-2 px-4">
+        //                 <span class="${getStatusClass(tx.status)} px-2 py-1 rounded">
+        //                     ${tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+        //                 </span>
+        //             </td>
+        //             <td class="py-2 px-4">
+        //                 <button class="text-blue-600 hover:underline view-receipt" data-tx="${tx.id}">
+        //                     View
+        //                 </button>
+        //             </td>
+        //         `;
+        //         transactionHistoryBody.appendChild(row);
+        //     });
+
+        //     // Update transaction count
+        //     transactionHistoryCount.textContent = `Showing ${userData.transactions.length} transactions`;
+
+        //     // Amount buttons
+        //     document.querySelectorAll('.amount-btn').forEach(btn => {
+        //         btn.addEventListener('click', () => {
+        //             // Remove active state from all buttons
+        //             document.querySelectorAll('.amount-btn').forEach(b =>
+        //                 b.classList.remove('border-blue-500', 'bg-blue-50'));
+
+        //             // Add active state to clicked button
+        //             btn.classList.add('border-blue-500', 'bg-blue-50');
+
+        //             const amount = parseInt(btn.getAttribute('data-amount'));
+        //             document.getElementById('custom-amount').value = amount;
+
+        //             // Show payment method container
+        //             document.getElementById('payment-method-container').classList.remove('hidden');
+        //             document.getElementById('payment-amount').textContent = amount.toLocaleString();
+        //         });
+        //     });
+
+        //     // Custom amount
+        //     document.getElementById('custom-top-up').addEventListener('click', () => {
+        //         const amount = parseInt(document.getElementById('custom-amount').value);
+
+        //         if (amount && amount > 0) {
+        //             // Show payment method container
+        //             document.getElementById('payment-method-container').classList.remove('hidden');
+        //             document.getElementById('payment-amount').textContent = amount.toLocaleString();
+
+        //             // Remove active state from amount buttons
+        //             document.querySelectorAll('.amount-btn').forEach(b =>
+        //                 b.classList.remove('border-blue-500', 'bg-blue-50'));
+        //         } else {
+        //             alert('Please enter a valid amount');
+        //         }
+        //     });
+
+        //     // Payment methods
+        //     document.querySelectorAll('.payment-method').forEach(method => {
+        //         method.addEventListener('click', () => {
+        //             // Remove active state from all methods
+        //             document.querySelectorAll('.payment-method').forEach(m =>
+        //                 m.classList.remove('border-blue-500', 'bg-blue-50', 'active'));
+
+        //             // Add active state to clicked method
+        //             method.classList.add('border-blue-500', 'bg-blue-50', 'active');
+
+        //             // Show relevant payment details
+        //             const methodType = method.getAttribute('data-method');
+
+        //             // Hide all payment detail sections
+        //             document.querySelectorAll('[id$="-payment-details"]').forEach(el =>
+        //                 el.classList.add('hidden'));
+
+        //             // Show selected payment details
+        //             if (methodType === 'card') {
+        //                 document.getElementById('card-payment-details').classList.remove('hidden');
+        //             }
+        //             // Other payment methods would be handled similarly
+        //         });
+        //     });
+
+        //     // Confirm payment
+        //     document.getElementById('confirm-payment').addEventListener('click', () => {
+        //         const amount = parseInt(document.getElementById('payment-amount').textContent.replace(/,/g, ''));
+        //         const method = document.querySelector('.payment-method.active').getAttribute('data-method');
+
+        //         if (confirm(`Confirm payment of ₦${amount.toLocaleString()} via ${method}?`)) {
+        //             // In a real app, this would process the payment
+        //             alert('Payment successful! Your wallet has been topped up.');
+
+        //             // Update wallet balance
+        //             userData.walletBalance += amount;
+        //             walletBalance.textContent = `₦${userData.walletBalance.toLocaleString()}`;
+        //             updateDashboardStats();
+
+        //             // Add transaction
+        //             const txId = `TX-${Math.floor(1000 + Math.random() * 9000)}`;
+        //             userData.transactions.unshift({
+        //                 id: txId,
+        //                 date: new Date().toISOString().split('T')[0],
+        //                 description: "Wallet Top Up",
+        //                 amount: amount,
+        //                 status: "completed",
+        //                 type: "credit"
+        //             });
+
+        //             // Reload transactions
+        //             loadPaymentsPage();
+        //         }
+        //     });
+
+        //     // View receipt buttons
+        //     document.querySelectorAll('.view-receipt').forEach(btn => {
+        //         btn.addEventListener('click', () => {
+        //             const txId = btn.getAttribute('data-tx');
+        //             alert(`Receipt for transaction ${txId} would be displayed here`);
+        //         });
+        //     });
+        // }
+
+        // // Load Profile page
+        // function loadProfilePage() {
+        //     // Set form values
+        //     document.getElementById('first-name').value = userData.firstName;
+        //     document.getElementById('last-name').value = userData.lastName;
+        //     document.getElementById('email').value = userData.email;
+        //     document.getElementById('phone').value = userData.phone;
+        //     document.getElementById('dob').value = userData.dob;
+        //     document.getElementById('gender').value = userData.gender;
+        //     document.getElementById('address').value = userData.address;
+        //     document.getElementById('profile-picture').src = userData.profilePic;
+
+        //     // Profile form submission
+        //     document.getElementById('profile-form').addEventListener('submit', (e) => {
+        //         e.preventDefault();
+
+        //         // Update user data
+        //         userData.firstName = document.getElementById('first-name').value;
+        //         userData.lastName = document.getElementById('last-name').value;
+        //         userData.email = document.getElementById('email').value;
+        //         userData.phone = document.getElementById('phone').value;
+        //         userData.dob = document.getElementById('dob').value;
+        //         userData.gender = document.getElementById('gender').value;
+        //         userData.address = document.getElementById('address').value;
+
+        //         // Update username display
+        //         username.textContent = `${userData.firstName} ${userData.lastName}`;
+
+        //         alert('Profile updated successfully!');
+        //     });
+
+        //     // Password form submission
+        //     document.getElementById('password-form').addEventListener('submit', (e) => {
+        //         e.preventDefault();
+
+        //         const current = document.getElementById('current-password').value;
+        //         const newPass = document.getElementById('new-password').value;
+        //         const confirmPass = document.getElementById('confirm-password').value;
+
+        //         if (newPass !== confirmPass) {
+        //             alert('New passwords do not match!');
+        //             return;
+        //         }
+
+        //         // In a real app, this would validate current password and update on server
+        //         alert('Password changed successfully!');
+        //         document.getElementById('password-form').reset();
+        //     });
+
+        //     // Profile picture upload
+        //     document.getElementById('profile-upload').addEventListener('change', (e) => {
+        //         const file = e.target.files[0];
+        //         if (file) {
+        //             const reader = new FileReader();
+        //             reader.onload = (event) => {
+        //                 userData.profilePic = event.target.result;
+        //                 document.getElementById('profile-picture').src = event.target.result;
+        //             };
+        //             reader.readAsDataURL(file);
+        //         }
+        //     });
+
+        //     // Remove profile picture
+        //     document.getElementById('remove-profile-pic').addEventListener('click', () => {
+        //         userData.profilePic = "https://via.placeholder.com/150";
+        //         document.getElementById('profile-picture').src = userData.profilePic;
+        //     });
+        // }
+
+        // // Load Support page
+        // function loadSupportPage() {
+        //     const ticketList = document.getElementById('ticket-list');
+
+        //     // Load tickets
+        //     ticketList.innerHTML = '';
+        //     userData.tickets.forEach(ticket => {
+        //         const ticketItem = document.createElement('div');
+        //         ticketItem.className = 'border rounded p-4 hover:bg-gray-50 cursor-pointer';
+        //         ticketItem.innerHTML = `
+        //             <div class="flex justify-between items-start">
+        //                 <div>
+        //                     <h4 class="font-medium">${ticket.subject}</h4>
+        //                     <p class="text-sm text-gray-600">${ticket.category.replace(/^\w/, c => c.toUpperCase())} • ${formatDate(ticket.date)}</p>
+        //                 </div>
+        //                 <span class="${ticket.status === 'open' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'} px-2 py-1 rounded text-xs">
+        //                     ${ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+        //                 </span>
+        //             </div>
+        //             <div class="flex justify-between items-center mt-3">
+        //                 <p class="text-sm text-gray-600">Last updated: ${formatDate(ticket.lastUpdated, true)}</p>
+        //                 <button class="text-blue-600 text-sm view-ticket" data-ticket="${ticket.id}">
+        //                     View Details
+        //                 </button>
+        //             </div>
+        //         `;
+        //         ticketList.appendChild(ticketItem);
+        //     });
+
+        //     // New ticket card
+        //     document.getElementById('new-ticket-card').addEventListener('click', () => {
+        //         document.getElementById('ticket-list-container').classList.add('hidden');
+        //         document.getElementById('new-ticket-container').classList.remove('hidden');
+        //     });
+
+        //     // Cancel ticket button
+        //     document.getElementById('cancel-ticket').addEventListener('click', () => {
+        //         document.getElementById('ticket-list-container').classList.remove('hidden');
+        //         document.getElementById('new-ticket-container').classList.add('hidden');
+        //     });
+
+        //     // Submit ticket form
+        //     document.getElementById('ticket-form').addEventListener('submit', (e) => {
+        //         e.preventDefault();
+
+        //         const subject = document.getElementById('ticket-subject').value;
+        //         const category = document.getElementById('ticket-category').value;
+        //         const description = document.getElementById('ticket-description').value;
+
+        //         if (!subject || !description) {
+        //             alert('Please fill in all required fields');
+        //             return;
+        //         }
+
+        //         // Create new ticket
+        //         const ticketId = `TCK-${Math.floor(1000 + Math.random() * 9000)}`;
+        //         const today = new Date().toISOString().split('T')[0];
+
+        //         userData.tickets.unshift({
+        //             id: ticketId,
+        //             subject: subject,
+        //             category: category,
+        //             status: "open",
+        //             date: today,
+        //             lastUpdated: today
+        //         });
+
+        //         alert(`Ticket #${ticketId} created successfully! Our support team will get back to you soon.`);
+        //         document.getElementById('ticket-form').reset();
+
+        //         // Show ticket list
+        //         document.getElementById('ticket-list-container').classList.remove('hidden');
+        //         document.getElementById('new-ticket-container').classList.add('hidden');
+
+        //         // Reload tickets
+        //         loadSupportPage();
+        //     });
+
+        //     // View ticket buttons
+        //     document.querySelectorAll('.view-ticket').forEach(btn => {
+        //         btn.addEventListener('click', () => {
+        //             const ticketId = btn.getAttribute('data-ticket');
+        //             const ticket = userData.tickets.find(t => t.id === ticketId);
+        //             showTicketDetails(ticket);
+        //         });
+        //     });
+
+        //     // View open tickets
+        //     document.getElementById('view-open-tickets').addEventListener('click', () => {
+        //         alert('Filtered view of open tickets would be shown here');
+        //     });
+
+        //     // View FAQ
+        //     document.getElementById('view-faq').addEventListener('click', () => {
+        //         alert('FAQ section would be shown here');
+        //     });
+        // }
+
+        // // Show ticket details
+        // function showTicketDetails(ticket) {
+        //     // In a real app, this would be a proper modal
+        //     alert(`Ticket Details:\n\nID: ${ticket.id}\nSubject: ${ticket.subject}\nCategory: ${ticket.category}\nStatus: ${ticket.status}\nDate: ${formatDate(ticket.date)}\nLast Updated: ${formatDate(ticket.lastUpdated)}`);
+        // }
+
+        // // Load Settings page
+        // function loadSettingsPage() {
+        //     // Settings menu items
+        //     document.querySelectorAll('.settings-menu-item').forEach(item => {
+        //         item.addEventListener('click', () => {
+        //             // Remove active state from all items
+        //             document.querySelectorAll('.settings-menu-item').forEach(i =>
+        //                 i.classList.remove('bg-blue-100', 'text-blue-800', 'font-medium', 'active'));
+
+        //             // Add active state to clicked item
+        //             item.classList.add('bg-blue-100', 'text-blue-800', 'font-medium', 'active');
+
+        //             const tab = item.getAttribute('data-tab');
+
+        //             // Hide all tabs
+        //             document.querySelectorAll('.settings-tab').forEach(t =>
+        //                 t.classList.add('hidden'));
+
+        //             // Show selected tab
+        //             document.getElementById(`${tab}-tab`).classList.remove('hidden');
+        //         });
+        //     });
+
+        //     // Load active sessions
+        //     const activeSessions = document.getElementById('active-sessions');
+        //     activeSessions.innerHTML = '';
+
+        //     userData.sessions.forEach(session => {
+        //         const sessionItem = document.createElement('div');
+        //         sessionItem.className = 'flex justify-between items-center p-2 border rounded';
+        //         sessionItem.innerHTML = `
+        //             <div>
+        //                 <p class="font-medium">${session.device}</p>
+        //                 <p class="text-sm text-gray-600">${session.location} • ${session.lastActive}</p>
+        //             </div>
+        //             <button class="text-red-600 text-sm" data-session="${session.id}">
+        //                 <i class="fas fa-sign-out-alt"></i> Logout
+        //             </button>
+        //         `;
+        //         activeSessions.appendChild(sessionItem);
+        //     });
+
+        //     // Session logout buttons
+        //     document.querySelectorAll('[data-session]').forEach(btn => {
+        //         btn.addEventListener('click', () => {
+        //             const sessionId = parseInt(btn.getAttribute('data-session'));
+        //             if (confirm('Logout this device?')) {
+        //                 // In a real app, this would revoke the session
+        //                 alert('Session revoked successfully!');
+        //             }
+        //         });
+        //     });
+        // }
+
+        // // Helper function to format dates
+        // function formatDate(dateString, includeTime = false) {
+        //     const options = {
+        //         year: 'numeric',
+        //         month: 'short',
+        //         day: 'numeric',
+        //         ...(includeTime && { hour: '2-digit', minute: '2-digit' })
+        //     };
+        //     return new Date(dateString).toLocaleDateString('en-US', options);
+        // }
+
+        // // Helper function to get status class
+        // function getStatusClass(status) {
+        //     switch (status) {
+        //         case 'processing':
+        //         case 'pending':
+        //             return 'bg-yellow-100 text-yellow-800';
+        //         case 'completed':
+        //         case 'delivered':
+        //         case 'active':
+        //         case 'resolved':
+        //             return 'bg-green-100 text-green-800';
+        //         case 'cancelled':
+        //         case 'failed':
+        //             return 'bg-red-100 text-red-800';
+        //         default:
+        //             return 'bg-gray-100 text-gray-800';
+        //     }
+        // }
+
+        // // Helper function to get next month's date
+        // function getNextMonthDate() {
+        //     const date = new Date();
+        //     date.setMonth(date.getMonth() + 1);
+        //     return date.toISOString().split('T')[0];
+        // }
+
+        // // Initialize the dashboard when DOM is loaded
+        // document.addEventListener('DOMContentLoaded', initDashboard);
+
+        // // Simulate real-time updates (in a real app, this would be WebSocket or polling)
+        // setInterval(() => {
+        //     // Randomly update order status (for demo purposes)
+        //     const activeOrder = userData.recentOrders.find(order => order.status === 'processing');
+        //     if (activeOrder && activeOrder.tracking) {
+        //         if (activeOrder.tracking.progress < 100) {
+        //             activeOrder.tracking.progress += Math.floor(Math.random() * 10);
+        //             if (activeOrder.tracking.progress >= 100) {
+        //                 activeOrder.tracking.progress = 100;
+        //                 activeOrder.tracking.status = 'delivered';
+        //                 activeOrder.status = 'delivered';
+        //                 activeOrder.tracking.location = 'Delivered to customer';
+        //             } else if (activeOrder.tracking.progress > 80) {
+        //                 activeOrder.tracking.status = 'in-transit-near';
+        //                 activeOrder.tracking.location = 'Near your location';
+        //             }
+
+        //             // Update UI if on dashboard
+        //             if (!document.getElementById('dashboard-page').classList.contains('hidden')) {
+        //                 loadDeliveryStatus();
+        //             }
+        //         }
+        //     }
+
+        //     // Update notification count (for demo purposes)
+        //     if (Math.random() > 0.7) {
+        //         const newNotification = {
+        //             id: userData.notifications.length + 1,
+        //             title: ['System Update', 'New Feature', 'Special Offer'][Math.floor(Math.random() * 3)],
+        //             message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+        //             date: new Date().toISOString().split('T')[0],
+        //             read: false,
+        //             type: 'system'
+        //         };
+        //         userData.notifications.unshift(newNotification);
+        //         loadNotifications();
+        //     }
+        // }, 10000); // Update every 10 seconds
+    const pageTitle = document.getElementById('page-title');
+        const pageContent = document.getElementById('page-content');
+        const navLinks = document.querySelectorAll('.nav-link');
+        const pages = document.querySelectorAll('.page');
+        const username = document.getElementById('username');
+        const activeOrdersCount = document.getElementById('active-orders-count');
+        const upcomingDeliveries = document.getElementById('upcoming-deliveries');
+        const nextDeliveryDate = document.getElementById('next-delivery-date');
+        const subscriptionStatus = document.getElementById('subscription-status');
+        const subscriptionType = document.getElementById('subscription-type');
+        const accountBalance = document.getElementById('account-balance');
+        const recentOrdersBody = document.getElementById('recent-orders-body');
+        const subscriptionDetails = document.getElementById('subscription-details');
+        const deliveryStatusContainer = document.getElementById('delivery-status-container');
+        const notificationBell = document.getElementById('notification-bell');
+        const notificationCount = document.getElementById('notification-count');
+        const notificationPanel = document.getElementById('notification-panel');
+        const closeNotifications = document.getElementById('close-notifications');
+        const notificationList = document.getElementById('notification-list');
+        const modalOverlay = document.getElementById('modal-overlay');
+        const refreshBalance = document.getElementById('refresh-balance');
+        const quickOrderGas = document.getElementById('quick-order-gas');
+        const quickManageSubscription = document.getElementById('quick-manage-subscription');
+        const quickTopUp = document.getElementById('quick-top-up');
+        const quickSupport = document.getElementById('quick-support');
+        const viewAllOrders = document.getElementById('view-all-orders');
+        const manageSubscription = document.getElementById('manage-subscription');
+        const logoutBtn = document.getElementById('logout-btn');
+
+       
+  async function initDashboard() {
+    try {
+       const token = localStorage.getItem('egas_token', token);
+       const userId = localStorage.getItem('egas_user', JSON.stringify(userData));
+    
+      if (!token || !userId) {
+        console.error("User not logged in");
+        return;
+      }
+
+      // ✅ Fetch user profile
+      const userRes = await fetch(`http://localhost:5000/api/v1/users/${userId}`, {
+        headers: {
+          "Authorization": "Bearer " + token
+        }
+      });
+
+      if (!userRes.ok) throw new Error("Failed to load user profile");
+      const userData = await userRes.json();
+
+      // Set username on dashboard
+      const username = document.getElementById("username");
+      if (username) {
+        username.textContent = `${userData.firstName} ${userData.lastName}`;
+      }
+
+      // ✅ Load dashboard sections
+      await Promise.all([
+        updateDashboardStats(),
+        loadRecentOrders(),
+        loadSubscriptionDetails(),
+        loadDeliveryStatus(),
+        loadNotifications()
+      ]);
+    } catch (err) {
+      console.error("Error initializing dashboard:", err);
+    }
+  }
+
+  //  Dashboard stats (GET /api/stats)
+  async function updateDashboardStats() {
+    const res = await fetch("http://localhost:5000/api/v1/dashboard", {
+      headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+    });
+    if (!res.ok) return;
+    const stats = await res.json();
+
+    document.getElementById("totalOrders").textContent = stats.totalOrders;
+    document.getElementById("activeOrders").textContent = stats.activeOrders;
+    document.getElementById("subscriptions").textContent = stats.subscriptions;
+  }
+
+  // Example: Recent orders (GET /api/orders/recent)
+  async function loadRecentOrders() {
+    const res = await fetch("http://localhost:5000/api/v1/orders", {
+      headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+    });
+    if (!res.ok) return;
+    const orders = await res.json();
+
+    const container = document.getElementById("recentOrders");
+    container.innerHTML = "";
+    orders.forEach(order => {
+      const div = document.createElement("div");
+      div.className = "p-3 border-b";
+      div.innerHTML = `
+        <p><strong>Order #${order._id}</strong> - ${order.status}</p>
+        <p class="text-sm text-gray-600">Total: ₦${order.total}</p>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  // Example: Subscriptions (GET /api/subscriptions/:userId)
+  async function loadSubscriptionDetails() {
+    const userId = localStorage.getItem("userId");
+    const res = await fetch(`http://localhost:5000/api/v1/subscriptions/${userId}`, {
+      headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+    });
+    if (!res.ok) return;
+    const subs = await res.json();
+
+    const container = document.getElementById("subscriptionsList");
+    container.innerHTML = "";
+    subs.forEach(sub => {
+      const div = document.createElement("div");
+      div.className = "p-3 border rounded mb-2";
+      div.innerHTML = `
+        <p>Plan: ${sub.plan}</p>
+        <p>Status: ${sub.status}</p>
+        <p>Next Renewal: ${new Date(sub.nextRenewal).toLocaleDateString()}</p>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+  // Example: Delivery Status (GET /api/orders/active)
+  async function loadDeliveryStatus() {
+    const res = await fetch("http://localhost:5000/api/v1/orders/active", {
+      headers: { "Authorization": "Bearer " + localStorage.getItem("token") }
+    });
+    if (!res.ok) return;
+    const activeOrders = await res.json();
+
+    const container = document.getElementById("deliveryStatus");
+    container.innerHTML = "";
+    activeOrders.forEach(order => {
+      const div = document.createElement("div");
+      div.className = "p-3 border rounded mb-2";
+      div.innerHTML = `
+        <h4>Order #${order.id} - ${order.status}</h4>
+        <p>Items: ${order.items.map(i => `${i.name} (x${i.qty})`).join(", ")}</p>
+        <p>Total: ₦${order.total}</p>
+      `;
+      container.appendChild(div);
+    });
+  }
+
+    //Notifications
+
+async function loadNotifications() {
+    try {
+      const userId = localStorage.getItem("userId"); // or decode from JWT
+      const response = await fetch(`http://localhost:5000/api/notifications/${userId}`, {
+        headers: {
+          "Content-Type": "application/json",
+          // if using JWT auth:
+          "Authorization": "Bearer " + localStorage.getItem("token")
+        }
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch notifications");
+      }
+
+      const notifications = await response.json();
+
+      // DOM containers
+      const notificationList = document.getElementById("notificationList");
+      const notificationCount = document.getElementById("notificationCount");
+
+      notificationList.innerHTML = ""; // Clear old ones
+
+      const unreadCount = notifications.filter(n => !n.read).length;
+
+      // Update badge
+      if (unreadCount > 0) {
+        notificationCount.textContent = unreadCount;
+        notificationCount.classList.remove("hidden");
+      } else {
+        notificationCount.classList.add("hidden");
+      }
+
+      // Build notification cards
+      notifications.forEach(notification => {
+        const notificationItem = document.createElement("div");
+        notificationItem.className =
+          `p-3 border rounded mb-2 ${notification.read ? "bg-white" : "bg-blue-50"}`;
+
+        notificationItem.innerHTML = `
+          <div class="flex justify-between">
+            <h4 class="font-medium">${notification.title}</h4>
+            <span class="text-xs text-gray-500">${new Date(notification.date).toLocaleString()}</span>
+          </div>
+          <p class="text-sm text-gray-700">${notification.message}</p>
+        `;
+
+        notificationList.appendChild(notificationItem);
+      });
+
+    } catch (error) {
+      console.error("Error loading notifications:", error);
+      document.getElementById("notificationList").innerHTML =
+        <p class="text-red-500">Could not load notifications.</p>;
+    }
+  }
+
+  // Run when page loads
+  window.onload = initDashboard;
+            
+
+  // Update dashboard statistics
+function updateDashboardStats(userData) {
+  // Count active orders (not delivered)
+  const activeOrders = userData.recentOrders.filter(order => order.status !== 'delivered').length;
+  activeOrdersCount.textContent = activeOrders;
+
+  // Subscription & deliveries
+  upcomingDeliveries.textContent = userData.subscription.active ? "Active" : "Inactive";
+  nextDeliveryDate.textContent = `Next: ${formatDate(userData.subscription.nextDelivery)}`;
+
+  // Subscription status & type
+  subscriptionStatus.textContent = userData.subscription.status || "Unknown";
+  subscriptionType.textContent = 
+    userData.subscription.type 
+      ? `${userData.subscription.type.replace(/\w/, c => c.toUpperCase())} Auto-Refill`
+      : "N/A";
+
+  // Wallet balance
+  accountBalance.textContent = 
+    userData.walletBalance !== undefined 
+      ? `₦${userData.walletBalance.toLocaleString()}`
+      : "$0";
+}
+
+
+        // Load recent orders
+        async function loadRecentOrders() {
+  const token = localStorage.getItem("token"); // get JWT token saved at login
+  if (!token) {
+    window.location.href = "index.html"; // redirect if not logged in
+    return;
+  }
+
+  try {
+    // 1. Fetch user orders from server
+    const response = await fetch("http://localhost:5000/api/v1/dashboard/orders", {
+      headers: { "Authorization": "Bearer " + token }
+    });
+    const orders = await response.json();
+
+    // 2. Clear table body first
+    const recentOrdersBody = document.getElementById("recentOrdersBody");
+    recentOrdersBody.innerHTML = "";
+
+    // 3. Loop through orders and build rows
+    orders.forEach(order => {
+      const row = document.createElement("tr");
+      row.className = "border-b";
+
+      row.innerHTML = `
+        <td class="py-2 px-4">${order.id}</td>
+        <td class="py-2 px-4">${formatDate(order.date)}</td>
+        <td class="py-2 px-4">${order.product}</td>
+        <td class="py-2 px-4">${order.quantity}</td>
+        <td class="py-2 px-4">$${order.amount.toLocaleString()}</td>
+        <td class="py-2 px-4">
+          <span class="${getStatusClass(order.status)} px-2 py-1 rounded">
+            ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+          </span>
+        </td>
+        <td class="py-2 px-4">
+          ${order.status === "processing"
+            ? <button class="text-blue-600 hover:underline track-order" data-order="${order.id}">Track</button>
+            : <button class="text-blue-600 hover:underline view-invoice" data-order="${order.id}">View Invoice</button>
+          }
+        </td>
+      `;
+
+      recentOrdersBody.appendChild(row);
+    });
+  } catch (err) {
+    console.error("Error loading orders:", err);
+  }
+}
+
+// Example date formatter
+function formatDate(dateString) {
+  const date = new Date(dateString);
+  return date.toLocaleDateString();
+}
+
+// Example status color helper
+function getStatusClass(status) {
+  switch (status) {
+    case "completed": return "bg-green-100 text-green-800";
+    case "processing": return "bg-yellow-100 text-yellow-800";
+    case "cancelled": return "bg-red-100 text-red-800";
+    default: return "bg-gray-100 text-gray-800";
+  }
+}
+
+
+
+
+
+
+
+
+
+
+
+// Call function when page loads
+loadRecentOrders();
+        // Load subscription details
+        function loadSubscriptionDetails() {
+            if (userData.subscription.active) {
+                subscriptionDetails.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Plan:</span>
+                            <span class="font-medium">${userData.subscription.type.replace(/^\w/, c => c.toUpperCase())} Auto-Refill</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Product:</span>
+                            <span class="font-medium">${userData.subscription.product}</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Price:</span>
+                            <span class="font-medium">₦${userData.subscription.price.toLocaleString()}/month</span>
+                        </div>
+                        <div class="flex justify-between">
+                            <span class="text-gray-600">Next Delivery:</span>
+                            <span class="font-medium">${formatDate(userData.subscription.nextDelivery)}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                subscriptionDetails.innerHTML = `
+                    <p class="text-gray-600">You don't have an active subscription.</p>
+                    <button class="mt-2 bg-blue-600 text-white px-4 py-2 rounded" id="subscribe-now">
+                        Subscribe Now
+                    </button>
+                `;
+            }
+        }
+
+        // Load delivery status
+        function loadDeliveryStatus() {
+            const activeOrder = userData.recentOrders.find(order => order.status === 'processing');
+
+            if (activeOrder && activeOrder.tracking) {
+                deliveryStatusContainer.innerHTML = `
+                    <div class="space-y-4">
+                        <div>
+                            <h3 class="font-medium">Order #${activeOrder.id}</h3>
+                            <p class="text-sm text-gray-600">Estimated delivery: ${formatDate(activeOrder.deliveryDate)}</p>
+                        </div>
+                        
+                        <div class="space-y-2">
+                            <div class="flex justify-between text-sm">
+                                <span>Order Placed</span>
+                                <span>Shipped</span>
+                                <span>In Transit</span>
+                                <span>Delivered</span>
+                            </div>
+                            <div class="h-2 bg-gray-200 rounded-full">
+                                <div class="h-2 bg-blue-500 rounded-full" style="width: ${activeOrder.tracking.progress}%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="bg-blue-50 p-3 rounded">
+                            <p class="text-sm">
+                                <span class="font-medium">Current Status:</span> 
+                                ${activeOrder.tracking.status.replace('-', ' ').split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                            </p>
+                            <p class="text-sm mt-1">
+                                <span class="font-medium">Location:</span> ${activeOrder.tracking.location}
+                            </p>
+                        </div>
+                        
+                        <button class="w-full bg-blue-600 text-white py-2 rounded mt-2" id="track-order">
+                            View Full Tracking
+                        </button>
+                    </div>
+                `;
+            } else {
+                deliveryStatusContainer.innerHTML = `
+                    <p class="text-gray-600">No active deliveries at the moment.</p>
+                `;
+            }
+        }
+
+        // Load notifications
+        function loadNotifications() {
+            const unreadCount = userData.notifications.filter(n => !n.read).length;
+
+            if (unreadCount > 0) {
+                notificationCount.textContent = unreadCount;
+                notificationCount.classList.remove('hidden');
+            } else {
+                notificationCount.classList.add('hidden');
+            }
+
+            // Load notification panel content
+            notificationList.innerHTML = '';
+            userData.notifications.forEach(notification => {
+                const notificationItem = document.createElement('div');
+                notificationItem.className = `p-3 border-b ${notification.read ? 'bg-white' : 'bg-blue-50'}`;
+                notificationItem.innerHTML = `
+                    <div class="flex justify-between">
+                        <h4 class="font-medium">${notification.title}</h4>
+                        <span class="text-xs text-gray-500">${formatDate(notification.date, true)}</span>
+                    </div>
+                    <p class="text-sm mt-1">${notification.message}</p>
+                `;
+                notificationList.appendChild(notificationItem);
+            });
+        }
+
+        // Initialize consumption chart
+        function initConsumptionChart() {
+            const ctx = document.getElementById('consumption-chart').getContext('2d');
+
+            // Sample data - in a real app, this would come from an API
+            const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+            const data = [12, 19, 15, 12, 10, 8]; // kg of gas per month
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Gas Consumption (kg)',
+                        data: data,
+                        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                        borderColor: 'rgba(59, 130, 246, 1)',
+                        borderWidth: 2,
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'kg'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Set up event listeners
+        function setupEventListeners() {
+            // Navigation links
+            navLinks.forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = link.getAttribute('data-page');
+                    showPage(page);
+
+                    // Update active state
+                    navLinks.forEach(nav => nav.classList.remove('bg-blue-700', 'active'));
+                    link.classList.add('bg-blue-700', 'active');
+                });
+            });
+
+            // Notification bell
+            notificationBell.addEventListener('click', () => {
+                notificationPanel.classList.toggle('translate-x-full');
+                modalOverlay.classList.toggle('hidden');
+
+                // Mark notifications as read when panel is opened
+                userData.notifications.forEach(n => n.read = true);
+                loadNotifications();
+            });
+
+            // Close notifications
+            closeNotifications.addEventListener('click', () => {
+                notificationPanel.classList.add('translate-x-full');
+                modalOverlay.classList.add('hidden');
+            });
+
+            // Modal overlay
+            modalOverlay.addEventListener('click', () => {
+                notificationPanel.classList.add('translate-x-full');
+                modalOverlay.classList.add('hidden');
+            });
+
+            // Quick actions
+            quickOrderGas.addEventListener('click', () => showPage('order-gas'));
+            quickManageSubscription.addEventListener('click', () => showPage('subscriptions'));
+            quickTopUp.addEventListener('click', () => showPage('payments'));
+            quickSupport.addEventListener('click', () => showPage('support'));
+            viewAllOrders.addEventListener('click', () => showPage('order-history'));
+            manageSubscription.addEventListener('click', () => showPage('subscriptions'));
+
+            // Refresh balance
+            refreshBalance.addEventListener('click', () => {
+                // Simulate balance refresh
+                accountBalance.textContent = `₦${userData.walletBalance.toLocaleString()}`;
+
+                // Show refresh feedback
+                refreshBalance.innerHTML = '<i class="fas fa-check mr-1"></i> Updated';
+                setTimeout(() => {
+                    refreshBalance.innerHTML = '<i class="fas fa-sync-alt mr-1"></i> Refresh';
+                }, 2000);
+            });
+
+            // Logout
+            logoutBtn.addEventListener('click', () => {
+                if (confirm('Are you sure you want to logout?')) {
+                    // In a real app, this would redirect to logout endpoint
+                    alert('You have been logged out. Redirecting to login page...');
+                    window.location.href = 'login.html';
+                }
+            });
+        }
+
+        // Show specific page
+        function showPage(page) {
+            // Hide all pages
+            pages.forEach(p => p.classList.add('hidden'));
+
+            // Show selected page
+            document.getElementById(`${page}-page`).classList.remove('hidden');
+
+            // Update page title
+            const title = document.querySelector(`.nav-link[data-page="${page}"]`).textContent.trim();
+            pageTitle.textContent = title;
+
+            // Load page-specific content
+            switch (page) {
+                case 'order-gas':
+                    loadOrderGasPage();
+                    break;
+                case 'subscriptions':
+                    loadSubscriptionsPage();
+                    break;
+                case 'order-history':
+                    loadOrderHistoryPage();
+                    break;
+                case 'payments':
+                    loadPaymentsPage();
+                    break;
+                case 'profile':
+                    loadProfilePage();
+                    break;
+                case 'support':
+                    loadSupportPage();
+                    break;
+                case 'settings':
+                    loadSettingsPage();
+                    break;
+            }
+        }
+
+        // Load Order Gas page
+        function loadOrderGasPage() {
+            const productList = document.getElementById('product-list');
+            const orderSummary = document.getElementById('order-summary');
+            const deliveryOptions = document.getElementById('delivery-options');
+            const paymentOptions = document.getElementById('payment-options');
+            const walletBalanceSummary = document.getElementById('wallet-balance-summary');
+
+            // Load products
+            productList.innerHTML = '';
+            userData.products.forEach(product => {
+                const productCard = document.createElement('div');
+                productCard.className = 'border rounded p-4 cursor-pointer product-card hover:border-blue-500';
+                productCard.setAttribute('data-id', product.id);
+                productCard.innerHTML = `
+                    <div class="flex items-start">
+                        <img src="${product.image}" alt="${product.name}" class="w-16 h-16 object-cover rounded mr-3">
+                        <div>
+                            <h4 class="font-medium">${product.name}</h4>
+                            <p class="text-gray-600 text-sm">${product.description}</p>
+                            <p class="text-blue-600 font-bold mt-1">₦${product.price.toLocaleString()}</p>
+                        </div>
+                    </div>
+                `;
+                productList.appendChild(productCard);
+            });
+
+            // Set wallet balance
+            walletBalanceSummary.textContent = userData.walletBalance.toLocaleString();
+
+            // Product selection
+            document.querySelectorAll('.product-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    // Remove active state from all cards
+                    document.querySelectorAll('.product-card').forEach(c =>
+                        c.classList.remove('border-blue-500', 'bg-blue-50'));
+
+                    // Add active state to selected card
+                    card.classList.add('border-blue-500', 'bg-blue-50');
+
+                    const productId = parseInt(card.getAttribute('data-id'));
+                    const product = userData.products.find(p => p.id === productId);
+
+                    // Update order summary
+                    orderSummary.innerHTML = `
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Product:</span>
+                            <span class="font-medium">${product.name}</span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Unit Price:</span>
+                            <span class="font-medium">₦${product.price.toLocaleString()}</span>
+                        </div>
+                        <div class="flex justify-between mb-2">
+                            <span class="text-gray-600">Quantity:</span>
+                            <div class="flex items-center">
+                                <button class="px-2 border rounded quantity-btn" data-action="decrease">-</button>
+                                <span class="mx-2 w-8 text-center" id="quantity">1</span>
+                                <button class="px-2 border rounded quantity-btn" data-action="increase">+</button>
+                            </div>
+                        </div>
+                        <div class="border-t pt-2 mt-2">
+                            <div class="flex justify-between font-bold">
+                                <span>Total:</span>
+                                <span id="order-total">₦${product.price.toLocaleString()}</span>
+                            </div>
+                        </div>
+                    `;
+
+                    // Show delivery options
+                    deliveryOptions.classList.remove('hidden');
+
+                    // Set up quantity buttons
+                    document.querySelectorAll('.quantity-btn').forEach(btn => {
+                        btn.addEventListener('click', () => {
+                            const action = btn.getAttribute('data-action');
+                            let quantity = parseInt(document.getElementById('quantity').textContent);
+                            const price = product.price;
+
+                            if (action === 'increase') {
+                                quantity++;
+                            } else if (action === 'decrease' && quantity > 1) {
+                                quantity--;
+                            }
+
+                            document.getElementById('quantity').textContent = quantity;
+                            document.getElementById('order-total').textContent = `₦${(price * quantity).toLocaleString()}`;
+                        });
+                    });
+
+                    // Show payment options when delivery option is selected
+                    document.querySelectorAll('input[name="delivery"]').forEach(radio => {
+                        radio.addEventListener('change', () => {
+                            paymentOptions.classList.remove('hidden');
+                        });
+                    });
+                });
+            });
+
+            // Place order button
+            document.getElementById('place-order-btn').addEventListener('click', () => {
+                alert('Order placed successfully!');
+                showPage('dashboard');
+                // In a real app, this would send the order to the server
+            });
+        }
+
+        // Load Subscriptions page
+        function loadSubscriptionsPage() {
+            const activeSubscriptionContainer = document.getElementById('active-subscription-container');
+            const subscriptionPlans = document.getElementById('subscription-plans');
+
+            // Load active subscription
+            if (userData.subscription.active) {
+                activeSubscriptionContainer.innerHTML = `
+                    <div class="bg-blue-50 p-4 rounded border border-blue-200">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <h3 class="font-bold">Active Subscription</h3>
+                                <p class="text-gray-600">${userData.subscription.type.replace(/^\w/, c => c.toUpperCase())} Auto-Refill</p>
+                            </div>
+                            <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">Active</span>
+                        </div>
+                        
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+                            <div>
+                                <p class="text-gray-600 text-sm">Product</p>
+                                <p class="font-medium">${userData.subscription.product}</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 text-sm">Price</p>
+                                <p class="font-medium">₦${userData.subscription.price.toLocaleString()}/month</p>
+                            </div>
+                            <div>
+                                <p class="text-gray-600 text-sm">Next Delivery</p>
+                                <p class="font-medium">${formatDate(userData.subscription.nextDelivery)}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="flex space-x-3 mt-4">
+                            <button class="bg-blue-600 text-white px-4 py-2 rounded text-sm" id="modify-subscription">
+                                Modify
+                            </button>
+                            <button class="bg-gray-200 text-gray-800 px-4 py-2 rounded text-sm" id="cancel-subscription">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else {
+                activeSubscriptionContainer.innerHTML = `
+                    <div class="bg-gray-50 p-4 rounded border border-gray-200 text-center">
+                        <p class="text-gray-600 mb-3">You don't have an active subscription</p>
+                        <button class="bg-blue-600 text-white px-4 py-2 rounded" id="subscribe-now">
+                            Subscribe Now
+                        </button>
+                    </div>
+                `;
+            }
+
+            // Load subscription plans
+            subscriptionPlans.innerHTML = '';
+            userData.subscriptionPlans.forEach(plan => {
+                const planCard = document.createElement('div');
+                planCard.className = 'border rounded p-4 hover:border-blue-500';
+                planCard.innerHTML = `
+                    <h4 class="font-bold mb-1">${plan.name}</h4>
+                    <p class="text-gray-600 text-sm mb-2">${plan.product}</p>
+                    <p class="text-2xl font-bold mb-2">₦${plan.price.toLocaleString()}</p>
+                    <p class="text-green-600 text-sm mb-3">${plan.savings}</p>
+                    <button class="w-full bg-blue-600 text-white py-2 rounded subscribe-btn" data-plan="${plan.id}">
+                        Choose Plan
+                    </button>
+                `;
+                subscriptionPlans.appendChild(planCard);
+            });
+
+            // Subscribe buttons
+            document.querySelectorAll('.subscribe-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const planId = parseInt(btn.getAttribute('data-plan'));
+                    const plan = userData.subscriptionPlans.find(p => p.id === planId);
+
+                    if (confirm(`Confirm subscription to ${plan.name} for ₦${plan.price.toLocaleString()} per month?`)) {
+                        // In a real app, this would send to the server
+                        alert('Subscription activated successfully!');
+                        userData.subscription = {
+                            active: true,
+                            type: "monthly",
+                            product: plan.product,
+                            price: plan.price,
+                            nextDelivery: getNextMonthDate(),
+                            status: "active"
+                        };
+                        loadSubscriptionsPage();
+                        updateDashboardStats();
+                    }
+                });
+            });
+
+            // Cancel subscription button
+            if (document.getElementById('cancel-subscription')) {
+                document.getElementById('cancel-subscription').addEventListener('click', () => {
+                    if (confirm('Are you sure you want to cancel your subscription?')) {
+                        // In a real app, this would send to the server
+                        alert('Subscription cancelled successfully!');
+                        userData.subscription.active = false;
+                        loadSubscriptionsPage();
+                        updateDashboardStats();
+                    }
+                });
+            }
+        }
+
+        // Load Order History page
+        function loadOrderHistoryPage() {
+            const orderHistoryBody = document.getElementById('order-history-body');
+            const orderHistoryCount = document.getElementById('order-history-count');
+
+            // Load orders
+            orderHistoryBody.innerHTML = '';
+            userData.orderHistory.forEach(order => {
+                const row = document.createElement('tr');
+                row.className = 'border-b';
+                row.innerHTML = `
+                    <td class="py-2 px-4">${order.id}</td>
+                    <td class="py-2 px-4">${formatDate(order.date)}</td>
+                    <td class="py-2 px-4">${order.product}</td>
+                    <td class="py-2 px-4">${order.quantity}</td>
+                    <td class="py-2 px-4">₦${order.amount.toLocaleString()}</td>
+                    <td class="py-2 px-4">
+                        <span class="${getStatusClass(order.status)} px-2 py-1 rounded">
+                            ${order.status.charAt(0).toUpperCase() + order.status.slice(1)}
+                        </span>
+                    </td>
+                    <td class="py-2 px-4">
+                        <button class="text-blue-600 hover:underline mr-2 view-order" data-order="${order.id}">
+                            View
+                        </button>
+                        ${order.status === 'delivered' ?
+                        '<button class="text-blue-600 hover:underline view-invoice" data-order="' + order.id + '">Invoice</button>' : ''}
+                    </td>
+                `;
+                orderHistoryBody.appendChild(row);
+            });
+
+            // Update order count
+            orderHistoryCount.textContent = `Showing ${userData.orderHistory.length} orders`;
+
+            // View order buttons
+            document.querySelectorAll('.view-order').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const orderId = btn.getAttribute('data-order');
+                    const order = userData.orderHistory.find(o => o.id === orderId);
+                    showOrderDetails(order);
+                });
+            });
+
+            // View invoice buttons
+            document.querySelectorAll('.view-invoice').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const orderId = btn.getAttribute('data-order');
+                    alert(`Invoice for order ${orderId} would be displayed here`);
+                });
+            });
+        }
+
+        // Show order details modal
+        function showOrderDetails(order) {
+            // In a real app, this would be a proper modal
+            alert(`Order Details:\n\nID: ${order.id}\nDate: ${formatDate(order.date)}\nProduct: ${order.product}\nQuantity: ${order.quantity}\nAmount: ₦${order.amount.toLocaleString()}\nStatus: ${order.status}`);
+        }
+
+        // Load Payments page
+        function loadPaymentsPage() {
+            const walletBalance = document.getElementById('wallet-balance');
+            const totalSpent = document.getElementById('total-spent');
+            const pendingPayments = document.getElementById('pending-payments');
+            const transactionHistoryBody = document.getElementById('transaction-history-body');
+            const transactionHistoryCount = document.getElementById('transaction-history-count');
+
+            // Update wallet stats
+            walletBalance.textContent = `₦${userData.walletBalance.toLocaleString()}`;
+
+            // Calculate total spent (sum of all debit transactions)
+            const total = userData.transactions
+                .filter(tx => tx.type === 'debit')
+                .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+            totalSpent.textContent = `₦${total.toLocaleString()}`;
+
+            // Calculate pending payments
+            const pending = userData.transactions
+                .filter(tx => tx.status === 'pending')
+                .reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+            pendingPayments.textContent = `₦${pending.toLocaleString()}`;
+
+            // Load transaction history
+            transactionHistoryBody.innerHTML = '';
+            userData.transactions.forEach(tx => {
+                const row = document.createElement('tr');
+                row.className = 'border-b';
+                row.innerHTML = `
+                    <td class="py-2 px-4">${formatDate(tx.date)}</td>
+                    <td class="py-2 px-4">${tx.id}</td>
+                    <td class="py-2 px-4">${tx.description}</td>
+                    <td class="py-2 px-4 ${tx.type === 'credit' ? 'text-green-600' : 'text-red-600'}">
+                        ${tx.type === 'credit' ? '+' : '-'}₦${Math.abs(tx.amount).toLocaleString()}
+                    </td>
+                    <td class="py-2 px-4">
+                        <span class="${getStatusClass(tx.status)} px-2 py-1 rounded">
+                            ${tx.status.charAt(0).toUpperCase() + tx.status.slice(1)}
+                        </span>
+                    </td>
+                    <td class="py-2 px-4">
+                        <button class="text-blue-600 hover:underline view-receipt" data-tx="${tx.id}">
+                            View
+                        </button>
+                    </td>
+                `;
+                transactionHistoryBody.appendChild(row);
+            });
+
+            // Update transaction count
+            transactionHistoryCount.textContent = `Showing ${userData.transactions.length} transactions`;
+
+            // Amount buttons
+            document.querySelectorAll('.amount-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Remove active state from all buttons
+                    document.querySelectorAll('.amount-btn').forEach(b =>
+                        b.classList.remove('border-blue-500', 'bg-blue-50'));
+
+                    // Add active state to clicked button
+                    btn.classList.add('border-blue-500', 'bg-blue-50');
+
+                    const amount = parseInt(btn.getAttribute('data-amount'));
+                    document.getElementById('custom-amount').value = amount;
+
+                    // Show payment method container
+                    document.getElementById('payment-method-container').classList.remove('hidden');
+                    document.getElementById('payment-amount').textContent = amount.toLocaleString();
+                });
+            });
+
+            // Custom amount
+            document.getElementById('custom-top-up').addEventListener('click', () => {
+                const amount = parseInt(document.getElementById('custom-amount').value);
+
+                if (amount && amount > 0) {
+                    // Show payment method container
+                    document.getElementById('payment-method-container').classList.remove('hidden');
+                    document.getElementById('payment-amount').textContent = amount.toLocaleString();
+
+                    // Remove active state from amount buttons
+                    document.querySelectorAll('.amount-btn').forEach(b =>
+                        b.classList.remove('border-blue-500', 'bg-blue-50'));
+                } else {
+                    alert('Please enter a valid amount');
+                }
+            });
+
+            // Payment methods
+            document.querySelectorAll('.payment-method').forEach(method => {
+                method.addEventListener('click', () => {
+                    // Remove active state from all methods
+                    document.querySelectorAll('.payment-method').forEach(m =>
+                        m.classList.remove('border-blue-500', 'bg-blue-50', 'active'));
+
+                    // Add active state to clicked method
+                    method.classList.add('border-blue-500', 'bg-blue-50', 'active');
+
+                    // Show relevant payment details
+                    const methodType = method.getAttribute('data-method');
+
+                    // Hide all payment detail sections
+                    document.querySelectorAll('[id$="-payment-details"]').forEach(el =>
+                        el.classList.add('hidden'));
+
+                    // Show selected payment details
+                    if (methodType === 'card') {
+                        document.getElementById('card-payment-details').classList.remove('hidden');
+                    }
+                    // Other payment methods would be handled similarly
+                });
+            });
+
+            // Confirm payment
+            document.getElementById('confirm-payment').addEventListener('click', () => {
+                const amount = parseInt(document.getElementById('payment-amount').textContent.replace(/,/g, ''));
+                const method = document.querySelector('.payment-method.active').getAttribute('data-method');
+
+                if (confirm(`Confirm payment of ₦${amount.toLocaleString()} via ${method}?`)) {
+                    // In a real app, this would process the payment
+                    alert('Payment successful! Your wallet has been topped up.');
+
+                    // Update wallet balance
+                    userData.walletBalance += amount;
+                    walletBalance.textContent = `₦${userData.walletBalance.toLocaleString()}`;
+                    updateDashboardStats();
+
+                    // Add transaction
+                    const txId = `TX-${Math.floor(1000 + Math.random() * 9000)}`;
+                    userData.transactions.unshift({
+                        id: txId,
+                        date: new Date().toISOString().split('T')[0],
+                        description: "Wallet Top Up",
+                        amount: amount,
+                        status: "completed",
+                        type: "credit"
+                    });
+
+                    // Reload transactions
+                    loadPaymentsPage();
+                }
+            });
+
+            // View receipt buttons
+            document.querySelectorAll('.view-receipt').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const txId = btn.getAttribute('data-tx');
+                    alert(`Receipt for transaction ${txId} would be displayed here`);
+                });
+            });
+        }
+
+        // Load Profile page
+        function loadProfilePage() {
+            // Set form values
+            document.getElementById('first-name').value = userData.firstName;
+            document.getElementById('last-name').value = userData.lastName;
+            document.getElementById('email').value = userData.email;
+            document.getElementById('phone').value = userData.phone;
+            document.getElementById('dob').value = userData.dob;
+            document.getElementById('gender').value = userData.gender;
+            document.getElementById('address').value = userData.address;
+            document.getElementById('profile-picture').src = userData.profilePic;
+
+            // Profile form submission
+            document.getElementById('profile-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                // Update user data
+                userData.firstName = document.getElementById('first-name').value;
+                userData.lastName = document.getElementById('last-name').value;
+                userData.email = document.getElementById('email').value;
+                userData.phone = document.getElementById('phone').value;
+                userData.dob = document.getElementById('dob').value;
+                userData.gender = document.getElementById('gender').value;
+                userData.address = document.getElementById('address').value;
+
+                // Update username display
+                username.textContent = `${userData.firstName} ${userData.lastName}`;
+
+                alert('Profile updated successfully!');
+            });
+
+            // Password form submission
+            document.getElementById('password-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                const current = document.getElementById('current-password').value;
+                const newPass = document.getElementById('new-password').value;
+                const confirmPass = document.getElementById('confirm-password').value;
+
+                if (newPass !== confirmPass) {
+                    alert('New passwords do not match!');
+                    return;
+                }
+
+                // In a real app, this would validate current password and update on server
+                alert('Password changed successfully!');
+                document.getElementById('password-form').reset();
+            });
+
+            // Profile picture upload
+            document.getElementById('profile-upload').addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        userData.profilePic = event.target.result;
+                        document.getElementById('profile-picture').src = event.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+
+            // Remove profile picture
+            document.getElementById('remove-profile-pic').addEventListener('click', () => {
+                userData.profilePic = "https://via.placeholder.com/150";
+                document.getElementById('profile-picture').src = userData.profilePic;
+            });
+        }
+
+        // Load Support page
+        function loadSupportPage() {
+            const ticketList = document.getElementById('ticket-list');
+
+            // Load tickets
+            ticketList.innerHTML = '';
+            userData.tickets.forEach(ticket => {
+                const ticketItem = document.createElement('div');
+                ticketItem.className = 'border rounded p-4 hover:bg-gray-50 cursor-pointer';
+                ticketItem.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <h4 class="font-medium">${ticket.subject}</h4>
+                            <p class="text-sm text-gray-600">${ticket.category.replace(/^\w/, c => c.toUpperCase())} • ${formatDate(ticket.date)}</p>
+                        </div>
+                        <span class="${ticket.status === 'open' ? 'bg-yellow-100 text-yellow-800' : 'bg-green-100 text-green-800'} px-2 py-1 rounded text-xs">
+                            ${ticket.status.charAt(0).toUpperCase() + ticket.status.slice(1)}
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center mt-3">
+                        <p class="text-sm text-gray-600">Last updated: ${formatDate(ticket.lastUpdated, true)}</p>
+                        <button class="text-blue-600 text-sm view-ticket" data-ticket="${ticket.id}">
+                            View Details
+                        </button>
+                    </div>
+                `;
+                ticketList.appendChild(ticketItem);
+            });
+
+            // New ticket card
+            document.getElementById('new-ticket-card').addEventListener('click', () => {
+                document.getElementById('ticket-list-container').classList.add('hidden');
+                document.getElementById('new-ticket-container').classList.remove('hidden');
+            });
+
+            // Cancel ticket button
+            document.getElementById('cancel-ticket').addEventListener('click', () => {
+                document.getElementById('ticket-list-container').classList.remove('hidden');
+                document.getElementById('new-ticket-container').classList.add('hidden');
+            });
+
+            // Submit ticket form
+            document.getElementById('ticket-form').addEventListener('submit', (e) => {
+                e.preventDefault();
+
+                const subject = document.getElementById('ticket-subject').value;
+                const category = document.getElementById('ticket-category').value;
+                const description = document.getElementById('ticket-description').value;
+
+                if (!subject || !description) {
+                    alert('Please fill in all required fields');
+                    return;
+                }
+
+                // Create new ticket
+                const ticketId = `TCK-${Math.floor(1000 + Math.random() * 9000)}`;
+                const today = new Date().toISOString().split('T')[0];
+
+                userData.tickets.unshift({
+                    id: ticketId,
+                    subject: subject,
+                    category: category,
+                    status: "open",
+                    date: today,
+                    lastUpdated: today
+                });
+
+                alert(`Ticket #${ticketId} created successfully! Our support team will get back to you soon.`);
+                document.getElementById('ticket-form').reset();
+
+                // Show ticket list
+                document.getElementById('ticket-list-container').classList.remove('hidden');
+                document.getElementById('new-ticket-container').classList.add('hidden');
+
+                // Reload tickets
+                loadSupportPage();
+            });
+
+            // View ticket buttons
+            document.querySelectorAll('.view-ticket').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const ticketId = btn.getAttribute('data-ticket');
+                    const ticket = userData.tickets.find(t => t.id === ticketId);
+                    showTicketDetails(ticket);
+                });
+            });
+
+            // View open tickets
+            document.getElementById('view-open-tickets').addEventListener('click', () => {
+                alert('Filtered view of open tickets would be shown here');
+            });
+
+            // View FAQ
+            document.getElementById('view-faq').addEventListener('click', () => {
+                alert('FAQ section would be shown here');
+            });
+        }
+
+        // Show ticket details
+        function showTicketDetails(ticket) {
+            // In a real app, this would be a proper modal
+            alert(`Ticket Details:\n\nID: ${ticket.id}\nSubject: ${ticket.subject}\nCategory: ${ticket.category}\nStatus: ${ticket.status}\nDate: ${formatDate(ticket.date)}\nLast Updated: ${formatDate(ticket.lastUpdated)}`);
+        }
+
+        // Load Settings page
+        function loadSettingsPage() {
+            // Settings menu items
+            document.querySelectorAll('.settings-menu-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    // Remove active state from all items
+                    document.querySelectorAll('.settings-menu-item').forEach(i =>
+                        i.classList.remove('bg-blue-100', 'text-blue-800', 'font-medium', 'active'));
+
+                    // Add active state to clicked item
+                    item.classList.add('bg-blue-100', 'text-blue-800', 'font-medium', 'active');
+
+                    const tab = item.getAttribute('data-tab');
+
+                    // Hide all tabs
+                    document.querySelectorAll('.settings-tab').forEach(t =>
+                        t.classList.add('hidden'));
+
+                    // Show selected tab
+                    document.getElementById(`${tab}-tab`).classList.remove('hidden');
+                });
+            });
+
+            // Load active sessions
+            const activeSessions = document.getElementById('active-sessions');
+            activeSessions.innerHTML = '';
+
+            userData.sessions.forEach(session => {
+                const sessionItem = document.createElement('div');
+                sessionItem.className = 'flex justify-between items-center p-2 border rounded';
+                sessionItem.innerHTML = `
+                    <div>
+                        <p class="font-medium">${session.device}</p>
+                        <p class="text-sm text-gray-600">${session.location} • ${session.lastActive}</p>
+                    </div>
+                    <button class="text-red-600 text-sm" data-session="${session.id}">
+                        <i class="fas fa-sign-out-alt"></i> Logout
+                    </button>
+                `;
+                activeSessions.appendChild(sessionItem);
+            });
+
+            // Session logout buttons
+            document.querySelectorAll('[data-session]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const sessionId = parseInt(btn.getAttribute('data-session'));
+                    if (confirm('Logout this device?')) {
+                        // In a real app, this would revoke the session
+                        alert('Session revoked successfully!');
+                    }
+                });
+            });
+        }
+
+        // Helper function to format dates
+        function formatDate(dateString, includeTime = false) {
+            const options = {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                ...(includeTime && { hour: '2-digit', minute: '2-digit' })
+            };
+            return new Date(dateString).toLocaleDateString('en-US', options);
+        }
+
+        // Helper function to get status class
+        function getStatusClass(status) {
+            switch (status) {
+                case 'processing':
+                case 'pending':
+                    return 'bg-yellow-100 text-yellow-800';
+                case 'completed':
+                case 'delivered':
+                case 'active':
+                case 'resolved':
+                    return 'bg-green-100 text-green-800';
+                case 'cancelled':
+                case 'failed':
+                    return 'bg-red-100 text-red-800';
+                default:
+                    return 'bg-gray-100 text-gray-800';
+            }
+        }
+
+        // Helper function to get next month's date
+        function getNextMonthDate() {
+            const date = new Date();
+            date.setMonth(date.getMonth() + 1);
+            return date.toISOString().split('T')[0];
+        }
+
+        // Initialize the dashboard when DOM is loaded
+        document.addEventListener('DOMContentLoaded', initDashboard);
+
+        // Simulate real-time updates (in a real app, this would be WebSocket or polling)
+        setInterval(() => {
+            // Randomly update order status (for demo purposes)
+            const activeOrder = userData.recentOrders.find(order => order.status === 'processing');
+            if (activeOrder && activeOrder.tracking) {
+                if (activeOrder.tracking.progress < 100) {
+                    activeOrder.tracking.progress += Math.floor(Math.random() * 10);
+                    if (activeOrder.tracking.progress >= 100) {
+                        activeOrder.tracking.progress = 100;
+                        activeOrder.tracking.status = 'delivered';
+                        activeOrder.status = 'delivered';
+                        activeOrder.tracking.location = 'Delivered to customer';
+                    } else if (activeOrder.tracking.progress > 80) {
+                        activeOrder.tracking.status = 'in-transit-near';
+                        activeOrder.tracking.location = 'Near your location';
+                    }
+
+                    // Update UI if on dashboard
+                    if (!document.getElementById('dashboard-page').classList.contains('hidden')) {
+                        loadDeliveryStatus();
+                    }
+                }
+            }
+
+            // Update notification count (for demo purposes)
+            if (Math.random() > 0.7) {
+                const newNotification = {
+                    id: userData.notifications.length + 1,
+                    title: ['System Update', 'New Feature', 'Special Offer'][Math.floor(Math.random() * 3)],
+                    message: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit.',
+                    date: new Date().toISOString().split('T')[0],
+                    read: false,
+                    type: 'system'
+                };
+                userData.notifications.unshift(newNotification);
+                loadNotifications();
+            }
+        }, 10000); // Update every 10 seconds
+
+    </script>
+</body>
+
+</html>

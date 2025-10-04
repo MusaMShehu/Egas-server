@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-GAS - Admin Dashboard</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-700 text-white p-4">
+            <div class="flex items-center space-x-2 mb-8">
+                <i class="fas fa-fire text-2xl"></i>
+                <h1 class="text-xl font-bold">e-GAS Admin</h1>
+            </div>
+            <nav>
+                <a href="admin-dashboard.html" class="block py-2 px-4 bg-purple-700 rounded mb-2">
+                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                </a>
+                <a href="admin-dashboard-users.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-users mr-2"></i> Users
+                </a>
+                <a href="admin-dashboard-orders.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-truck mr-2"></i> Orders
+                </a>
+                <a href="admin-dashboard-products.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-boxes mr-2"></i> Products
+                </a>
+                <a href="admin-dashboard-subscriptions.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-calendar-check mr-2"></i> Subscriptions
+                </a>
+                <a href="admin-dashboard-reports.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-chart-line mr-2"></i> Reports
+                </a>
+                <a href="admin-dashboard-settings.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-cog mr-2"></i> Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-auto">
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-bold">Admin Dashboard</h1>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-700">Administrator</span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </header>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-white p-4 rounded shadow">
+                    <h3 class="text-gray-500">Today's Orders</h3>
+                    <p class="text-2xl font-bold">24</p>
+                </div>
+                <div class="bg-white p-4 rounded shadow">
+                    <h3 class="text-gray-500">Active Subscriptions</h3>
+                    <p class="text-2xl font-bold">156</p>
+                </div>
+                <div class="bg-white p-4 rounded shadow">
+                    <h3 class="text-gray-500">Revenue (Today)</h3>
+                    <p class="text-2xl font-bold">₦245,800</p>
+                </div>
+                <div class="bg-white p-4 rounded shadow">
+                    <h3 class="text-gray-500">Gas Stock</h3>
+                    <p class="text-2xl font-bold">78%</p>
+                </div>
+            </div>
+
+            <!-- Recent Orders -->
+            <div class="bg-white p-6 rounded shadow mb-8">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-bold">Recent Orders</h2>
+                    <a href="#" class="text-blue-600 hover:underline">View All</a>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-2 px-4">Order ID</th>
+                                <th class="py-2 px-4">Customer</th>
+                                <th class="py-2 px-4">Amount</th>
+                                <th class="py-2 px-4">Status</th>
+                                <th class="py-2 px-4">Assigned To</th>
+                                <th class="py-2 px-4">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b">
+                                <td class="py-2 px-4">#EG-1024</td>
+                                <td class="py-2 px-4">Sarah Johnson</td>
+                                <td class="py-2 px-4">₦12,500</td>
+                                <td class="py-2 px-4">
+                                    <span class="bg-yellow-100 text-yellow-800 px-2 py-1 rounded">Processing</span>
+                                </td>
+                                <td class="py-2 px-4">-</td>
+                                <td class="py-2 px-4">
+                                    <button class="text-blue-600 hover:underline mr-2">Assign</button>
+                                    <button class="text-red-600 hover:underline">Cancel</button>
+                                </td>
+                            </tr>
+                            <!-- More rows -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <!-- Staff Performance -->
+                <div class="bg-white p-6 rounded shadow">
+                    <h2 class="text-xl font-bold mb-4">Staff Performance</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span>Delivery Staff 1</span>
+                                <span>18/20 deliveries</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-green-600 h-2.5 rounded-full" style="width: 90%"></div>
+                            </div>
+                        </div>
+                        <!-- More staff -->
+                    </div>
+                </div>
+
+                <!-- Inventory Levels -->
+                <div class="bg-white p-6 rounded shadow">
+                    <h2 class="text-xl font-bold mb-4">Inventory Levels</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between mb-1">
+                                <span>12kg Cylinders</span>
+                                <span>42/50</span>
+                            </div>
+                            <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                <div class="bg-blue-600 h-2.5 rounded-full" style="width: 84%"></div>
+                            </div>
+                        </div>
+                        <!-- More inventory items -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./scripts/admin-dashboard.js"></script>
+    <script src="./scripts/admin-dashboard-scripts.js"></script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>e-GAS - Login</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Your existing CSS styles remain the same */
+    /* ... (all CSS styles from original code) ... */
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header with Navbar ===== -->
+  <header>
+    <div class="navbar">
+      <div class="hamburger" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+      </div>
+      <h1>e-Gas</h1>
+      <div class="auth-buttons">
+        <button class="signin-btn" onclick="window.location.href='login.html'">Sign In</button>
+        <button class="signup-btn" onclick="window.location.href='register.html'">Sign Up</button>
+      </div>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== Login Hero Section ===== -->
+  <section class="page-hero">
+    <h2>Welcome Back</h2>
+    <p>Sign in to access your e-GAS account and manage your gas deliveries</p>
+  </section>
+
+  <!-- ===== Login Form ===== -->
+  <div class="login-container">
+    <form class="login-form" id="loginForm">
+      <div class="success-message" id="successMessage">
+        <i class="fas fa-check-circle"></i> Login successful! Redirecting to dashboard...
+      </div>
+      
+      <div class="form-header">
+        <h3>Login to Your Account</h3>
+        <p>Enter your credentials to continue</p>
+      </div>
+
+      <div class="form-group" id="emailGroup">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+        <div class="error-message" id="emailError"></div>
+      </div>
+
+      <div class="form-group" id="passwordGroup">
+        <label for="password">Password</label>
+        <div class="password-container">
+          <input type="password" id="password" name="password" placeholder="Enter your password" required>
+          <i class="fas fa-eye toggle-password" id="togglePassword"></i>
+        </div>
+        <div class="error-message" id="passwordError"></div>
+      </div>
+
+      <div class="remember-forgot">
+        <div class="remember-me">
+          <input type="checkbox" id="remember" name="remember">
+          <label for="remember">Remember me</label>
+        </div>
+        <div class="forgot-password">
+          <a href="forgot-password.html">Forgot password?</a>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">Sign In</button>
+
+      <div class="social-login">
+        <p>Or sign in with</p>
+        <div class="social-icons">
+          <a href="#" class="social-icon facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" class="social-icon google"><i class="fab fa-google"></i></a>
+          <a href="#" class="social-icon twitter"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+
+      <div class="register-link">
+        Don't have an account? <a href="register.html">Register here</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <!-- Your existing footer code remains the same -->
+    <!-- ... (all footer HTML from original code) ... -->
+  </footer>
+
+  <script>
+    // API Base URL - Update this to match your backend URL
+    const API_BASE_URL = 'http://localhost:5000/api/v1/auth';
+    
+    // Toggle mobile menu
+    function toggleMenu() {
+      const navLinks = document.getElementById('navLinks');
+      navLinks.classList.toggle('active');
+    }
+
+    // Toggle password visibility
+    document.getElementById('togglePassword').addEventListener('click', function() {
+      const passwordInput = document.getElementById('password');
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      this.classList.toggle('fa-eye');
+      this.classList.toggle('fa-eye-slash');
+    });
+
+    // Validate email format
+    function isValidEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    }
+
+    // Show error message
+    function showError(fieldId, message) {
+      const fieldGroup = document.getElementById(fieldId);
+      const errorElement = document.getElementById(fieldId + 'Error');
+      
+      fieldGroup.classList.add('error');
+      errorElement.textContent = message;
+    }
+
+    // Clear error message
+    function clearError(fieldId) {
+      const fieldGroup = document.getElementById(fieldId);
+      const errorElement = document.getElementById(fieldId + 'Error');
+      
+      fieldGroup.classList.remove('error');
+      errorElement.textContent = '';
+    }
+
+    // Set loading state
+    function setLoading(isLoading) {
+      const submitBtn = document.getElementById('submitBtn');
+      if (isLoading) {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+        submitBtn.textContent = '';
+      } else {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+      }
+    }
+
+    // Store authentication token and user data
+    function storeAuthData(token, userData, remember) {
+      if (remember) {
+        // Store in localStorage for persistent login
+        localStorage.setItem('egas_token', token);
+        localStorage.setItem('egas_user', JSON.stringify(userData));
+      } else {
+        // Store in sessionStorage for session-only login
+        sessionStorage.setItem('egas_token', token);
+        sessionStorage.setItem('egas_user', JSON.stringify(userData));
+      }
+    }
+
+    // Form submission handler
+    document.getElementById('loginForm').addEventListener('submit', async function(e) {
+      e.preventDefault();
+      
+      // Get form values
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const remember = document.getElementById('remember').checked;
+      
+      // Clear previous errors
+      clearError('emailGroup');
+      clearError('passwordGroup');
+      
+      // Validate inputs
+      let isValid = true;
+      
+      if (!email) {
+        showError('emailGroup', 'Email is required');
+        isValid = false;
+      } else if (!isValidEmail(email)) {
+        showError('emailGroup', 'Please enter a valid email address');
+        isValid = false;
+      }
+      
+      if (!password) {
+        showError('passwordGroup', 'Password is required');
+        isValid = false;
+      } else if (password.length < 6) {
+        showError('passwordGroup', 'Password must be at least 6 characters');
+        isValid = false;
+      }
+      
+      if (!isValid) return;
+      
+      // Set loading state
+      setLoading(true);
+      
+      try {
+        // Make API request to login endpoint
+        const response = await fetch(`${API_BASE_URL}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          // Login successful
+          const successMessage = document.getElementById('successMessage');
+          successMessage.style.display = 'block';
+          
+          // Store the token and user data
+          storeAuthData(data.token, data.user, remember);
+          
+          // Redirect to dashboard after a short delay
+          setTimeout(() => {
+            window.location.href = 'customerDashboard.html';
+          }, 1500);
+        } else {
+          // Login failed
+          showError('passwordGroup', data.message || 'Login failed. Please try again.');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        showError('passwordGroup', 'Network error. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // Check if user is already logged in
+    function checkAuthStatus() {
+      const token = localStorage.getItem('egas_token') || sessionStorage.getItem('egas_token');
+      if (token) {
+        // User is already logged in, redirect to dashboard
+        window.location.href = 'customerDashboard.html';
+      }
+    }
+
+    // Check authentication status on page load
+    window.addEventListener('DOMContentLoaded', checkAuthStatus);
+  </script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+// In your customerDashboard.html
+document.addEventListener('DOMContentLoaded', function() {
+  // Get user data from storage
+  const userDataJSON = localStorage.getItem('egas_user') || sessionStorage.getItem('egas_user');
+  const token = localStorage.getItem('egas_token') || sessionStorage.getItem('egas_token');
+  
+  if (!userDataJSON || !token) {
+    // Redirect to login if not authenticated
+    window.location.href = 'login.html';
+    return;
+  }
+  
+  try {
+    const userData = JSON.parse(userDataJSON);
+    
+    // Populate dashboard with user data
+    document.getElementById('userName').textContent = userData.name || userData.email;
+    document.getElementById('userEmail').textContent = userData.email;
+    
+    // Load additional user-specific data
+    loadUserDashboardData(userData.id, token);
+  } catch (error) {
+    console.error('Error parsing user data:', error);
+    window.location.href = 'login.html';
+  }
+});
+
+async function loadUserDashboardData(userId, token) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/user/${userId}/dashboard`, {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    
+    if (response.ok) {
+      const dashboardData = await response.json();
+      // Populate dashboard with the retrieved data
+      // Example: document.getElementById('orderCount').textContent = dashboardData.orders;
+    }
+  } catch (error) {
+    console.error('Error loading dashboard data:', error);
+  }
+}

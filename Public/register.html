@@ -1,0 +1,852 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>eGas Registration - Create Your Account</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --dark-teal: #003b3b;
+            --light-teal: #8df7d7;
+            --medium-teal: #196d5c;
+            --white: #ffffff;
+            --light-gray: #f5f5f5;
+            --medium-gray: #e0e0e0;
+            --dark-gray: #777;
+        }
+
+        body {
+            background: linear-gradient(135deg, var(--dark-teal) 0%, var(--medium-teal) 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            display: flex;
+            width: 100%;
+            max-width: 1200px;
+            background: var(--white);
+            border-radius: 15px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+            min-height: 700px;
+        }
+
+        .image-section {
+            flex: 1;
+            background: linear-gradient(rgba(0, 59, 59, 0.7), rgba(25, 109, 92, 0.7)), url('https://images.unsplash.com/photo-1577493333843-b175d2c4e2d7?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=774&q=80') center/cover no-repeat;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: var(--white);
+            padding: 40px;
+            position: relative;
+        }
+
+        .image-content {
+            text-align: center;
+            z-index: 2;
+        }
+
+        .image-content h2 {
+            font-size: 32px;
+            margin-bottom: 20px;
+            font-weight: 600;
+        }
+
+        .image-content p {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+            max-width: 400px;
+        }
+
+        .features {
+            text-align: left;
+            margin-top: 30px;
+        }
+
+        .feature {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .feature i {
+            color: var(--light-teal);
+            font-size: 20px;
+            margin-right: 15px;
+        }
+
+        .form-section {
+            flex: 1;
+            padding: 40px;
+            overflow-y: auto;
+            background: var(--white);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo h1 {
+            color: var(--dark-teal);
+            font-size: 32px;
+            font-weight: 700;
+        }
+
+        .logo span {
+            color: var(--medium-teal);
+        }
+
+        .logo p {
+            color: var(--dark-gray);
+            margin-top: 10px;
+        }
+
+        .form-container {
+            max-width: 100%;
+        }
+
+        .progress-bar {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .progress-bar::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--medium-gray);
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+
+        .progress-step {
+            width: 35px;
+            height: 35px;
+            border-radius: 50%;
+            background: var(--white);
+            border: 4px solid var(--medium-gray);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 600;
+            color: var(--dark-gray);
+            position: relative;
+            z-index: 2;
+        }
+
+        .progress-step.active {
+            border-color: var(--medium-teal);
+            background: var(--medium-teal);
+            color: var(--white);
+        }
+
+        .progress-step.completed {
+            border-color: var(--medium-teal);
+            background: var(--medium-teal);
+            color: var(--white);
+        }
+
+        .form-section-title {
+            font-size: 22px;
+            color: var(--dark-teal);
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--light-teal);
+            font-weight: 600;
+        }
+
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            margin: 0 -10px;
+        }
+
+        .form-group {
+            flex: 1 0 calc(50% - 20px);
+            padding: 0 10px;
+            margin-bottom: 20px;
+        }
+
+        .full-width {
+            flex: 1 0 calc(100% - 20px);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--dark-teal);
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 14px;
+            border: 2px solid var(--medium-gray);
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--medium-teal);
+            box-shadow: 0 0 0 3px rgba(25, 109, 92, 0.2);
+        }
+
+        .location-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .location-group .form-group {
+            flex: 1;
+        }
+
+        .btn-container {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+        }
+
+        .btn {
+            padding: 16px 30px;
+            border: none;
+            border-radius: 8px;
+            font-size: 18px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-next {
+            background: var(--medium-teal);
+            color: var(--white);
+        }
+
+        .btn-next:hover {
+            background: var(--dark-teal);
+        }
+
+        .btn-prev {
+            background: var(--light-gray);
+            color: var(--dark-teal);
+        }
+
+        .btn-prev:hover {
+            background: var(--medium-gray);
+        }
+
+        .btn-submit {
+            background: var(--dark-teal);
+            color: var(--white);
+            width: 100%;
+        }
+
+        .btn-submit:hover {
+            background: var(--medium-teal);
+        }
+
+        .btn-location {
+            background: var(--medium-teal);
+            color: var(--white);
+            padding: 10px 15px;
+            font-size: 14px;
+            margin-top: 10px;
+            width: 100%;
+        }
+
+        .btn-location:hover {
+            background: var(--dark-teal);
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .success-message {
+            text-align: center;
+            padding: 20px;
+            background: #2ecc71;
+            color: white;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .location-help {
+            font-size: 14px;
+            color: var(--dark-gray);
+            margin-top: 5px;
+        }
+
+        .password-toggle {
+            position: absolute;
+            right: 15px;
+            top: 42px;
+            cursor: pointer;
+            color: var(--dark-gray);
+        }
+
+        .password-container {
+            position: relative;
+        }
+
+        /* Form steps */
+        .form-step {
+            display: none;
+        }
+
+        .form-step.active {
+            display: block;
+        }
+
+        /* Responsive styles */
+        @media (max-width: 992px) {
+            .container {
+                flex-direction: column;
+                max-width: 600px;
+            }
+            
+            .image-section {
+                min-height: 300px;
+            }
+            
+            .form-group {
+                flex: 1 0 100%;
+            }
+            
+            .location-group {
+                flex-direction: column;
+                gap: 0;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .form-section {
+                padding: 25px;
+            }
+            
+            .btn {
+                padding: 14px 20px;
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="image-section">
+            <div class="image-content">
+                <h2>Join Our Community</h2>
+                <p>Create an account to access exclusive features and personalized content</p>
+                
+                <div class="features">
+                    <div class="feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Secure data encryption</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Personalized experience</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>Fast checkout process</span>
+                    </div>
+                    <div class="feature">
+                        <i class="fas fa-check-circle"></i>
+                        <span>24/7 customer support</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="form-section">
+            <div class="logo">
+                <h1>e-Gas <span>Register</span></h1>
+                <p>Create your account in just a few steps</p>
+            </div>
+            
+            <div class="progress-bar">
+                <div class="progress-step completed">1</div>
+                <div class="progress-step active">2</div>
+                <div class="progress-step">3</div>
+            </div>
+            
+            <form id="registrationForm">
+                <!-- Step 1 -->
+                <div class="form-step active" id="step1">
+                    <h3 class="form-section-title">Personal Information</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName">First Name *</label>
+                            <input type="text" id="firstName" name="firstName" required>
+                            <div class="error" id="firstNameError">Please enter a valid first name</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="lastName">Last Name *</label>
+                            <input type="text" id="lastName" name="lastName" required>
+                            <div class="error" id="lastNameError">Please enter a valid last name</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="email">Email Address *</label>
+                            <input type="email" id="email" name="email" required>
+                            <div class="error" id="emailError">Please enter a valid email address</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Phone Number *</label>
+                            <input type="tel" id="phone" name="phone" required>
+                            <div class="error" id="phoneError">Please enter a valid phone number</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="password">Password *</label>
+                            <div class="password-container">
+                                <input type="password" id="password" name="password" required>
+                                <span class="password-toggle" id="passwordToggle">
+                                    <i class="far fa-eye"></i>
+                                </span>
+                            </div>
+                            <div class="error" id="passwordError">Password must be at least 8 characters</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword">Confirm Password *</label>
+                            <div class="password-container">
+                                <input type="password" id="confirmPassword" name="confirmPassword" required>
+                                <span class="password-toggle" id="confirmPasswordToggle">
+                                    <i class="far fa-eye"></i>
+                                </span>
+                            </div>
+                            <div class="error" id="confirmPasswordError">Passwords do not match</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="dateOfBirth">Date of Birth *</label>
+                            <input type="date" id="dateOfBirth" name="dateOfBirth">
+                            <div class="error" id="dobError">Please enter a valid date</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="gender">Gender</label>
+                            <select id="gender" name="gender">
+                                <option value="">Select Gender</option>
+                                <option value="male">Male</option>
+                                <option value="female">Female</option>
+                                <option value="other">Other</option>
+                                <option value="prefer-not-to-say">Prefer not to say</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-container">
+                        <div></div> <!-- Empty div for spacing -->
+                        <button type="button" class="btn btn-next" id="nextBtn1">Next</button>
+                    </div>
+                </div>
+                
+                <!-- Step 2 -->
+                <div class="form-step" id="step2">
+                    <h3 class="form-section-title">Address Information</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="address">Address *</label>
+                            <textarea id="address" name="address" rows="2" required></textarea>
+                            <div class="error" id="addressError">Please enter your address</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="state">State *</label>
+                            <select id="state" name="state" required>
+                                <option value="">Select State</option>
+                                <option value="Borno">Borno</option>
+                                <option value="Yobe">Yobe</option>
+                            </select>
+                            <div class="error" id="stateError">Please select your state</div>
+                        </div>
+                        <div class="form-group">
+                            <label for="city">City *</label>
+                            <input type="text" id="city" name="city" required>
+                            <div class="error" id="cityError">Please enter your city</div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label>Location Coordinates *</label>
+                            <div class="location-group">
+                                <div class="form-group">
+                                    <input type="text" id="latitude" name="latitude" placeholder="Latitude" required readonly>
+                                </div>
+                                <div class="form-group">
+                                    <input type="text" id="longitude" name="longitude" placeholder="Longitude" required readonly>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-location" id="getLocation">
+                                <i class="fas fa-location-arrow"></i> Record Current Location
+                            </button>
+                            <div class="error" id="locationError">Please record your location</div>
+                            <div class="location-help" id="locationStatus">Location not yet recorded</div>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-container">
+                        <button type="button" class="btn btn-prev" id="prevBtn2">Previous</button>
+                        <button type="button" class="btn btn-next" id="nextBtn2">Next</button>
+                    </div>
+                </div>
+                
+                <!-- Step 3 -->
+                <div class="form-step" id="step3">
+                    <h3 class="form-section-title">Preferences & Final Step</h3>
+                    
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="deliveryPreferences">Delivery Preferences</label>
+                            <select id="deliveryPreferences" name="deliveryPreferences">
+                                <option value="">Select Preference</option>
+                                <option value="morning">Morning (8AM - 12PM)</option>
+                                <option value="afternoon">Afternoon (12PM - 5PM)</option>
+                                <option value="evening">Evening (5PM - 9PM)</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="newsletter">
+                                <input type="checkbox" id="newsletter" name="newsletter" checked>
+                                I want to receive newsletters and promotional offers
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group full-width">
+                            <label for="terms">
+                                <input type="checkbox" id="terms" name="terms" required>
+                                I agree to the <a href="#">Terms and Conditions</a> and <a href="#">Privacy Policy</a>
+                            </label>
+                            <div class="error" id="termsError">You must accept the terms and conditions</div>
+                        </div>
+                    </div>
+                    
+                    <div class="btn-container">
+                        <button type="button" class="btn btn-prev" id="prevBtn3">Previous</button>
+                        <button type="submit" class="btn btn-submit">Create Account</button>
+                    </div>
+                </div>
+            </form>
+            
+            <div class="success-message" id="successMessage">
+                <i class="fas fa-check-circle" style="font-size: 48px; margin-bottom: 15px;"></i>
+                <h3>Registration Successful!</h3>
+                <p>Thank you for joining our community. You will be redirected shortly.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Form steps functionality
+        const formSteps = document.querySelectorAll('.form-step');
+        const progressSteps = document.querySelectorAll('.progress-step');
+        const nextBtn1 = document.getElementById('nextBtn1');
+        const nextBtn2 = document.getElementById('nextBtn2');
+        const prevBtn2 = document.getElementById('prevBtn2');
+        const prevBtn3 = document.getElementById('prevBtn3');
+        let currentStep = 0;
+
+        // Show current step
+        function showStep(stepIndex) {
+            formSteps.forEach((step, index) => {
+                step.classList.toggle('active', index === stepIndex);
+            });
+            
+            progressSteps.forEach((step, index) => {
+                if (index < stepIndex) {
+                    step.classList.add('completed');
+                    step.classList.remove('active');
+                } else if (index === stepIndex) {
+                    step.classList.add('active');
+                    step.classList.remove('completed');
+                } else {
+                    step.classList.remove('active', 'completed');
+                }
+            });
+            
+            currentStep = stepIndex;
+        }
+
+        // Next and previous buttons event listeners
+        nextBtn1.addEventListener('click', () => {
+            if (validateStep(0)) {
+                showStep(1);
+            }
+        });
+        
+        nextBtn2.addEventListener('click', () => {
+            if (validateStep(1)) {
+                showStep(2);
+            }
+        });
+        
+        prevBtn2.addEventListener('click', () => {
+            showStep(0);
+        });
+        
+        prevBtn3.addEventListener('click', () => {
+            showStep(1);
+        });
+
+        // Password toggle functionality
+        const passwordToggle = document.getElementById('passwordToggle');
+        const passwordInput = document.getElementById('password');
+        const confirmPasswordToggle = document.getElementById('confirmPasswordToggle');
+        const confirmPasswordInput = document.getElementById('confirmPassword');
+        
+        passwordToggle.addEventListener('click', () => {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            passwordToggle.innerHTML = type === 'password' ? '<i class="far fa-eye"></i>' : '<i class="far fa-eye-slash"></i>';
+        });
+        
+        confirmPasswordToggle.addEventListener('click', () => {
+            const type = confirmPasswordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            confirmPasswordInput.setAttribute('type', type);
+            confirmPasswordToggle.innerHTML = type === 'password' ? '<i class="far fa-eye"></i>' : '<i class="far fa-eye-slash"></i>';
+        });
+
+        // Location capture functionality
+        const getLocationBtn = document.getElementById('getLocation');
+        const latitudeInput = document.getElementById('latitude');
+        const longitudeInput = document.getElementById('longitude');
+        const locationStatus = document.getElementById('locationStatus');
+        
+        getLocationBtn.addEventListener('click', () => {
+            locationStatus.textContent = "Getting location...";
+            locationStatus.style.color = "var(--medium-teal)";
+            
+            if (!navigator.geolocation) {
+                locationStatus.textContent = "Geolocation is not supported by your browser";
+                locationStatus.style.color = "#e74c3c";
+                return;
+            }
+            
+            function success(position) {
+                const latitude = position.coords.latitude;
+                const longitude = position.coords.longitude;
+                
+                latitudeInput.value = latitude.toFixed(6);
+                longitudeInput.value = longitude.toFixed(6);
+                
+                locationStatus.textContent = "Location recorded successfully!";
+                locationStatus.style.color = "#2ecc71";
+            }
+            
+            function error() {
+                locationStatus.textContent = "Unable to retrieve your location. Please enable location services.";
+                locationStatus.style.color = "#e74c3c";
+            }
+            
+            navigator.geolocation.getCurrentPosition(success, error, {
+                enableHighAccuracy: true,
+                timeout: 5000,
+                maximumAge: 0
+            });
+        });
+
+        // Form validation
+        function validateStep(stepIndex) {
+            let isValid = true;
+            
+            // Reset errors
+            const errors = document.querySelectorAll('.error');
+            errors.forEach(error => error.style.display = 'none');
+            
+            if (stepIndex === 0) {
+                // Validate first name
+                const firstName = document.getElementById('firstName');
+                if (!firstName.value.trim()) {
+                    document.getElementById('firstNameError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate last name
+                const lastName = document.getElementById('lastName');
+                if (!lastName.value.trim()) {
+                    document.getElementById('lastNameError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate email
+                const email = document.getElementById('email');
+                const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailPattern.test(email.value)) {
+                    document.getElementById('emailError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate phone
+                const phone = document.getElementById('phone');
+                const phonePattern = /^[\+]?[1-9][\d]{0,15}$/;
+                if (!phonePattern.test(phone.value.replace(/[\s\-\(\)]/g, ''))) {
+                    document.getElementById('phoneError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate password
+                const password = document.getElementById('password');
+                if (password.value.length < 8) {
+                    document.getElementById('passwordError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate confirm password
+                const confirmPassword = document.getElementById('confirmPassword');
+                if (password.value !== confirmPassword.value) {
+                    document.getElementById('confirmPasswordError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate date of birth
+                const dateOfBirth = document.getElementById('dateOfBirth');
+                if (!dateOfBirth.value) {
+                    document.getElementById('dobError').style.display = 'block';
+                    isValid = false;
+                }
+            } else if (stepIndex === 1) {
+                // Validate address
+                const address = document.getElementById('address');
+                if (!address.value.trim()) {
+                    document.getElementById('addressError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate state
+                const state = document.getElementById('state');
+                if (!state.value) {
+                    document.getElementById('stateError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate city
+                const city = document.getElementById('city');
+                if (!city.value.trim()) {
+                    document.getElementById('cityError').style.display = 'block';
+                    isValid = false;
+                }
+                
+                // Validate coordinates
+                const latitude = document.getElementById('latitude');
+                const longitude = document.getElementById('longitude');
+                
+                if (!latitude.value || !longitude.value) {
+                    document.getElementById('locationError').style.display = 'block';
+                    isValid = false;
+                }
+            }
+            
+            return isValid;
+        }
+
+        // Form submission
+        document.getElementById('registrationForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            // Validate step 2 fields
+            if (validateStep(1) && validateStep(2)) {
+                // Check terms acceptance
+                const terms = document.getElementById('terms');
+                if (!terms.checked) {
+                    document.getElementById('termsError').style.display = 'block';
+                    return;
+                }
+                
+                // Prepare data for submission
+                const formData = {
+                    firstName: document.getElementById('firstName').value.trim(),
+                    lastName: document.getElementById('lastName').value.trim(),
+                    email: document.getElementById('email').value.trim(),
+                    phone: document.getElementById('phone').value.trim(),
+                    password: document.getElementById('password').value,
+                    confirmPassword: document.getElementById('confirmPassword').value,
+                    dateOfBirth: document.getElementById('dateOfBirth').value,
+                    gender: document.getElementById('gender').value,
+                    address: document.getElementById('address').value.trim(),
+                    state: document.getElementById('state').value,
+                    city: document.getElementById('city').value.trim(),
+                    deliveryPreferences: document.getElementById('deliveryPreferences').value,
+                    newsletter: document.getElementById('newsletter').checked,
+                    location: {
+                        type: 'Point',
+                        coordinates: [
+                            parseFloat(document.getElementById('longitude').value),
+                            parseFloat(document.getElementById('latitude').value)
+                        ]
+                    }
+                };
+                
+                try {
+                    // In a real application, you would use your actual API endpoint
+                    const response = await fetch('http://localhost:5000/api/v1/auth/register/', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(formData)
+                    });
+                    
+                    if (response.ok) {
+                        // Show success message
+                        document.getElementById('successMessage').style.display = 'block';
+                        document.getElementById('registrationForm').style.display = 'none';
+                        
+                        // Redirect to dashboard after 3 seconds
+                        setTimeout(() => {
+                            window.location.href = '/login';
+                        }, 3000);
+                    } else {
+                        throw new Error('Registration failed');
+                    }
+                } catch (error) {
+                    alert('Registration failed. Please try again later.');
+                    console.error('Error:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html>

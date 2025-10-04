@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Restaurant Solutions - e-GAS Online Gas Supply</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Global Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      background-color: #f9f9f9;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    /* Header Styles */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 5%;
+      background-color: #fff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .hamburger {
+      display: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+    
+    .navbar h1 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+    }
+    
+    .auth-buttons {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .auth-buttons button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .signin-btn {
+      background-color: transparent;
+      color: #2c3e50;
+      border: 1px solid #2c3e50 !important;
+    }
+    
+    .signup-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    
+    .signin-btn:hover {
+      background-color: #f1f1f1;
+    }
+    
+    .signup-btn:hover {
+      background-color: #c0392b;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+    }
+    
+    .nav-links a {
+      text-decoration: none;
+      color: #2c3e50;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+    
+    .nav-links a:hover {
+      color: #e74c3c;
+    }
+    
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                  url('https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      text-align: center;
+      padding: 5rem 1rem;
+    }
+    
+    .page-header h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .page-header p {
+      font-size: 1.2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+      padding: 1rem 5%;
+      background-color: #f1f1f1;
+    }
+    
+    .breadcrumb a {
+      color: #2c3e50;
+      text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+      text-decoration: underline;
+      color: #e74c3c;
+    }
+    
+    /* Content Section */
+    .content-section {
+      padding: 4rem 5%;
+    }
+    
+    .section-title {
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #2c3e50;
+      position: relative;
+      padding-bottom: 1rem;
+    }
+    
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 3px;
+      background-color: #e74c3c;
+    }
+    
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+      margin-bottom: 4rem;
+    }
+    
+    .column-img {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .column-img img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .column-text h3 {
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+    }
+    
+    .column-text p {
+      margin-bottom: 1.5rem;
+    }
+    
+    .benefits-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+    
+    .benefit-item {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+      text-align: center;
+      transition: transform 0.3s ease;
+    }
+    
+    .benefit-item:hover {
+      transform: translateY(-5px);
+    }
+    
+    .benefit-icon {
+      font-size: 2.5rem;
+      color: #e74c3c;
+      margin-bottom: 1rem;
+    }
+    
+    .benefit-item h4 {
+      margin-bottom: 1rem;
+      color: #2c3e50;
+    }
+    
+    /* Features Section */
+    .features-section {
+      background-color: #f1f1f1;
+      padding: 4rem 5%;
+    }
+    
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    
+    .feature-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+    
+    .feature-card:hover {
+      transform: translateY(-10px);
+    }
+    
+    .feature-img {
+      height: 200px;
+      overflow: hidden;
+    }
+    
+    .feature-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .feature-content {
+      padding: 2rem;
+    }
+    
+    .feature-content h3 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+    }
+    
+    /* CTA Section */
+    .cta-section {
+      padding: 5rem 5%;
+      text-align: center;
+      background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), 
+                  url('https://images.unsplash.com/photo-1590846406792-0adc7f938f1d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1465&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+    }
+    
+    .cta-section h2 {
+      font-size: 2.2rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .cta-section p {
+      max-width: 700px;
+      margin: 0 auto 2rem;
+      font-size: 1.1rem;
+    }
+    
+    .cta-button {
+      display: inline-block;
+      padding: 1rem 2rem;
+      background-color: #e74c3c;
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+    
+    .cta-button:hover {
+      background-color: #c0392b;
+    }
+    
+    /* Testimonials Section */
+    .testimonials-section {
+      padding: 4rem 5%;
+    }
+    
+    .testimonials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    
+    .testimonial-card {
+      background: white;
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      position: relative;
+    }
+    
+    .testimonial-card::before {
+      content: '"';
+      font-size: 5rem;
+      color: #f1f1f1;
+      position: absolute;
+      top: 10px;
+      left: 20px;
+      line-height: 1;
+    }
+    
+    .testimonial-text {
+      margin-bottom: 1.5rem;
+      position: relative;
+      z-index: 1;
+    }
+    
+    .testimonial-author {
+      display: flex;
+      align-items: center;
+    }
+    
+    .author-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin-right: 1rem;
+    }
+    
+    .author-avatar img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    
+    .author-details h4 {
+      color: #2c3e50;
+      margin-bottom: 0.2rem;
+    }
+    
+    .author-details p {
+      color: #7f8c8d;
+      font-size: 0.9rem;
+    }
+    
+    /* Footer Styles */
+    footer {
+      background-color: #2c3e50;
+      color: white;
+      padding: 3rem 5% 1rem;
+    }
+    
+    .footer-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .footer-logo h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    
+    .footer-logo p {
+      margin-bottom: 1.5rem;
+    }
+    
+    .social-links {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .social-links a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      color: white;
+      text-decoration: none;
+      transition: background-color 0.3s ease;
+    }
+    
+    .social-links a:hover {
+      background-color: #e74c3c;
+    }
+    
+    .footer-links-section h3 {
+      margin-bottom: 1.5rem;
+      position: relative;
+      padding-bottom: 0.5rem;
+    }
+    
+    .footer-links-section h3::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 2px;
+      background-color: #e74c3c;
+    }
+    
+    .footer-links {
+      list-style: none;
+    }
+    
+    .footer-links li {
+      margin-bottom: 0.8rem;
+    }
+    
+    .footer-links a {
+      color: #ddd;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-links a:hover {
+      color: #e74c3c;
+    }
+    
+    .footer-contact p {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .footer-contact i {
+      margin-right: 10px;
+      color: #e74c3c;
+    }
+    
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 1.5rem;
+      text-align: center;
+    }
+    
+    .footer-bottom-links {
+      margin-bottom: 1rem;
+    }
+    
+    .footer-bottom-links a {
+      color: #ddd;
+      text-decoration: none;
+      margin: 0 1rem;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-bottom-links a:hover {
+      color: #e74c3c;
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 968px) {
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .hamburger {
+        display: block;
+      }
+      
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        padding: 1rem;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+      }
+      
+      .nav-links.active {
+        display: flex;
+      }
+      
+      .auth-buttons {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header with Navbar ===== -->
+  <header>
+    <div class="navbar">
+      <div class="hamburger" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+      </div>
+      <h1>e-GAS</h1>
+      <div class="auth-buttons">
+        <button class="signin-btn" onclick="window.location.href='login.html'">Sign In</button>
+        <button class="signup-btn" onclick="window.location.href='register.html'">Sign Up</button>
+      </div>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== Page Header ===== -->
+  <section class="page-header">
+    <h2>Restaurant Gas Solutions</h2>
+    <p>Specialized high-volume gas delivery for restaurants and food service businesses. Never worry about interrupting your service.</p>
+  </section>
+
+  <!-- ===== Breadcrumb ===== -->
+  <div class="breadcrumb">
+    <a href="index.html">Home</a> > 
+    <a href="learn-more.html">Learn More</a> > 
+    Restaurant Solutions
+  </div>
+
+  <!-- ===== Content Section ===== -->
+  <section class="content-section">
+    <h2 class="section-title">Designed for Food Service Businesses</h2>
+    
+    <div class="two-column">
+      <div class="column-img">
+        <img src="https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Restaurant Kitchen">
+      </div>
+      <div class="column-text">
+        <h3>Keep Your Kitchen Running</h3>
+        <p>For restaurants, consistent gas supply isn't just a convenience—it's essential for business operations. Our restaurant solutions are designed to ensure you never run out of gas during peak hours.</p>
+        <p>We understand the unique demands of food service businesses, which is why we offer specialized high-volume cylinders, flexible delivery schedules, and emergency support to keep your kitchen running smoothly.</p>
+      </div>
+    </div>
+    
+    <h3 class="section-title">Benefits for Restaurants</h3>
+    
+    <div class="benefits-grid">
+      <div class="benefit-item">
+        <div class="benefit-icon">
+          <i class="fas fa-fire"></i>
+        </div>
+        <h4>High-Volume Cylinders</h4>
+        <p>Specialized cylinders designed for commercial kitchen usage.</p>
+      </div>
+      
+      <div class="benefit-item">
+        <div class="benefit-icon">
+          <i class="fas fa-clock"></i>
+        </div>
+        <h4>Flexible Scheduling</h4>
+        <p>Delivery times tailored to your business hours.</p>
+      </div>
+      
+      <div class="benefit-item">
+        <div class="benefit-icon">
+          <i class="fas fa-bolt"></i>
+        </div>
+        <h4>Emergency Support</h4>
+        <p>24/7 emergency delivery for unexpected shortages.</p>
+      </div>
+      
+      <div class="benefit-item">
+        <div class="benefit-icon">
+          <i class="fas fa-chart-line"></i>
+        </div>
+        <h4>Usage Analytics</h4>
+        <p>Detailed reports to help optimize your consumption.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Features Section ===== -->
+  <section class="features-section">
+    <h2 class="section-title">Our Restaurant Services</h2>
+    
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-img">
+          <img src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1474&q=80" alt="Commercial Cylinders">
+        </div>
+        <div class="feature-content">
+          <h3>Commercial Cylinders</h3>
+          <p>High-capacity cylinders designed specifically for commercial kitchens with heavy usage demands.</p>
+        </div>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-img">
+          <img src="https://images.unsplash.com/photo-1578474846613-eb6daf164c52?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Scheduled Delivery">
+        </div>
+        <div class="feature-content">
+          <h3>Scheduled Delivery</h3>
+          <p>Regular deliveries scheduled during off-peak hours to minimize disruption to your operations.</p>
+        </div>
+      </div>
+      
+      <div class="feature-card">
+        <div class="feature-img">
+          <img src="https://images.unsplash.com/photo-1585149553637-5a1d4a8a7c4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Equipment Maintenance">
+        </div>
+        <div class="feature-content">
+          <h3>Equipment Maintenance</h3>
+          <p>Regular maintenance and safety checks for all your gas equipment by certified technicians.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Testimonials Section ===== -->
+  <section class="testimonials-section">
+    <h2 class="section-title">What Restaurant Owners Say</h2>
+    
+    <div class="testimonials-grid">
+      <div class="testimonial-card">
+        <div class="testimonial-text">
+          <p>"Since switching to e-GAS, we've never had to worry about running out of gas during dinner service. Their emergency delivery has saved us multiple times."</p>
+        </div>
+        <div class="testimonial-author">
+          <div class="author-avatar">
+            <img src="https://randomuser.me/api/portraits/men/32.jpg" alt="Chef Michael">
+          </div>
+          <div class="author-details">
+            <h4>Michael Adeyemi</h4>
+            <p>Head Chef, Spice Garden</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="testimonial-card">
+        <div class="testimonial-text">
+          <p>"The usage analytics helped us optimize our gas consumption, saving us over 20% on our monthly gas expenses. Highly recommended for any restaurant."</p>
+        </div>
+        <div class="testimonial-author">
+          <div class="author-avatar">
+            <img src="https://randomuser.me/api/portraits/women/44.jpg" alt="Manager Sarah">
+          </div>
+          <div class="author-details">
+            <h4>Sarah Johnson</h4>
+            <p>Manager, City Bistro</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="testimonial-card">
+        <div class="testimonial-text">
+          <p>"As a chain of restaurants, we needed a reliable gas supplier that could service all our locations consistently. e-GAS has delivered perfectly."</p>
+        </div>
+        <div class="testimonial-author">
+          <div class="author-avatar">
+            <img src="https://randomuser.me/api/portraits/men/67.jpg" alt="Owner David">
+          </div>
+          <div class="author-details">
+            <h4>David Okon</h4>
+            <p>Owner, Taste of Nigeria</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA Section ===== -->
+  <section class="cta-section">
+    <h2>Power Your Restaurant with Reliable Gas Supply</h2>
+    <p>Join hundreds of restaurants that trust e-GAS for their cooking needs. Sign up today and get your first month with free delivery!</p>
+    <a href="register.html" class="cta-button">Get Started Now</a>
+  </section>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-logo">
+        <h2>e-GAS</h2>
+        <p>Providing reliable gas delivery services to homes and businesses across the region. Your comfort is our priority.</p>
+        <div class="social-links">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Quick Links</h3>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Services</h3>
+        <ul class="footer-links">
+          <li><a href="delivery.html">Gas Delivery</a></li>
+          <li><a href="subscription.html">Subscription Plans</a></li>
+          <li><a href="maintenance.html">Equipment Maintenance</a></li>
+          <li><a href="safety.html">Safety Checks</a></li>
+          <li><a href="business.html">Business Solutions</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Contact Us</h3>
+        <div class="footer-contact">
+          <p><i class="fas fa-map-marker-alt"></i> 123 Gas Street, Energy City</p>
+          <p><i class="fas fa-phone-alt"></i> +234 123 456 7890</p>
+          <p><i class="fas fa-envelope"></i> info@egas.com</p>
+          <p><i class="fas fa-clock"></i> Mon-Fri: 8AM - 6PM</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-bottom-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="cookies.html">Cookie Policy</a>
+        <a href="support.html">Support</a>
+      </div>
+      <p>&copy; 2025 e-GAS. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Toggle mobile menu
+    function toggleMenu() {
+      const navLinks = document.getElementById('navLinks');
+      navLinks.classList.toggle('active');
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Maintenance Services - e-GAS Online Gas Supply</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Global Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      background-color: #f9f9f9;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    /* Header Styles */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 5%;
+      background-color: #fff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .hamburger {
+      display: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+    
+    .navbar h1 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+    }
+    
+    .auth-buttons {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .auth-buttons button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .signin-btn {
+      background-color: transparent;
+      color: #2c3e50;
+      border: 1px solid #2c3e50 !important;
+    }
+    
+    .signup-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    
+    .signin-btn:hover {
+      background-color: #f1f1f1;
+    }
+    
+    .signup-btn:hover {
+      background-color: #c0392b;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+    }
+    
+    .nav-links a {
+      text-decoration: none;
+      color: #2c3e50;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+    
+    .nav-links a:hover {
+      color: #e74c3c;
+    }
+    
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                  url('https://images.unsplash.com/photo-1585149553637-5a1d4a8a7c4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      text-align: center;
+      padding: 5rem 1rem;
+    }
+    
+    .page-header h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .page-header p {
+      font-size: 1.2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+      padding: 1rem 5%;
+      background-color: #f1f1f1;
+    }
+    
+    .breadcrumb a {
+      color: #2c3e50;
+      text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+      text-decoration: underline;
+      color: #e74c3c;
+    }
+    
+    /* Content Section */
+    .content-section {
+      padding: 4rem 5%;
+    }
+    
+    .section-title {
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #2c3e50;
+      position: relative;
+      padding-bottom: 1rem;
+    }
+    
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 3px;
+      background-color: #e74c3c;
+    }
+    
+    .two-column {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 3rem;
+      align-items: center;
+      margin-bottom: 4rem;
+    }
+    
+    .column-img {
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .column-img img {
+      width: 100%;
+      height: auto;
+      display: block;
+    }
+    
+    .column-text h3 {
+      color: #2c3e50;
+      margin-bottom: 1.5rem;
+    }
+    
+    .column-text p {
+      margin-bottom: 1.5rem;
+    }
+    
+    /* Services Grid */
+    .services-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+    
+    .service-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+    
+    .service-card:hover {
+      transform: translateY(-10px);
+    }
+    
+    .service-img {
+      height: 200px;
+      overflow: hidden;
+    }
+    
+    .service-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+    
+    .service-card:hover .service-img img {
+      transform: scale(1.1);
+    }
+    
+    .service-content {
+      padding: 1.5rem;
+    }
+    
+    .service-content h3 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+    }
+    
+    .service-content ul {
+      list-style: none;
+      margin: 1rem 0;
+    }
+    
+    .service-content li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f1f1;
+    }
+    
+    .service-content li:last-child {
+      border-bottom: none;
+    }
+    
+    .service-content li i {
+      color: #e74c3c;
+      margin-right: 10px;
+    }
+    
+    /* Maintenance Plans */
+    .plans-section {
+      background-color: #f1f1f1;
+      padding: 4rem 5%;
+    }
+    
+    .plans-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    
+    .plan-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+      position: relative;
+    }
+    
+    .plan-card:hover {
+      transform: translateY(-10px);
+    }
+    
+    .plan-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background-color: #e74c3c;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .plan-header {
+      background-color: #2c3e50;
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    
+    .plan-price {
+      font-size: 2rem;
+      font-weight: 700;
+      margin: 1rem 0;
+    }
+    
+    .plan-price span {
+      font-size: 1rem;
+      font-weight: 400;
+    }
+    
+    .plan-features {
+      padding: 2rem;
+    }
+    
+    .plan-features ul {
+      list-style: none;
+      margin-bottom: 2rem;
+    }
+    
+    .plan-features li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f1f1;
+    }
+    
+    .plan-features li:last-child {
+      border-bottom: none;
+    }
+    
+    .plan-features li i {
+      color: #e74c3c;
+      margin-right: 10px;
+    }
+    
+    .plan-button {
+      display: block;
+      width: 100%;
+      padding: 1rem;
+      background-color: #e74c3c;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+    
+    .plan-button:hover {
+      background-color: #c0392b;
+    }
+    
+    /* CTA Section */
+    .cta-section {
+      padding: 5rem 5%;
+      text-align: center;
+      background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), 
+                  url('https://images.unsplash.com/photo-1589923188937-cb64779f4abe?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+    }
+    
+    .cta-section h2 {
+      font-size: 2.2rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .cta-section p {
+      max-width: 700px;
+      margin: 0 auto 2rem;
+      font-size: 1.1rem;
+    }
+    
+    .cta-button {
+      display: inline-block;
+      padding: 1rem 2rem;
+      background-color: #e74c3c;
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+    
+    .cta-button:hover {
+      background-color: #c0392b;
+    }
+    
+    /* Footer Styles */
+    footer {
+      background-color: #2c3e50;
+      color: white;
+      padding: 3rem 5% 1rem;
+    }
+    
+    .footer-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .footer-logo h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    
+    .footer-logo p {
+      margin-bottom: 1.5rem;
+    }
+    
+    .social-links {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .social-links a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      color: white;
+      text-decoration: none;
+      transition: background-color 0.3s ease;
+    }
+    
+    .social-links a:hover {
+      background-color: #e74c3c;
+    }
+    
+    .footer-links-section h3 {
+      margin-bottom: 1.5rem;
+      position: relative;
+      padding-bottom: 0.5rem;
+    }
+    
+    .footer-links-section h3::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 2px;
+      background-color: #e74c3c;
+    }
+    
+    .footer-links {
+      list-style: none;
+    }
+    
+    .footer-links li {
+      margin-bottom: 0.8rem;
+    }
+    
+    .footer-links a {
+      color: #ddd;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-links a:hover {
+      color: #e74c3c;
+    }
+    
+    .footer-contact p {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .footer-contact i {
+      margin-right: 10px;
+      color: #e74c3c;
+    }
+    
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 1.5rem;
+      text-align: center;
+    }
+    
+    .footer-bottom-links {
+      margin-bottom: 1rem;
+    }
+    
+    .footer-bottom-links a {
+      color: #ddd;
+      text-decoration: none;
+      margin: 0 1rem;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-bottom-links a:hover {
+      color: #e74c3c;
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 968px) {
+      .two-column {
+        grid-template-columns: 1fr;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      .hamburger {
+        display: block;
+      }
+      
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        padding: 1rem;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+      }
+      
+      .nav-links.active {
+        display: flex;
+      }
+      
+      .auth-buttons {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header with Navbar ===== -->
+  <header>
+    <div class="navbar">
+      <div class="hamburger" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+      </div>
+      <h1>e-GAS</h1>
+      <div class="auth-buttons">
+        <button class="signin-btn" onclick="window.location.href='login.html'">Sign In</button>
+        <button class="signup-btn" onclick="window.location.href='register.html'">Sign Up</button>
+      </div>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== Page Header ===== -->
+  <section class="page-header">
+    <h2>Maintenance Services</h2>
+    <p>Professional maintenance and safety checks to keep your gas equipment running safely and efficiently.</p>
+  </section>
+
+  <!-- ===== Breadcrumb ===== -->
+  <div class="breadcrumb">
+    <a href="index.html">Home</a> > 
+    <a href="quick-links.html">Quick Links</a> > 
+    Maintenance Services
+  </div>
+
+  <!-- ===== Content Section ===== -->
+  <section class="content-section">
+    <h2 class="section-title">Keep Your Gas Equipment in Top Condition</h2>
+    
+    <div class="two-column">
+      <div class="column-img">
+        <img src="https://images.unsplash.com/photo-1585149553637-5a1d4a8a7c4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Gas Maintenance">
+      </div>
+      <div class="column-text">
+        <h3>Professional Maintenance Services</h3>
+        <p>Regular maintenance of your gas equipment is essential for safety, efficiency, and longevity. Our certified technicians provide comprehensive maintenance services for all types of gas appliances and systems.</p>
+        <p>We follow strict safety protocols and use specialized equipment to ensure your gas systems are operating at peak performance while minimizing any risks associated with gas leaks or malfunctions.</p>
+      </div>
+    </div>
+    
+    <h3 class="section-title">Our Maintenance Services</h3>
+    
+    <div class="services-grid">
+      <div class="service-card">
+        <div class="service-img">
+          <img src="https://images.unsplash.com/photo-1603712610494-73e22f457c66?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Cylinder Inspection">
+        </div>
+        <div class="service-content">
+          <h3>Cylinder Inspection & Testing</h3>
+          <p>Comprehensive inspection and testing of gas cylinders to ensure they meet safety standards.</p>
+          <ul>
+            <li><i class="fas fa-check"></i> Visual inspection for damage</li>
+            <li><i class="fas fa-check"></i> Pressure testing</li>
+            <li><i class="fas fa-check"></i> Valve functionality check</li>
+            <li><i class="fas fa-check"></i> Leak detection</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="service-card">
+        <div class="service-img">
+          <img src="https://images.unsplash.com/photo-1600566753051-475254d7b3e9?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Appliance Service">
+        </div>
+        <div class="service-content">
+          <h3>Appliance Maintenance</h3>
+          <p>Professional servicing of gas appliances to ensure efficient and safe operation.</p>
+          <ul>
+            <li><i class="fas fa-check"></i> Burner cleaning and adjustment</li>
+            <li><i class="fas fa-check"></i> Gas pressure regulation</li>
+            <li><i class="fas fa-check"></i> Ignition system check</li>
+            <li><i class="fas fa-check"></i> Safety device testing</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="service-card">
+        <div class="service-img">
+          <img src="https://images.unsplash.com/photo-1615529328331-f8917597711f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Pipe Installation">
+        </div>
+        <div class="service-content">
+          <h3>Pipeline Installation & Repair</h3>
+          <p>Professional installation and repair of gas pipelines for safe gas distribution.</p>
+          <ul>
+            <li><i class="fas fa-check"></i> Pipeline installation</li>
+            <li><i class="fas fa-check"></i> Leak detection and repair</li>
+            <li><i class="fas fa-check"></i> Pressure testing</li>
+            <li><i class="fas fa-check"></i> Corrosion protection</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Maintenance Plans ===== -->
+  <section class="plans-section">
+    <h2 class="section-title">Maintenance Plans</h2>
+    
+    <div class="plans-grid">
+      <div class="plan-card">
+        <div class="plan-header">
+          <h3>Basic Maintenance</h3>
+          <div class="plan-price">₦5,000<span>/visit</span></div>
+          <p>For occasional maintenance needs</p>
+        </div>
+        <div class="plan-features">
+          <ul>
+            <li><i class="fas fa-check"></i> Visual inspection of cylinders</li>
+            <li><i class="fas fa-check"></i> Basic leak detection</li>
+            <li><i class="fas fa-check"></i> Appliance safety check</li>
+            <li><i class="fas fa-check"></i> Basic cleaning</li>
+            <li><i class="fas fa-times"></i> No priority scheduling</li>
+          </ul>
+          <a href="#" class="plan-button">Book Now</a>
+        </div>
+      </div>
+      
+      <div class="plan-card">
+        <div class="plan-badge">Most Popular</div>
+        <div class="plan-header">
+          <h3>Standard Maintenance</h3>
+          <div class="plan-price">₦12,000<span>/quarter</span></div>
+          <p>For regular maintenance</p>
+        </div>
+        <div class="plan-features">
+          <ul>
+            <li><i class="fas fa-check"></i> Comprehensive inspection</li>
+            <li><i class="fas fa-check"></i> Advanced leak detection</li>
+            <li><i class="fas fa-check"></i> Appliance tuning</li>
+            <li><i class="fas fa-check"></i> Detailed cleaning</li>
+            <li><i class="fas fa-check"></i> Priority scheduling</li>
+          </ul>
+          <a href="#" class="plan-button">Subscribe Now</a>
+        </div>
+      </div>
+      
+      <div class="plan-card">
+        <div class="plan-header">
+          <h3>Premium Maintenance</h3>
+          <div class="plan-price">₦40,000<span>/year</span></div>
+          <p>For comprehensive care</p>
+        </div>
+        <div class="plan-features">
+          <ul>
+            <li><i class="fas fa-check"></i> All Standard features</li>
+            <li><i class="fas fa-check"></i> Quarterly inspections</li>
+            <li><i class="fas fa-check"></i> Emergency support</li>
+            <li><i class="fas fa-check"></i> Parts discount (15%)</li>
+            <li><i class="fas fa-check"></i> Highest priority scheduling</li>
+          </ul>
+          <a href="#" class="plan-button">Subscribe Now</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA Section ===== -->
+  <section class="cta-section">
+    <h2>Ensure Your Gas Equipment is Safe & Efficient</h2>
+    <p>Schedule a maintenance service with our certified technicians and enjoy peace of mind knowing your gas systems are in perfect condition.</p>
+    <a href="contact.html" class="cta-button">Schedule Maintenance</a>
+  </section>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-logo">
+        <h2>e-GAS</h2>
+        <p>Providing reliable gas delivery services to homes and businesses across the region. Your comfort is our priority.</p>
+        <div class="social-links">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Quick Links</h3>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Services</h3>
+        <ul class="footer-links">
+          <li><a href="delivery.html">Gas Delivery</a></li>
+          <li><a href="subscription.html">Subscription Plans</a></li>
+          <li><a href="maintenance.html">Equipment Maintenance</a></li>
+          <li><a href="safety.html">Safety Checks</a></li>
+          <li><a href="business.html">Business Solutions</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Contact Us</h3>
+        <div class="footer-contact">
+          <p><i class="fas fa-map-marker-alt"></i> 123 Gas Street, Energy City</p>
+          <p><i class="fas fa-phone-alt"></i> +234 123 456 7890</p>
+          <p><i class="fas fa-envelope"></i> info@egas.com</p>
+          <p><i class="fas fa-clock"></i> Mon-Fri: 8AM - 6PM</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-bottom-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="cookies.html">Cookie Policy</a>
+        <a href="support.html">Support</a>
+      </div>
+      <p>&copy; 2025 e-GAS. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Toggle mobile menu
+    function toggleMenu() {
+      const navLinks = document.getElementById('navLinks');
+      navLinks.classList.toggle('active');
+    }
+  </script>
+</body>
+</html>

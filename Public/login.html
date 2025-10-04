@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>e-GAS - Login</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Reset and Base Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      line-height: 1.6;
+      color: #333;
+      background-color: #f9f9f9;
+    }
+
+    a {
+      text-decoration: none;
+      color: inherit;
+    }
+
+    button {
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    /* Header Styles */
+    header {
+      background-color: #2c3e50;
+      color: white;
+      padding: 1rem 2rem;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .navbar h1 {
+      font-size: 1.8rem;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-links a {
+      color: white;
+      font-weight: 500;
+      padding: 0.5rem 0;
+      position: relative;
+      transition: color 0.3s ease;
+    }
+
+    .nav-links a:hover {
+      color: #5ffff9;
+    }
+
+    .nav-links a::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background-color: #5ffff9;
+      transition: width 0.3s ease;
+    }
+
+    .nav-links a:hover::after {
+      width: 100%;
+    }
+
+    .auth-buttons {
+      display: flex;
+      gap: 1rem;
+      margin-left: 2rem;
+    }
+
+    .auth-buttons button {
+      padding: 0.5rem 1.2rem;
+      border-radius: 4px;
+      font-weight: 600;
+      border: none;
+    }
+
+    .signin-btn {
+      background-color: transparent;
+      color: white;
+      border: 1px solid white !important;
+    }
+
+    .signup-btn {
+      background-color: #5ffff9;
+      color: #2c3e50;
+    }
+
+    .signin-btn:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+
+    .signup-btn:hover {
+      background-color: #4ae0d9;
+    }
+
+    .hamburger {
+      display: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+
+    /* Login Hero Section */
+    .page-hero {
+      background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('https://images.unsplash.com/photo-1600891964599-f61ba0e24092?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      text-align: center;
+      padding: 5rem 2rem;
+    }
+
+    .page-hero h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .page-hero p {
+      font-size: 1.2rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Login Form */
+    .login-container {
+      max-width: 500px;
+      margin: 3rem auto;
+      padding: 0 2rem;
+    }
+
+    .login-form {
+      background: white;
+      padding: 3rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    }
+
+    .form-header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .form-header h3 {
+      font-size: 1.8rem;
+      color: #2c3e50;
+      margin-bottom: 0.5rem;
+    }
+
+    .form-header p {
+      color: #666;
+    }
+
+    .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 0.5rem;
+      color: #2c3e50;
+      font-weight: 500;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.8rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .form-group input:focus {
+      outline: none;
+      border-color: #5ffff9;
+      box-shadow: 0 0 0 2px rgba(95, 255, 249, 0.2);
+    }
+
+    .password-container {
+      position: relative;
+    }
+
+    .toggle-password {
+      position: absolute;
+      right: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      cursor: pointer;
+      color: #666;
+    }
+
+    .remember-forgot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .remember-me {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .remember-me input {
+      width: auto;
+    }
+
+    .forgot-password a {
+      color: #2c3e50;
+      font-weight: 500;
+    }
+
+    .forgot-password a:hover {
+      color: #5ffff9;
+    }
+
+    .submit-btn {
+      width: 100%;
+      padding: 0.8rem;
+      background-color: #2c3e50;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+
+    .submit-btn:hover {
+      background-color: #34495e;
+    }
+
+    .submit-btn.loading {
+      background-color: #95a5a6;
+      cursor: not-allowed;
+    }
+
+    .submit-btn.loading::after {
+      content: "";
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      margin: auto;
+      border: 4px solid transparent;
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: button-loading-spinner 1s ease infinite;
+    }
+
+    @keyframes button-loading-spinner {
+      from {
+        transform: rotate(0turn);
+      }
+      to {
+        transform: rotate(1turn);
+      }
+    }
+
+    .social-login {
+      text-align: center;
+      margin-bottom: 1.5rem;
+    }
+
+    .social-login p {
+      color: #666;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .social-login p::before,
+    .social-login p::after {
+      content: "";
+      flex: 1;
+      border-bottom: 1px solid #ddd;
+      margin: auto;
+    }
+
+    .social-login p::before {
+      margin-right: 1rem;
+    }
+
+    .social-login p::after {
+      margin-left: 1rem;
+    }
+
+    .social-icons {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+    }
+
+    .social-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 1.2rem;
+    }
+
+    .facebook {
+      background-color: #3b5998;
+    }
+
+    .google {
+      background-color: #db4437;
+    }
+
+    .twitter {
+      background-color: #1da1f2;
+    }
+
+    .register-link {
+      text-align: center;
+      color: #666;
+    }
+
+    .register-link a {
+      color: #2c3e50;
+      font-weight: 600;
+    }
+
+    .register-link a:hover {
+      color: #5ffff9;
+    }
+
+    /* Error message styling */
+    .error-message {
+      color: #e74c3c;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      display: none;
+    }
+
+    .form-group.error input {
+      border-color: #e74c3c;
+    }
+
+    .form-group.error .error-message {
+      display: block;
+    }
+
+    /* Success message styling */
+    .success-message {
+      background-color: #d4edda;
+      color: #155724;
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1.5rem;
+      display: none;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+      .navbar {
+        flex-wrap: wrap;
+      }
+
+      .hamburger {
+        display: block;
+        order: 1;
+      }
+
+      .navbar h1 {
+        order: 2;
+        flex: 1;
+        text-align: center;
+      }
+
+      .auth-buttons {
+        order: 3;
+        margin-left: 0;
+      }
+
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        width: 100%;
+        order: 4;
+        margin-top: 1rem;
+      }
+
+      .nav-links.active {
+        display: flex;
+      }
+
+      .nav-links a {
+        padding: 0.8rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .page-hero {
+        padding: 3rem 1.5rem;
+      }
+
+      .page-hero h2 {
+        font-size: 2rem;
+      }
+
+      .login-form {
+        padding: 2rem;
+      }
+
+      .remember-forgot {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 1rem;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .auth-buttons {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header with Navbar ===== -->
+  <header>
+    <div class="navbar">
+      <div class="hamburger" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+      </div>
+      <h1>e-Gas</h1>
+      <div class="auth-buttons">
+        <button class="signin-btn" onclick="window.location.href='login.html'">Sign In</button>
+        <button class="signup-btn" onclick="window.location.href='register.html'">Sign Up</button>
+      </div>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== Login Hero Section ===== -->
+  <section class="page-hero">
+    <h2>Welcome Back</h2>
+    <p>Sign in to access your e-GAS account and manage your gas deliveries</p>
+  </section>
+
+  <!-- ===== Login Form ===== -->
+  <div class="login-container">
+    <form class="login-form" id="loginForm">
+      <div class="success-message" id="successMessage">
+        <i class="fas fa-check-circle"></i> Login successful! Redirecting to dashboard...
+      </div>
+      
+      <div class="form-header">
+        <h3>Login to Your Account</h3>
+        <p>Enter your credentials to continue</p>
+      </div>
+
+      <div class="form-group" id="emailGroup">
+        <label for="email">Email Address</label>
+        <input type="email" id="email" name="email" placeholder="Enter your email" required>
+        <div class="error-message" id="emailError"></div>
+      </div>
+
+      <div class="form-group" id="passwordGroup">
+        <label for="password">Password</label>
+        <div class="password-container">
+          <input type="password" id="password" name="password" placeholder="Enter your password" required>
+          <i class="fas fa-eye toggle-password" id="togglePassword"></i>
+        </div>
+        <div class="error-message" id="passwordError"></div>
+      </div>
+
+      <div class="remember-forgot">
+        <div class="remember-me">
+          <input type="checkbox" id="remember" name="remember">
+          <label for="remember">Remember me</label>
+        </div>
+        <div class="forgot-password">
+          <a href="forgot-password.html">Forgot password?</a>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-btn" id="submitBtn">Sign In</button>
+
+      <div class="social-login">
+        <p>Or sign in with</p>
+        <div class="social-icons">
+          <a href="#" class="social-icon facebook"><i class="fab fa-facebook-f"></i></a>
+          <a href="#" class="social-icon google"><i class="fab fa-google"></i></a>
+          <a href="#" class="social-icon twitter"><i class="fab fa-twitter"></i></a>
+        </div>
+      </div>
+
+      <div class="register-link">
+        Don't have an account? <a href="register.html">Register here</a>
+      </div>
+    </form>
+  </div>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-logo">
+        <h2>e-GAS</h2>
+        <p>Providing reliable gas delivery services to homes and businesses across the region. Your comfort is our priority.</p>
+        <div class="social-links">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Quick Links</h3>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Services</h3>
+        <ul class="footer-links">
+          <li><a href="delivery.html">Gas Delivery</a></li>
+          <li><a href="subscription.html">Subscription Plans</a></li>
+          <li><a href="maintenance.html">Equipment Maintenance</a></li>
+          <li><a href="safety.html">Safety Checks</a></li>
+          <li><a href="business.html">Business Solutions</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Contact Us</h3>
+        <div class="footer-contact">
+          <p><i class="fas fa-map-marker-alt"></i> 123 Gas Street, Energy City</p>
+          <p><i class="fas fa-phone-alt"></i> +234 123 456 7890</p>
+          <p><i class="fas fa-envelope"></i> info@egas.com</p>
+          <p><i class="fas fa-clock"></i> Mon-Fri: 8AM - 6PM</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-bottom-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="cookies.html">Cookie Policy</a>
+        <a href="support.html">Support</a>
+      </div>
+      <p>&copy; 2025 e-GAS. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // API Base URL - Update this to match your backend URL
+    const API_BASE_URL = 'http://localhost:5000/api/v1/auth';
+    
+    // Toggle mobile menu
+    function toggleMenu() {
+      const navLinks = document.getElementById('navLinks');
+      navLinks.classList.toggle('active');
+    }
+    
+    // Toggle password visibility
+    document.getElementById('togglePassword').addEventListener('click', function() {
+      const passwordInput = document.getElementById('password');
+      const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+      passwordInput.setAttribute('type', type);
+      this.classList.toggle('fa-eye');
+      this.classList.toggle('fa-eye-slash');
+    });
+
+    // Validate email format
+    function isValidEmail(email) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return emailRegex.test(email);
+    }
+
+    // Show error message
+    function showError(fieldId, message) {
+      const fieldGroup = document.getElementById(fieldId);
+      const errorElement = document.getElementById(fieldId + 'Error');
+      
+      fieldGroup.classList.add('error');
+      errorElement.textContent = message;
+    }
+
+    // Clear error message
+    function clearError(fieldId) {
+      const fieldGroup = document.getElementById(fieldId);
+      const errorElement = document.getElementById(fieldId + 'Error');
+      
+      fieldGroup.classList.remove('error');
+      errorElement.textContent = '';
+    }
+
+    // Set loading state
+    function setLoading(isLoading) {
+      const submitBtn = document.getElementById('submitBtn');
+      if (isLoading) {
+        submitBtn.classList.add('loading');
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '';
+      } else {
+        submitBtn.classList.remove('loading');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Sign In';
+      }
+    }
+   
+    // Store authentication token and user data
+    function storeAuthData(token, userData, remember) {
+      if (remember) {
+        // Store in localStorage for persistent login
+        localStorage.setItem('egas_token', token);
+        localStorage.setItem('egas_user', JSON.stringify(userData));
+      } else {
+        // Store in sessionStorage for session-only login
+        sessionStorage.setItem('egas_token', token);
+        sessionStorage.setItem('egas_user', JSON.stringify(userData));
+      }
+    }
+
+
+    // // Form submission handler
+    // async function handleLogin(event) {
+    //   event.preventDefault();
+
+    document.getElementById('loginForm').addEventListener('submitBtn', async function(e) {
+      e.preventDefault();
+      
+      // Get form values
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value;
+      const remember = document.getElementById('remember').checked;
+      
+      // Clear previous errors
+      clearError('emailGroup');
+      clearError('passwordGroup');
+      
+      // Validate inputs
+      let isValid = true;
+      
+      if (!email) {
+        showError('emailGroup', 'Email is required');
+        isValid = false;
+      } else if (!isValidEmail(email)) {
+        showError('emailGroup', 'Please enter a valid email address');
+        isValid = false;
+      }
+      
+      if (!password) {
+        showError('passwordGroup', 'Password is required');
+        isValid = false;
+      } else if (password.length < 6) {
+        showError('passwordGroup', 'Password must be at least 6 characters');
+        isValid = false;
+      }
+      
+      if (!isValid) return;
+      
+      // Set loading state
+      setLoading(true);
+      
+      try {
+        // Make API request to login endpoint
+        const response = await fetch(`${API_BASE_URL}/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password }),
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok && data.success) {
+          // Login successful
+          const successMessage = document.getElementById('successMessage');
+          successMessage.style.display = 'block';
+          
+          // Store the token and user data
+          storeAuthData(data.token, data.user, remember);
+                              
+          // // Store user data if needed
+          // if (data.user) {
+          //   localStorage.setItem('egas_user', JSON.stringify(data.user));
+          // }
+          
+          // Redirect to dashboard after a short delay
+          setTimeout(() => {
+            window.location.href = 'customerDashboard.html';
+          }, 1500);
+        } else {
+          // Login failed
+          showError('passwordGroup', data.error || 'Login failed. Please try again.');
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        showError('passwordGroup', 'Network error. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    // Add event listener to form
+    document.getElementById('loginForm').addEventListener('submitBtn');
+
+    // Also add click event to button for extra assurance
+    document.getElementById('submitBtn').addEventListener('click', function(e) {
+      // Prevent default button behavior
+      e.preventDefault();
+      // Trigger form submission
+      document.getElementById('loginForm').dispatchEvent(new Event('submit'));
+    });
+
+    // Check if user is already logged in
+    function checkAuthStatus() {
+      const token = localStorage.getItem('egas_token') || sessionStorage.getItem('egas_token');
+      if (token) {
+        // User is already logged in, redirect to dashboard
+        window.location.href = 'customerDashboard.html';
+      }
+    }
+
+    // Check authentication status on page load
+    window.addEventListener('DOMContentLoaded', checkAuthStatus);
+ 
+
+    // Social login handlers (would be replaced with actual OAuth implementations)
+    // document.querySelector('.facebook').addEventListener('click', function(e) {
+    //   e.preventDefault();
+    //   alert('Facebook login would be implemented here');
+    // });
+    
+    // document.querySelector('.google').addEventListener('click', function(e) {
+    //   e.preventDefault();
+    //   alert('Google login would be implemented here');
+    // });
+    
+    // document.querySelector('.twitter').addEventListener('click', function(e) {
+    //   e.preventDefault();
+    //   alert('Twitter login would be implemented here');
+    // });
+
+    // // Check if user is already logged in
+    // function checkAuthStatus() {
+    //   const token = localStorage.getItem('egas_token') || sessionStorage.getItem('egas_token');
+    //   if (token) {
+    //     // User is already logged in, redirect to dashboard
+    //     window.location.href = 'customerDashboard.html';
+    //   }
+    // }
+
+    // // Check authentication status on page load
+    // checkAuthStatus();
+  </script>
+  
+</body>
+</html>

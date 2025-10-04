@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Blog - e-GAS Online Gas Supply</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles/headerfooter.css">
+  <style>
+    /* Global Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: #f9f9f9;
+      color: #333;
+      line-height: 1.6;
+    }
+
+    
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)),
+        url('https://images.unsplash.com/photo-1497366754035-f200968a6e72?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1500&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      text-align: center;
+      padding: 5rem 1rem;
+    }
+
+    .page-header h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .page-header p {
+      font-size: 1.2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    /* Breadcrumb */
+    .breadcrumb {
+      padding: 1rem 5%;
+      background-color: #f1f1f1;
+    }
+
+    .breadcrumb a {
+      color: #2c3e50;
+      text-decoration: none;
+    }
+
+    .breadcrumb a:hover {
+      text-decoration: underline;
+      color: #8df7d7;
+    }
+
+    /* Content Section */
+    .content-section {
+      padding: 4rem 5%;
+      display: grid;
+      grid-template-columns: 1fr 300px;
+      gap: 3rem;
+    }
+
+    .section-title {
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #2c3e50;
+      position: relative;
+      padding-bottom: 1rem;
+      grid-column: 1 / -1;
+    }
+
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 3px;
+      background-color: #8df7d7;
+    }
+
+    /* Blog Posts */
+    .blog-posts {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .blog-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+
+    .blog-card:hover {
+      transform: translateY(-10px);
+    }
+
+    .blog-image {
+      height: 200px;
+      overflow: hidden;
+    }
+
+    .blog-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+
+    .blog-card:hover .blog-image img {
+      transform: scale(1.1);
+    }
+
+    .blog-content {
+      padding: 1.5rem;
+    }
+
+    .blog-meta {
+      display: flex;
+      align-items: center;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      color: #7f8c8d;
+    }
+
+    .blog-meta span {
+      display: flex;
+      align-items: center;
+      margin-right: 1rem;
+    }
+
+    .blog-meta i {
+      margin-right: 0.5rem;
+      color: #8df7d7;
+    }
+
+    .blog-content h3 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+      font-size: 1.3rem;
+    }
+
+    .blog-excerpt {
+      margin-bottom: 1.5rem;
+      color: #555;
+    }
+
+    .blog-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .blog-tag {
+      background-color: #f1f1f1;
+      color: #2c3e50;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .read-more {
+      display: inline-block;
+      color: #8df7d7;
+      font-weight: 600;
+      text-decoration: none;
+      position: relative;
+    }
+
+    .read-more::after {
+      content: '→';
+      margin-left: 5px;
+      transition: margin-left 0.3s ease;
+    }
+
+    .read-more:hover::after {
+      margin-left: 10px;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      height: fit-content;
+    }
+
+    .sidebar-widget {
+      margin-bottom: 2rem;
+    }
+
+    .sidebar-widget:last-child {
+      margin-bottom: 0;
+    }
+
+    .sidebar-widget h3 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+      padding-bottom: 0.5rem;
+      border-bottom: 2px solid #24ce9b;
+    }
+
+    /* Search Widget */
+    .search-form {
+      position: relative;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 0.8rem 1rem 0.8rem 3rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #7f8c8d;
+    }
+
+    /* Categories Widget */
+    .categories-list {
+      list-style: none;
+    }
+
+    .categories-list li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f1f1;
+    }
+
+    .categories-list li:last-child {
+      border-bottom: none;
+    }
+
+    .categories-list a {
+      color: #2c3e50;
+      text-decoration: none;
+      display: flex;
+      justify-content: space-between;
+      transition: color 0.3s ease;
+    }
+
+    .categories-list a:hover {
+      color: #30c296;
+    }
+
+    .category-count {
+      background-color: #8df7d7;
+      color: #003b3b;
+      padding: 0.1rem 0.5rem;
+      border-radius: 10px;
+      font-size: 0.8rem;
+    }
+
+    /* Recent Posts Widget */
+    .recent-posts {
+      list-style: none;
+    }
+
+    .recent-post {
+      display: flex;
+      margin-bottom: 1rem;
+      align-items: center;
+    }
+
+    .recent-post:last-child {
+      margin-bottom: 0;
+    }
+
+    .recent-post-image {
+      width: 60px;
+      height: 60px;
+      border-radius: 4px;
+      overflow: hidden;
+      margin-right: 1rem;
+    }
+
+    .recent-post-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .recent-post-content h4 {
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+    }
+
+    .recent-post-content a {
+      color: #2c3e50;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .recent-post-content a:hover {
+      color: #20ca9a;
+    }
+
+    .recent-post-date {
+      font-size: 0.8rem;
+      color: #7f8c8d;
+    }
+
+    /* Tags Widget */
+    .tags-cloud {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tag-link {
+      background-color: #f1f1f1;
+      color: #2c3e50;
+      padding: 0.3rem 0.8rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      text-decoration: none;
+      transition: all 0.3s ease;
+    }
+
+    .tag-link:hover {
+      background-color: #6de3c0;
+      color: #003b3b;
+    }
+
+    /* Pagination */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      margin-top: 3rem;
+      grid-column: 1 / -1;
+    }
+
+    .pagination-button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      margin: 0 0.3rem;
+      border-radius: 4px;
+      background-color: white;
+      color: #2c3e50;
+      text-decoration: none;
+      font-weight: 600;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+      transition: all 0.3s ease;
+    }
+
+    .pagination-button:hover,
+    .pagination-button.active {
+      background-color: #8df7d7;
+      color: #003b3b;
+    }
+
+    /* Newsletter Section */
+    .newsletter-section {
+      background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        url('https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1500&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      padding: 4rem 5%;
+      text-align: center;
+      margin: 4rem 0;
+      grid-column: 1 / -1;
+      border-radius: 8px;
+    }
+
+    .newsletter-section h2 {
+      font-size: 2rem;
+      margin-bottom: 1rem;
+    }
+
+    .newsletter-section p {
+      max-width: 600px;
+      margin: 0 auto 2rem;
+    }
+
+    .newsletter-form {
+      display: flex;
+      max-width: 500px;
+      margin: 0 auto;
+    }
+
+    .newsletter-input {
+      flex: 1;
+      padding: 1rem;
+      border: none;
+      border-radius: 4px 0 0 4px;
+      font-size: 1rem;
+    }
+
+    .newsletter-button {
+      padding: 0 1.5rem;
+      background-color: #8df7d7;
+      color: #003b3b;
+      border: none;
+      border-radius: 0 4px 4px 0;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .newsletter-button:hover {
+      background-color: #46dbaf;
+    }
+
+    /* CTA Section */
+    .cta-section {
+      padding: 5rem 5%;
+      text-align: center;
+      background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)),
+        url('https://images.unsplash.com/photo-1536935338788-846bb9981813?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1468&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      grid-column: 1 / -1;
+    }
+
+    .cta-section h2 {
+      font-size: 2.2rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .cta-section p {
+      max-width: 700px;
+      margin: 0 auto 2rem;
+      font-size: 1.1rem;
+    }
+
+    .cta-button {
+      display: inline-block;
+      padding: 1rem 2rem;
+      background-color: #8df7d7;
+      color: #003b3b;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+
+    .cta-button:hover {
+      background-color: #3ad7a8;
+    }
+
+    /* Footer Styles */
+    footer {
+      background-color: #2c3e50;
+      color: white;
+      padding: 3rem 5% 1rem;
+      grid-column: 1 / -1;
+    }
+
+    .footer-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .footer-logo h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+
+    .footer-logo p {
+      margin-bottom: 1.5rem;
+    }
+
+    .social-links {
+      display: flex;
+      gap: 1rem;
+    }
+
+    .social-links a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      color: white;
+      text-decoration: none;
+      transition: background-color 0.3s ease;
+    }
+
+    .social-links a:hover {
+      background-color: #65efc6;
+    }
+
+    .footer-links-section h3 {
+      margin-bottom: 1.5rem;
+      position: relative;
+      padding-bottom: 0.5rem;
+    }
+
+    .footer-links-section h3::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 2px;
+      background-color: #65efc6;
+    }
+
+    .footer-links {
+      list-style: none;
+    }
+
+    .footer-links li {
+      margin-bottom: 0.8rem;
+    }
+
+    .footer-links a {
+      color: #ddd;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+
+    .footer-links a:hover {
+      color: #59ba9d;
+    }
+
+    .footer-contact p {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+
+    .footer-contact i {
+      margin-right: 10px;
+      color: #59ba9d;
+    }
+
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 1.5rem;
+      text-align: center;
+    }
+
+    .footer-bottom-links {
+      margin-bottom: 1rem;
+    }
+
+    .footer-bottom-links a {
+      color: #ddd;
+      text-decoration: none;
+      margin: 0 1rem;
+      transition: color 0.3s ease;
+    }
+
+    .footer-bottom-links a:hover {
+      color: #59ba9d;
+    }
+
+    /* Responsive Styles */
+    @media (max-width: 968px) {
+      .content-section {
+        grid-template-columns: 1fr;
+      }
+
+      .sidebar {
+        order: -1;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .hamburger {
+        display: block;
+      }
+
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        padding: 1rem;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      .nav-links.active {
+        display: flex;
+      }
+
+      .auth-buttons {
+        display: none;
+      }
+
+      .newsletter-form {
+        flex-direction: column;
+      }
+
+      .newsletter-input {
+        border-radius: 4px;
+        margin-bottom: 1rem;
+      }
+
+      .newsletter-button {
+        border-radius: 4px;
+        padding: 1rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+
+    <!-- ===== Header with Navbar ===== -->
+
+    <div class="container">
+      <div class="navbar">
+
+        <div class="hamburger" onclick="toggleMenu()">
+          <i class="fas fa-bars"></i>
+        </div>
+
+        <div class="logo">
+          <h1>e-Gas</h1>
+        </div>
+
+        <nav class="nav-links" id="navLinks">
+          <a href="index.html">Home</a>
+          <a href="products.html">Products</a>
+          <a href="services.html">Services</a>
+          <a href="contact.html">Contact</a>
+          <a href="about.html">About</a>
+        </nav>
+
+        <div class="auth-buttons">
+          <button class="signin-btn" onclick="window.location.href='login.html'">Sign In</button>
+          <button class="signup-btn" onclick="window.location.href='register.html'">Sign Up</button>
+        </div>
+
+        <div class="account-section">
+          <div class="user-info">
+            <div class="user-name" id="userName">Guest User</div>
+            <div class="user-status" id="userStatus">Not logged in</div>
+          </div>
+          <div class="account-icon" id="accountIcon" onclick="handleAccountClick()">
+            <!-- Dynamic content will be inserted by JavaScript -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </header>
+
+
+  <!-- ===== Page Header ===== -->
+  <section class="page-header">
+    <h2>e-GAS Blog</h2>
+    <p>Stay updated with the latest news, tips, and insights about gas safety, cooking, and home management.</p>
+  </section>
+
+  <!-- ===== Breadcrumb ===== -->
+  <div class="breadcrumb">
+    <a href="index.html">Home</a> >
+    <a href="quick-links.html">Quick Links</a> >
+    Blog
+  </div>
+
+  <!-- ===== Content Section ===== -->
+  <section class="content-section">
+    <h2 class="section-title">Latest Articles</h2>
+
+    <!-- Blog Posts -->
+    <div class="blog-posts">
+      <article class="blog-card">
+        <div class="blog-image">
+          <img
+            src="https://images.unsplash.com/photo-1589923188937-cb64779f4abe?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+            alt="Gas Safety Tips">
+        </div>
+        <div class="blog-content">
+          <div class="blog-meta">
+            <span><i class="far fa-calendar"></i> June 15, 2023</span>
+            <span><i class="far fa-user"></i> Admin</span>
+          </div>
+          <h3>10 Essential Gas Safety Tips Every Homeowner Should Know</h3>
+          <p class="blog-excerpt">Learn the crucial safety measures to prevent accidents and ensure safe usage of gas in
+            your home. Our experts share professional advice...</p>
+          <div class="blog-tags">
+            <span class="blog-tag">Safety</span>
+            <span class="blog-tag">Tips</span>
+          </div>
+          <a href="#" class="read-more">Read More</a>
+        </div>
+      </article>
+
+      <article class="blog-card">
+        <div class="blog-image">
+          <img
+            src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wywdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+            alt="Cooking with Gas">
+        </div>
+        <div class="blog-content">
+          <div class="blog-meta">
+            <span><i class="far fa-calendar"></i> June 8, 2023</span>
+            <span><i class="far fa-user"></i> Chef Adeola</span>
+          </div>
+          <h3>Why Professional Chefs Prefer Cooking with Gas</h3>
+          <p class="blog-excerpt">Discover the reasons why gas cooking is preferred by culinary experts worldwide and
+            how it can transform your home cooking experience...</p>
+          <div class="blog-tags">
+            <span class="blog-tag">Cooking</span>
+            <span class="blog-tag">Tips</span>
+          </div>
+          <a href="#" class="read-more">Read More</a>
+        </div>
+      </article>
+
+      <article class="blog-card">
+        <div class="blog-image">
+          <img
+            src="https://images.unsplash.com/photo-1560448204-603b3fc33ddc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+            alt="Energy Efficiency">
+        </div>
+        <div class="blog-content">
+          <div class="blog-meta">
+            <span><i class="far fa-calendar"></i> May 30, 2023</span>
+            <span><i class="far fa-user"></i> Energy Expert</span>
+          </div>
+          <h3>How to Make Your Kitchen More Energy Efficient</h3>
+          <p class="blog-excerpt">Simple changes to your cooking habits and kitchen setup can significantly reduce your
+            energy consumption and utility bills. Learn how...</p>
+          <div class="blog-tags">
+            <span class="blog-tag">Energy</span>
+            <span class="blog-tag">Efficiency</span>
+          </div>
+          <a href="#" class="read-more">Read More</a>
+        </div>
+      </article>
+
+      <article class="blog-card">
+        <div class="blog-image">
+          <img
+            src="https://images.unsplash.com/photo-1585149553637-5a1d4a8a7c4c?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+            alt="Maintenance Guide">
+        </div>
+        <div class="blog-content">
+          <div class="blog-meta">
+            <span><i class="far fa-calendar"></i> May 22, 2023</span>
+            <span><i class="far fa-user"></i> Technical Team</span>
+          </div>
+          <h3>The Ultimate Guide to Gas Appliance Maintenance</h3>
+          <p class="blog-excerpt">Regular maintenance extends the life of your gas appliances and ensures safe
+            operation. Our comprehensive guide shows you what to do...</p>
+          <div class="blog-tags">
+            <span class="blog-tag">Maintenance</span>
+            <span class="blog-tag">Guide</span>
+          </div>
+          <a href="#" class="read-more">Read More</a>
+        </div>
+      </article>
+
+      <article class="blog-card">
+        <div class="blog-image">
+          <img
+            src="https://images.unsplash.com/photo-1414235077428-338989a2e8c0?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80"
+            alt="Restaurant Solutions">
+        </div>
+        <div class="blog-content">
+          <div class="blog-meta">
+            <span><i class="far fa-calendar"></i> May 15, 2023</span>
+            <span><i class="far fa-user"></i> Business Team</span>
+          </div>
+          <h3>How e-GAS Supports Restaurant Businesses</h3>
+          <p class="blog-excerpt">Discover how our specialized business solutions help restaurants maintain
+            uninterrupted service and manage their gas needs efficiently...</p>
+          <div class="blog-tags">
+            <span class="blog-tag">Business</span>
+            <span class="blog-tag">Restaurant</span>
+          </div>
+          <a href="#" class="read-more">Read More</a>
+        </div>
+      </article>
+
+      <article class="blog-card">
+        <div class="blog-image">
+          <img
+            src="https://images.unsplash.com/photo-1497366811353-6870744d04b2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1469&q=80"
+            alt="Sustainable Energy">
+        </div>
+        <div class="blog-content">
+          <div class="blog-meta">
+            <span><i class="far fa-calendar"></i> May 5, 2023</span>
+            <span><i class="far fa-user"></i> Environmental Team</span>
+          </div>
+          <h3>The Role of LPG in Sustainable Energy Solutions</h3>
+          <p class="blog-excerpt">Learn how liquefied petroleum gas (LPG) serves as a cleaner alternative to traditional
+            fuels and contributes to environmental sustainability...</p>
+          <div class="blog-tags">
+            <span class="blog-tag">Sustainability</span>
+            <span class="blog-tag">Environment</span>
+          </div>
+          <a href="#" class="read-more">Read More</a>
+        </div>
+      </article>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-widget">
+        <h3>Search</h3>
+        <form class="search-form">
+          <i class="fas fa-search search-icon"></i>
+          <input type="text" class="search-input" placeholder="Search articles...">
+        </form>
+      </div>
+
+      <div class="sidebar-widget">
+        <h3>Categories</h3>
+        <ul class="categories-list">
+          <li><a href="#">Safety Tips <span class="category-count">12</span></a></li>
+          <li><a href="#">Cooking Guides <span class="category-count">8</span></a></li>
+          <li><a href="#">Maintenance <span class="category-count">5</span></a></li>
+          <li><a href="#">Business Solutions <span class="category-count">7</span></a></li>
+          <li><a href="#">Energy Efficiency <span class="category-count">6</span></a></li>
+          <li><a href="#">Industry News <span class="category-count">9</span></a></li>
+        </ul>
+      </div>
+
+      <div class="sidebar-widget">
+        <h3>Recent Posts</h3>
+        <ul class="recent-posts">
+          <li class="recent-post">
+            <div class="recent-post-image">
+              <img
+                src="https://images.unsplash.com/photo-1589923188937-cb64779f4abe?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80"
+                alt="Recent Post">
+            </div>
+            <div class="recent-post-content">
+              <h4><a href="#">10 Essential Gas Safety Tips Every Homeowner Should Know</a></h4>
+              <div class="recent-post-date">June 15, 2023</div>
+            </div>
+          </li>
+          <li class="recent-post">
+            <div class="recent-post-image">
+              <img
+                src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80"
+                alt="Recent Post">
+            </div>
+            <div class="recent-post-content">
+              <h4><a href="#">Why Professional Chefs Prefer Cooking with Gas</a></h4>
+              <div class="recent-post-date">June 8, 2023</div>
+            </div>
+          </li>
+          <li class="recent-post">
+            <div class="recent-post-image">
+              <img
+                src="https://images.unsplash.com/photo-1560448204-603b3fc33ddc?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=100&q=80"
+                alt="Recent Post">
+            </div>
+            <div class="recent-post-content">
+              <h4><a href="#">How to Make Your Kitchen More Energy Efficient</a></h4>
+              <div class="recent-post-date">May 30, 2023</div>
+            </div>
+          </li>
+        </ul>
+      </div>
+
+      <div class="sidebar-widget">
+        <h3>Tags</h3>
+        <div class="tags-cloud">
+          <a href="#" class="tag-link">Safety</a>
+          <a href="#" class="tag-link">Cooking</a>
+          <a href="#" class="tag-link">Maintenance</a>
+          <a href="#" class="tag-link">Efficiency</a>
+          <a href="#" class="tag-link">Business</a>
+          <a href="#" class="tag-link">Tips</a>
+          <a href="#" class="tag-link">Guide</a>
+          <a href="#" class="tag-link">LPG</a>
+          <a href="#" class="tag-link">Energy</a>
+          <a href="#" class="tag-link">Sustainability</a>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Pagination -->
+    <div class="pagination">
+      <a href="#" class="pagination-button"><i class="fas fa-chevron-left"></i></a>
+      <a href="#" class="pagination-button active">1</a>
+      <a href="#" class="pagination-button">2</a>
+      <a href="#" class="pagination-button">3</a>
+      <a href="#" class="pagination-button">4</a>
+      <a href="#" class="pagination-button"><i class="fas fa-chevron-right"></i></a>
+    </div>
+
+    <!-- Newsletter Section -->
+    <div class="newsletter-section">
+      <h2>Subscribe to Our Newsletter</h2>
+      <p>Stay updated with the latest tips, news, and promotions from e-GAS. No spam, just valuable content.</p>
+      <form class="newsletter-form">
+        <input type="email" class="newsletter-input" placeholder="Your email address" required>
+        <button type="submit" class="newsletter-button">Subscribe</button>
+      </form>
+    </div>
+
+    <!-- CTA Section -->
+    <section class="cta-section">
+      <h2>Experience the e-GAS Difference</h2>
+      <p>Join thousands of satisfied customers who enjoy reliable gas delivery and exceptional service.</p>
+      <a href="register.html" class="cta-button">Sign Up Now</a>
+    </section>
+  </section>
+
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-logo">
+        <h2>e-GAS</h2>
+        <p>Providing reliable gas delivery services to homes and businesses across the region. Your comfort is
+          our
+          priority.</p>
+        <div class="social-links">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Quick Links</h3>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Services</h3>
+        <ul class="footer-links">
+          <li><a href="delivery.html">Gas Delivery</a></li>
+          <li><a href="subscription.html">Subscription Plans</a></li>
+          <li><a href="maintenance.html">Equipment Maintenance</a></li>
+          <li><a href="safety.html">Safety Checks</a></li>
+          <li><a href="business.html">Business Solutions</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Contact Us</h3>
+        <div class="footer-contact">
+          <p><i class="fas fa-map-marker-alt"></i> 123 Gas Street, Energy City</p>
+          <p><i class="fas fa-phone-alt"></i> +234 123 456 7890</p>
+          <p><i class="fas fa-envelope"></i> info@egas.com</p>
+          <p><i class="fas fa-clock"></i> Mon-Fri: 8AM - 6PM</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-bottom-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="cookies.html">Cookie Policy</a>
+        <a href="support.html">Support</a>
+      </div>
+      <p>&copy; 2025 e-GAS. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Toggle mobile menu
+    function toggleMenu() {
+      const navLinks = document.getElementById('navLinks');
+      navLinks.classList.toggle('active');
+    }
+  </script>
+</body>
+
+</html>

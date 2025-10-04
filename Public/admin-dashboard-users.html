@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-GAS - Users Management</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-700 text-white p-4">
+            <div class="flex items-center space-x-2 mb-8">
+                <i class="fas fa-fire text-2xl"></i>
+                <h1 class="text-xl font-bold">e-GAS Admin</h1>
+            </div>
+            <nav>
+                <a href="admin-dashboard.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                </a>
+                <a href="admin-dashboard-users.html" class="block py-2 px-4 bg-purple-700 rounded mb-2">
+                    <i class="fas fa-users mr-2"></i> Users
+                </a>
+                <a href="admin-dashboard-orders.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-truck mr-2"></i> Orders
+                </a>
+                <a href="admin-dashboard-products.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-boxes mr-2"></i> Products
+                </a>
+                <a href="admin-dashboard-subscriptions.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-calendar-check mr-2"></i> Subscriptions
+                </a>
+                <a href="admin-dashboard-reports.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-chart-line mr-2"></i> Reports
+                </a>
+                <a href="admin-dashboard-settings.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-cog mr-2"></i> Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-auto">
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-bold">Users Management</h1>
+                <div class="flex items-center space-x-4">
+                    <span class="text-gray-700">Administrator</span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </header>
+
+            <!-- User Actions -->
+            <div class="flex justify-between items-center mb-6">
+                <div class="relative w-64">
+                    <input type="text" placeholder="Search users..." class="w-full pl-10 pr-4 py-2 rounded border">
+                    <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+                </div>
+                <button class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    <i class="fas fa-plus mr-2"></i> Add New User
+                </button>
+            </div>
+
+            <!-- Users Table -->
+            <div class="bg-white p-6 rounded shadow">
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white">
+                        <thead>
+                            <tr class="bg-gray-100">
+                                <th class="py-3 px-4 text-left">User ID</th>
+                                <th class="py-3 px-4 text-left">Name</th>
+                                <th class="py-3 px-4 text-left">Email</th>
+                                <th class="py-3 px-4 text-left">Phone</th>
+                                <th class="py-3 px-4 text-left">Role</th>
+                                <th class="py-3 px-4 text-left">Status</th>
+                                <th class="py-3 px-4 text-left">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="py-3 px-4">#EGU-1001</td>
+                                <td class="py-3 px-4">John Doe</td>
+                                <td class="py-3 px-4">john@example.com</td>
+                                <td class="py-3 px-4">08012345678</td>
+                                <td class="py-3 px-4">Customer</td>
+                                <td class="py-3 px-4">
+                                    <span class="bg-green-100 text-green-800 px-2 py-1 rounded text-sm">Active</span>
+                                </td>
+                                <td class="py-3 px-4">
+                                    <button class="text-blue-600 hover:text-blue-800 mr-2">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="text-red-600 hover:text-red-800">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <!-- More user rows -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="flex justify-between items-center mt-6">
+                    <div class="text-gray-600">
+                        Showing 1 to 10 of 124 users
+                    </div>
+                    <div class="flex space-x-1">
+                        <button class="px-3 py-1 border rounded hover:bg-gray-100">Previous</button>
+                        <button class="px-3 py-1 border rounded bg-blue-600 text-white">1</button>
+                        <button class="px-3 py-1 border rounded hover:bg-gray-100">2</button>
+                        <button class="px-3 py-1 border rounded hover:bg-gray-100">3</button>
+                        <button class="px-3 py-1 border rounded hover:bg-gray-100">Next</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="./scripts/admin-dashboard-scripts.js"></script>
+    <script src="./scripts/admin-dashboard.js"></script>
+</body>
+</html>

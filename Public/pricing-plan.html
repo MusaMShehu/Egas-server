@@ -1,0 +1,979 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Pricing Plans - e-GAS Online Gas Supply</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Global Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      background-color: #f9f9f9;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    /* Header Styles */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 5%;
+      background-color: #fff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .hamburger {
+      display: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+    
+    .navbar h1 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+    }
+    
+    .auth-buttons {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .auth-buttons button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .signin-btn {
+      background-color: transparent;
+      color: #2c3e50;
+      border: 1px solid #2c3e50 !important;
+    }
+    
+    .signup-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    
+    .signin-btn:hover {
+      background-color: #f1f1f1;
+    }
+    
+    .signup-btn:hover {
+      background-color: #c0392b;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+    }
+    
+    .nav-links a {
+      text-decoration: none;
+      color: #2c3e50;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+    
+    .nav-links a:hover {
+      color: #e74c3c;
+    }
+    
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                  url('https://images.unsplash.com/photo-1450101499163-c8848c66ca85?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      text-align: center;
+      padding: 5rem 1rem;
+    }
+    
+    .page-header h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .page-header p {
+      font-size: 1.2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+      padding: 1rem 5%;
+      background-color: #f1f1f1;
+    }
+    
+    .breadcrumb a {
+      color: #2c3e50;
+      text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+      text-decoration: underline;
+      color: #e74c3c;
+    }
+    
+    /* Content Section */
+    .content-section {
+      padding: 4rem 5%;
+    }
+    
+    .section-title {
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #2c3e50;
+      position: relative;
+      padding-bottom: 1rem;
+    }
+    
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 3px;
+      background-color: #e74c3c;
+    }
+    
+    /* Tabs */
+    .pricing-tabs {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 3rem;
+      border-bottom: 1px solid #ddd;
+    }
+    
+    .tab-button {
+      padding: 1rem 2rem;
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: #7f8c8d;
+      transition: all 0.3s ease;
+      position: relative;
+    }
+    
+    .tab-button.active {
+      color: #2c3e50;
+    }
+    
+    .tab-button.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 3px;
+      background-color: #e74c3c;
+    }
+    
+    .tab-content {
+      display: none;
+    }
+    
+    .tab-content.active {
+      display: block;
+    }
+    
+    /* Pricing Cards */
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+    
+    .pricing-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+      position: relative;
+    }
+    
+    .pricing-card:hover {
+      transform: translateY(-10px);
+    }
+    
+    .pricing-badge {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background-color: #e74c3c;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+    
+    .pricing-header {
+      background-color: #2c3e50;
+      color: white;
+      padding: 1.5rem;
+      text-align: center;
+    }
+    
+    .pricing-price {
+      font-size: 2.5rem;
+      font-weight: 700;
+      margin: 1rem 0;
+    }
+    
+    .pricing-price span {
+      font-size: 1rem;
+      font-weight: 400;
+    }
+    
+    .pricing-features {
+      padding: 2rem;
+    }
+    
+    .pricing-features ul {
+      list-style: none;
+      margin-bottom: 2rem;
+    }
+    
+    .pricing-features li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f1f1;
+      display: flex;
+      align-items: center;
+    }
+    
+    .pricing-features li:last-child {
+      border-bottom: none;
+    }
+    
+    .pricing-features li i {
+      color: #e74c3c;
+      margin-right: 10px;
+    }
+    
+    .pricing-button {
+      display: block;
+      width: 100%;
+      padding: 1rem;
+      background-color: #e74c3c;
+      color: white;
+      text-align: center;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+    
+    .pricing-button:hover {
+      background-color: #c0392b;
+    }
+    
+    /* Comparison Table */
+    .comparison-section {
+      background-color: #f1f1f1;
+      padding: 4rem 5%;
+      margin-top: 4rem;
+    }
+    
+    .comparison-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+    }
+    
+    .comparison-table th, .comparison-table td {
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .comparison-table th {
+      background-color: #2c3e50;
+      color: white;
+      font-weight: 600;
+    }
+    
+    .comparison-table tr:nth-child(even) {
+      background-color: #f9f9f9;
+    }
+    
+    .comparison-table td:first-child {
+      text-align: left;
+      font-weight: 600;
+    }
+    
+    .comparison-table i.fa-check {
+      color: #2ecc71;
+    }
+    
+    .comparison-table i.fa-times {
+      color: #e74c3c;
+    }
+    
+    /* FAQ Section */
+    .faq-section {
+      padding: 4rem 5%;
+    }
+    
+    .faq-item {
+      margin-bottom: 1.5rem;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .faq-question {
+      padding: 1.5rem;
+      background-color: #2c3e50;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+    
+    .faq-answer {
+      padding: 1.5rem;
+      display: none;
+    }
+    
+    .faq-active .faq-answer {
+      display: block;
+    }
+    
+    /* CTA Section */
+    .cta-section {
+      padding: 5rem 5%;
+      text-align: center;
+      background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), 
+                  url('https://images.unsplash.com/photo-1536935338788-846bb9981813?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1468&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+    }
+    
+    .cta-section h2 {
+      font-size: 2.2rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .cta-section p {
+      max-width: 700px;
+      margin: 0 auto 2rem;
+      font-size: 1.1rem;
+    }
+    
+    .cta-button {
+      display: inline-block;
+      padding: 1rem 2rem;
+      background-color: #e74c3c;
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+    
+    .cta-button:hover {
+      background-color: #c0392b;
+    }
+    
+    /* Footer Styles */
+    footer {
+      background-color: #2c3e50;
+      color: white;
+      padding: 3rem 5% 1rem;
+    }
+    
+    .footer-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .footer-logo h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    
+    .footer-logo p {
+      margin-bottom: 1.5rem;
+    }
+    
+    .social-links {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .social-links a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      color: white;
+      text-decoration: none;
+      transition: background-color 0.3s ease;
+    }
+    
+    .social-links a:hover {
+      background-color: #e74c3c;
+    }
+    
+    .footer-links-section h3 {
+      margin-bottom: 1.5rem;
+      position: relative;
+      padding-bottom: 0.5rem;
+    }
+    
+    .footer-links-section h3::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 2px;
+      background-color: #e74c3c;
+    }
+    
+    .footer-links {
+      list-style: none;
+    }
+    
+    .footer-links li {
+      margin-bottom: 0.8rem;
+    }
+    
+    .footer-links a {
+      color: #ddd;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-links a:hover {
+      color: #e74c3c;
+    }
+    
+    .footer-contact p {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .footer-contact i {
+      margin-right: 10px;
+      color: #e74c3c;
+    }
+    
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 1.5rem;
+      text-align: center;
+    }
+    
+    .footer-bottom-links {
+      margin-bottom: 1rem;
+    }
+    
+    .footer-bottom-links a {
+      color: #ddd;
+      text-decoration: none;
+      margin: 0 1rem;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-bottom-links a:hover {
+      color: #e74c3c;
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+      .hamburger {
+        display: block;
+      }
+      
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        padding: 1rem;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+      }
+      
+      .nav-links.active {
+        display: flex;
+      }
+      
+      .auth-buttons {
+        display: none;
+      }
+      
+      .pricing-tabs {
+        flex-direction: column;
+      }
+      
+      .comparison-table {
+        display: block;
+        overflow-x: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header with Navbar ===== -->
+  <header>
+    <div class="navbar">
+      <div class="hamburger" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+      </div>
+      <h1>e-GAS</h1>
+      <div class="auth-buttons">
+        <button class="signin-btn" onclick="window.location.href='login.html'">Sign In</button>
+        <button class="signup-btn" onclick="window.location.href='register.html'">Sign Up</button>
+      </div>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== Page Header ===== -->
+  <section class="page-header">
+    <h2>Pricing Plans</h2>
+    <p>Flexible and affordable pricing options designed to meet your household or business gas needs.</p>
+  </section>
+
+  <!-- ===== Breadcrumb ===== -->
+  <div class="breadcrumb">
+    <a href="index.html">Home</a> > 
+    <a href="quick-links.html">Quick Links</a> > 
+    Pricing Plans
+  </div>
+
+  <!-- ===== Content Section ===== -->
+  <section class="content-section">
+    <h2 class="section-title">Choose Your Plan</h2>
+    
+    <div class="pricing-tabs">
+      <button class="tab-button active" onclick="openTab(event, 'domestic-tab')">Domestic Plans</button>
+      <button class="tab-button" onclick="openTab(event, 'business-tab')">Business Plans</button>
+      <button class="tab-button" onclick="openTab(event, 'subscription-tab')">Subscription Plans</button>
+    </div>
+    
+    <!-- Domestic Plans -->
+    <div id="domestic-tab" class="tab-content active">
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>Basic Plan</h3>
+            <div class="pricing-price">₦8,500<span>/month</span></div>
+            <p>For small families (1-3 people)</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 12.5kg cylinder</li>
+              <li><i class="fas fa-check"></i> Monthly delivery</li>
+              <li><i class="fas fa-check"></i> Free safety inspection</li>
+              <li><i class="fas fa-check"></i> Priority scheduling</li>
+              <li><i class="fas fa-check"></i> Email reminders</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+        
+        <div class="pricing-card">
+          <div class="pricing-badge">Most Popular</div>
+          <div class="pricing-header">
+            <h3>Family Plan</h3>
+            <div class="pricing-price">₦12,500<span>/month</span></div>
+            <p>For medium families (4-6 people)</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 25kg cylinder</li>
+              <li><i class="fas fa-check"></i> Twice monthly delivery</li>
+              <li><i class="fas fa-check"></i> Free safety inspection</li>
+              <li><i class="fas fa-check"></i> Priority scheduling</li>
+              <li><i class="fas fa-check"></i> SMS & email reminders</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+        
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>Large Family Plan</h3>
+            <div class="pricing-price">₦18,000<span>/month</span></div>
+            <p>For large families (7+ people)</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 50kg cylinder</li>
+              <li><i class="fas fa-check"></i> Weekly delivery</li>
+              <li><i class="fas fa-check"></i> Free safety inspection</li>
+              <li><i class="fas fa-check"></i> Highest priority scheduling</li>
+              <li><i class="fas fa-check"></i> SMS, email & call reminders</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Business Plans -->
+    <div id="business-tab" class="tab-content">
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>Starter Business</h3>
+            <div class="pricing-price">₦25,000<span>/month</span></div>
+            <p>For small restaurants & shops</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 2x 50kg cylinders</li>
+              <li><i class="fas fa-check"></i> Weekly delivery</li>
+              <li><i class="fas fa-check"></i> Free safety inspection</li>
+              <li><i class="fas fa-check"></i> Business hours delivery</li>
+              <li><i class="fas fa-check"></i> Dedicated account manager</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+        
+        <div class="pricing-card">
+          <div class="pricing-badge">Popular</div>
+          <div class="pricing-header">
+            <h3>Business Pro</h3>
+            <div class="pricing-price">₦45,000<span>/month</span></div>
+            <p>For medium restaurants</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 4x 50kg cylinders</li>
+              <li><i class="fas fa-check"></i> Twice weekly delivery</li>
+              <li><i class="fas fa-check"></i> Comprehensive safety checks</li>
+              <li><i class="fas fa-check"></i> 24/7 emergency support</li>
+              <li><i class="fas fa-check"></i> Dedicated account manager</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+        
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>Enterprise</h3>
+            <div class="pricing-price">₦80,000<span>/month</span></div>
+            <p>For large restaurants & hotels</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 8x 50kg cylinders</li>
+              <li><i class="fas fa-check"></i> Daily delivery available</li>
+              <li><i class="fas fa-check"></i> Full maintenance included</li>
+              <li><i class="fas fa-check"></i> 24/7 priority support</li>
+              <li><i class="fas fa-check"></i> Dedicated team</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Subscription Plans -->
+    <div id="subscription-tab" class="tab-content">
+      <div class="pricing-grid">
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>Pay-As-You-Go</h3>
+            <div class="pricing-price">₦9,000<span>/cylinder</span></div>
+            <p>For irregular users</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 12.5kg cylinder</li>
+              <li><i class="fas fa-check"></i> No subscription required</li>
+              <li><i class="fas fa-check"></i> Order when you need</li>
+              <li><i class="fas fa-check"></i> Standard delivery fees apply</li>
+              <li><i class="fas fa-check"></i> Basic safety check</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+        
+        <div class="pricing-card">
+          <div class="pricing-badge">Best Value</div>
+          <div class="pricing-header">
+            <h3>Monthly Subscription</h3>
+            <div class="pricing-price">₦11,000<span>/month</span></div>
+            <p>For regular households</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 12.5kg cylinder monthly</li>
+              <li><i class="fas fa-check"></i> Free delivery</li>
+              <li><i class="fas fa-check"></i> Free safety inspection</li>
+              <li><i class="fas fa-check"></i> Priority scheduling</li>
+              <li><i class="fas fa-check"></i> 10% discount on extra cylinders</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+        
+        <div class="pricing-card">
+          <div class="pricing-header">
+            <h3>Annual Subscription</h3>
+            <div class="pricing-price">₦120,000<span>/year</span></div>
+            <p>For committed savings</p>
+          </div>
+          <div class="pricing-features">
+            <ul>
+              <li><i class="fas fa-check"></i> 12.5kg cylinder monthly</li>
+              <li><i class="fas fa-check"></i> Free delivery</li>
+              <li><i class="fas fa-check"></i> Comprehensive maintenance</li>
+              <li><i class="fas fa-check"></i> Highest priority scheduling</li>
+              <li><i class="fas fa-check"></i> 2 free emergency deliveries</li>
+            </ul>
+            <a href="#" class="pricing-button">Choose Plan</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Comparison Table -->
+    <div class="comparison-section">
+      <h2 class="section-title">Plan Comparison</h2>
+      
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th>Features</th>
+            <th>Basic</th>
+            <th>Family</th>
+            <th>Large Family</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Cylinder Size</td>
+            <td>12.5kg</td>
+            <td>25kg</td>
+            <td>50kg</td>
+          </tr>
+          <tr>
+            <td>Delivery Frequency</td>
+            <td>Monthly</td>
+            <td>Twice Monthly</td>
+            <td>Weekly</td>
+          </tr>
+          <tr>
+            <td>Safety Inspection</td>
+            <td><i class="fas fa-check"></i></td>
+            <td><i class="fas fa-check"></i></td>
+            <td><i class="fas fa-check"></i></td>
+          </tr>
+          <tr>
+            <td>Priority Scheduling</td>
+            <td><i class="fas fa-check"></i></td>
+            <td><i class="fas fa-check"></i></td>
+            <td><i class="fas fa-check"></i></td>
+          </tr>
+          <tr>
+            <td>Emergency Support</td>
+            <td><i class="fas fa-times"></i></td>
+            <td><i class="fas fa-check"></i></td>
+            <td><i class="fas fa-check"></i></td>
+          </tr>
+          <tr>
+            <td>SMS Reminders</td>
+            <td><i class="fas fa-times"></i></td>
+            <td><i class="fas fa-check"></i></td>
+            <td><i class="fas fa-check"></i></td>
+          </tr>
+          <tr>
+            <td>Phone Reminders</td>
+            <td><i class="fas fa-times"></i></td>
+            <td><i class="fas fa-times"></i></td>
+            <td><i class="fas fa-check"></i></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    
+    <!-- FAQ Section -->
+    <div class="faq-section">
+      <h2 class="section-title">Frequently Asked Questions</h2>
+      
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          Can I switch between plans? <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+          <p>Yes, you can switch between plans at any time. If you're upgrading, the new plan takes effect immediately. If you're downgrading, the change will take effect at the start of your next billing cycle.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What payment methods do you accept? <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+          <p>We accept various payment methods including bank transfers, credit/debit cards, and mobile money payments. All payments are processed securely through our encrypted payment gateway.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          Is there a cancellation fee? <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+          <p>There are no cancellation fees for our monthly plans. For annual subscriptions, we offer a prorated refund based on the unused portion of your subscription, minus a small administrative fee.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <div class="faq-question" onclick="toggleFaq(this)">
+          What happens if I need more gas than my plan provides? <i class="fas fa-chevron-down"></i>
+        </div>
+        <div class="faq-answer">
+          <p>You can request additional cylinders at any time. Additional cylinders are charged at a discounted rate for subscribers, and delivery will be scheduled based on your priority level.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA Section ===== -->
+  <section class="cta-section">
+    <h2>Find the Perfect Plan for Your Needs</h2>
+    <p>Join thousands of satisfied customers who trust e-GAS for their cooking needs. Sign up today and get your first month at 15% off!</p>
+    <a href="register.html" class="cta-button">Get Started Now</a>
+  </section>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-logo">
+        <h2>e-GAS</h2>
+        <p>Providing reliable gas delivery services to homes and businesses across the region. Your comfort is our priority.</p>
+        <div class="social-links">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Quick Links</h3>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Services</h3>
+        <ul class="footer-links">
+          <li><a href="delivery.html">Gas Delivery</a></li>
+          <li><a href="subscription.html">Subscription Plans</a></li>
+          <li><a href="maintenance.html">Equipment Maintenance</a></li>
+          <li><a href="safety.html">Safety Checks</a></li>
+          <li><a href="business.html">Business Solutions</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Contact Us</h3>
+        <div class="footer-contact">
+          <p><i class="fas fa-map-marker-alt"></i> 123 Gas Street, Energy City</p>
+          <p><i class="fas fa-phone-alt"></i> +234 123 456 7890</p>
+          <p><i class="fas fa-envelope"></i> info@egas.com</p>
+          <p><i class="fas fa-clock"></i> Mon-Fri: 8AM - 6PM</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-bottom-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="cookies.html">Cookie Policy</a>
+        <a href="support.html">Support</a>
+      </div>
+      <p>&copy; 2025 e-GAS. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Toggle mobile menu
+    function toggleMenu() {
+      const navLinks = document.getElementById('navLinks');
+      navLinks.classList.toggle('active');
+    }
+    
+    // Toggle FAQ items
+    function toggleFaq(element) {
+      element.parentElement.classList.toggle('faq-active');
+    }
+    
+    // Tab functionality
+    function openTab(evt, tabName) {
+      // Hide all tab content
+      const tabcontent = document.getElementsByClassName("tab-content");
+      for (let i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].classList.remove("active");
+      }
+      
+      // Remove active class from all buttons
+      const tabbuttons = document.getElementsByClassName("tab-button");
+      for (let i = 0; i < tabbuttons.length; i++) {
+        tabbuttons[i].classList.remove("active");
+      }
+      
+      // Show the specific tab content and add active class to button
+      document.getElementById(tabName).classList.add("active");
+      evt.currentTarget.classList.add("active");
+    }
+  </script>
+</body>
+</html>

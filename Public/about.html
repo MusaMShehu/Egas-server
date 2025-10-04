@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>e-GAS - About Us</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="stylesheet" href="styles/about.css">
+  <link rel="stylesheet" href="styles/main.css">
+  <!-- Same header styles as index.html -->
+</head>
+<body>
+
+  <!-- Same Header as index.html -->
+  <!-- ===== Header with Navbar ===== -->
+  <header>
+    <div class="navbar">
+      <div class="hamburger" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+      </div>
+      <h1>e-Gas</h1>
+      <div class="auth-buttons">
+        <button class="signin-btn" onclick="window.location.href='login.html'">Sign In</button>
+        <button class="signup-btn" onclick="window.location.href='register.html'">Sign Up</button>
+      </div>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- About Hero Section -->
+  <section class="page-hero">
+    <h2>About e-GAS</h2>
+    <p>Delivering quality gas solutions since 2015</p>
+  </section>
+
+  <!-- About Content -->
+  <section class="about-content">
+    <div class="about-container">
+      <div class="about-text">
+        <h3>Our Story</h3>
+        <p>Founded in 2015, e-GAS began with a simple mission: to provide reliable, affordable gas delivery to homes and businesses across Nigeria. What started as a small operation with just two delivery trucks has grown into one of the most trusted names in gas distribution.</p>
+        
+        <p>Our founder, Mr. Adekunle Johnson, recognized the challenges Nigerians faced in accessing quality cooking gas consistently. Long queues at gas stations, safety concerns, and unreliable supply were common problems. e-GAS was created to solve these issues through innovative delivery solutions and exceptional customer service.</p>
+        
+        <p>Today, we serve over 50,000 satisfied customers across Lagos, Abuja, and Port Harcourt, with plans to expand to more cities in the coming year.</p>
+      </div>
+      
+      <div class="about-image">
+        <img src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Our Team">
+      </div>
+    </div>
+  </section>
+
+  <!-- Mission and Values -->
+  <section class="mission-section">
+    <div class="mission-container">
+      <div class="mission-card">
+        <i class="fas fa-bullseye"></i>
+        <h4>Our Mission</h4>
+        <p>To provide safe, reliable, and affordable gas solutions to every Nigerian home and business, delivered with exceptional service and care for our community.</p>
+      </div>
+      
+      <div class="mission-card">
+        <i class="fas fa-eye"></i>
+        <h4>Our Vision</h4>
+        <p>To become Nigeria's most trusted energy partner, revolutionizing how households and businesses access cooking gas through innovative delivery solutions.</p>
+      </div>
+      
+      <div class="mission-card">
+        <i class="fas fa-gem"></i>
+        <h4>Our Values</h4>
+        <p>Safety, Reliability, Innovation, Customer Focus, and Community Responsibility guide everything we do at e-GAS.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Team Section -->
+  <section class="team-section">
+    <div class="section-header">
+      <h3>Meet Our Leadership Team</h3>
+      <p>The dedicated professionals driving our success</p>
+    </div>
+    
+    <div class="team-grid">
+      <div class="team-member">
+        <img src="images/1755301847924.jpg" alt="Adekunle Johnson">
+        <h4>Musa Mohammed Shehu</h4>
+        <p class="position">Founder & CEO</p>
+        <p class="bio">With over 15 years in the energy sector, Adekunle founded e-GAS to solve Nigeria's gas distribution challenges.</p>
+      </div>
+      
+      <div class="team-member">
+        <img src="images/1755302168417.jpg" alt="Chioma Okeke">
+        <h4>Musa Shehu</h4>
+        <p class="position">Operations Director</p>
+        <p class="bio">Chioma oversees our nationwide delivery network, ensuring efficient and safe operations.</p>
+      </div>
+      
+      <div class="team-member">
+        <img src="images/1755302168398.jpg" alt="Emeka Okafor">
+        <h4>Musa Mohammed</h4>
+        <p class="position">Customer Experience Manager</p>
+        <p class="bio">Emeka leads our customer service team, committed to delivering exceptional support.</p>
+      </div>
+      
+      <div class="team-member">
+        <img src="https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=687&q=80" alt="Fatima Bello">
+        <h4>Fatima Bello</h4>
+        <p class="position">Safety Director</p>
+        <p class="bio">Fatima ensures all our operations meet the highest safety standards in the industry.</p>
+      </div>
+    </div>
+  </section>
+
+   <!-- ===== Footer ===== -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-logo">
+        <h2>e-GAS</h2>
+        <p>Providing reliable gas delivery services to homes and businesses across the region. Your comfort is our priority.</p>
+        <div class="social-links">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Quick Links</h3>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Services</h3>
+        <ul class="footer-links">
+          <li><a href="delivery.html">Gas Delivery</a></li>
+          <li><a href="subscription.html">Subscription Plans</a></li>
+          <li><a href="maintenance.html">Equipment Maintenance</a></li>
+          <li><a href="safety.html">Safety Checks</a></li>
+          <li><a href="business.html">Business Solutions</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Contact Us</h3>
+        <div class="footer-contact">
+          <p><i class="fas fa-map-marker-alt"></i> 123 Gas Street, Energy City</p>
+          <p><i class="fas fa-phone-alt"></i> +234 123 456 7890</p>
+          <p><i class="fas fa-envelope"></i> info@egas.com</p>
+          <p><i class="fas fa-clock"></i> Mon-Fri: 8AM - 6PM</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-bottom-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="cookies.html">Cookie Policy</a>
+        <a href="support.html">Support</a>
+      </div>
+      <p>&copy; 2025 e-GAS. All rights reserved.</p>
+    </div>
+  </footer>
+
+  
+
+  <script>
+    // Same JavaScript as index.html
+  </script>
+</body>
+</html>

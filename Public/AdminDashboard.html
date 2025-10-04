@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>e-GAS - Admin Dashboard</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/style.css">
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100">
+    <div class="flex h-screen">
+        <!-- Sidebar -->
+        <div class="w-64 bg-gray-700 text-white p-4">
+            <div class="flex items-center space-x-2 mb-8">
+                <i class="fas fa-fire text-2xl"></i>
+                <h1 class="text-xl font-bold">e-GAS Admin</h1>
+            </div>
+            <nav>
+                <a href="admin-dashboard.html" class="block py-2 px-4 bg-purple-700 rounded mb-2">
+                    <i class="fas fa-tachometer-alt mr-2"></i> Dashboard
+                </a>
+                <a href="admin-dashboard-users.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-users mr-2"></i> Users
+                </a>
+                <a href="admin-dashboard-orders.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-truck mr-2"></i> Orders
+                </a>
+                <a href="admin-dashboard-products.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-boxes mr-2"></i> Products
+                </a>
+                <a href="admin-dashboard-subscriptions.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-calendar-check mr-2"></i> Subscriptions
+                </a>
+                <a href="admin-dashboard-reports.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-chart-line mr-2"></i> Reports
+                </a>
+                <a href="admin-dashboard-settings.html" class="block py-2 px-4 hover:bg-purple-700 rounded mb-2">
+                    <i class="fas fa-cog mr-2"></i> Settings
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content -->
+        <div class="flex-1 p-8 overflow-auto">
+            <header class="flex justify-between items-center mb-8">
+                <h1 class="text-2xl font-bold">Dashboard Overview</h1>
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <i class="fas fa-bell text-gray-600 text-xl cursor-pointer"></i>
+                        <span id="notification-badge" class="absolute -top-2 -right-2 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                    </div>
+                    <span class="text-gray-700">Administrator</span>
+                    <button class="bg-red-500 text-white px-4 py-2 rounded">
+                        <i class="fas fa-sign-out-alt mr-2"></i> Logout
+                    </button>
+                </div>
+            </header>
+
+            <!-- Real-time Stats Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <!-- Total Orders -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-500 text-sm">Total Orders</p>
+                            <h3 id="total-orders" class="text-2xl font-bold mt-1">Loading...</h3>
+                            <p id="orders-change" class="text-sm mt-2 flex items-center">
+                                <span class="inline-flex items-center">
+                                    <i class="fas fa-spinner fa-spin mr-1"></i>
+                                </span>
+                                <span class="ml-1">vs yesterday</span>
+                            </p>
+                        </div>
+                        <div class="bg-blue-100 p-3 rounded-full">
+                            <i class="fas fa-shopping-cart text-blue-600"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Active Users -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-500 text-sm">Active Users</p>
+                            <h3 id="active-users" class="text-2xl font-bold mt-1">Loading...</h3>
+                            <p id="users-change" class="text-sm mt-2 flex items-center">
+                                <span class="inline-flex items-center">
+                                    <i class="fas fa-spinner fa-spin mr-1"></i>
+                                </span>
+                                <span class="ml-1">vs yesterday</span>
+                            </p>
+                        </div>
+                        <div class="bg-green-100 p-3 rounded-full">
+                            <i class="fas fa-users text-green-600"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Revenue -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-500 text-sm">Today's Revenue</p>
+                            <h3 id="today-revenue" class="text-2xl font-bold mt-1">Loading...</h3>
+                            <p id="revenue-change" class="text-sm mt-2 flex items-center">
+                                <span class="inline-flex items-center">
+                                    <i class="fas fa-spinner fa-spin mr-1"></i>
+                                </span>
+                                <span class="ml-1">vs yesterday</span>
+                            </p>
+                        </div>
+                        <div class="bg-purple-100 p-3 rounded-full">
+                            <i class="fas fa-money-bill-wave text-purple-600"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Gas Cylinders -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="text-gray-500 text-sm">Cylinders Stock</p>
+                            <h3 id="cylinder-stock" class="text-2xl font-bold mt-1">Loading...</h3>
+                            <p id="stock-change" class="text-sm mt-2 flex items-center">
+                                <span class="inline-flex items-center">
+                                    <i class="fas fa-spinner fa-spin mr-1"></i>
+                                </span>
+                                <span class="ml-1">vs yesterday</span>
+                            </p>
+                        </div>
+                        <div class="bg-yellow-100 p-3 rounded-full">
+                            <i class="fas fa-fire text-yellow-600"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+                <!-- Orders Chart -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Orders Overview</h2>
+                        <select id="orders-timeframe" class="border rounded px-2 py-1 text-sm">
+                            <option value="7">Last 7 Days</option>
+                            <option value="30" selected>Last 30 Days</option>
+                            <option value="90">Last 90 Days</option>
+                        </select>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="orders-chart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Revenue Chart -->
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-lg font-semibold">Revenue Overview</h2>
+                        <select id="revenue-timeframe" class="border rounded px-2 py-1 text-sm">
+                            <option value="7">Last 7 Days</option>
+                            <option value="30" selected>Last 30 Days</option>
+                            <option value="90">Last 90 Days</option>
+                        </select>
+                    </div>
+                    <div class="h-64">
+                        <canvas id="revenue-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent Activity Section -->
+            <div class="bg-white rounded-lg shadow overflow-hidden mb-8">
+                <div class="p-6 border-b">
+                    <h2 class="text-lg font-semibold">Recent Activity</h2>
+                </div>
+                <div class="divide-y">
+                    <div id="activity-list" class="divide-y">
+                        <!-- Activity items will be loaded here -->
+                        <div class="p-4 flex items-center justify-center">
+                            <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                            <span class="ml-2 text-gray-500">Loading activities...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 border-t text-center">
+                    <a href="#" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All Activity</a>
+                </div>
+            </div>
+
+            <!-- Recent Orders Section -->
+            <div class="bg-white rounded-lg shadow overflow-hidden">
+                <div class="p-6 border-b flex justify-between items-center">
+                    <h2 class="text-lg font-semibold">Recent Orders</h2>
+                    <a href="admin-dashboard-orders.html" class="text-blue-600 hover:text-blue-800 text-sm font-medium">View All Orders</a>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order ID</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Customer</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recent-orders" class="bg-white divide-y divide-gray-200">
+                            <tr>
+                                <td colspan="6" class="px-6 py-4 text-center">
+                                    <i class="fas fa-spinner fa-spin text-gray-400"></i>
+                                    <span class="ml-2 text-gray-500">Loading orders...</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@2.3.1/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.2.0/dist/chartjs-adapter-luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-streaming@2.0.0/dist/chartjs-plugin-streaming.min.js"></script>
+
+    <script>
+        // Global variables
+        let ordersChart, revenueChart;
+        let socket;
+        const apiBaseUrl = 'http://localhost:5000/api/v1/admin'; // Replace with your API base URL
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load initial data
+            fetchDashboardData();
+            
+            // Initialize WebSocket connection for real-time updates
+            initWebSocket();
+            
+            // Set up chart timeframes
+            document.getElementById('orders-timeframe').addEventListener('change', function() {
+                fetchOrdersChartData(this.value);
+            });
+            
+            document.getElementById('revenue-timeframe').addEventListener('change', function() {
+                fetchRevenueChartData(this.value);
+            });
+            
+            // Initialize charts
+            initializeCharts();
+        });
+
+        // Initialize WebSocket connection
+        function initWebSocket() {
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
+            const wsUrl = wsProtocol + window.location.host + '/realtime'; // Adjust to your WebSocket endpoint
+            
+            socket = new WebSocket(wsUrl);
+            
+            socket.onopen = function(e) {
+                console.log('WebSocket connection established');
+            };
+            
+            socket.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                handleRealtimeUpdate(data);
+            };
+            
+            socket.onclose = function(event) {
+                if (event.wasClean) {
+                    console.log(`WebSocket connection closed cleanly, code=${event.code}, reason=${event.reason}`);
+                } else {
+                    console.log('WebSocket connection died');
+                    // Attempt to reconnect after 5 seconds
+                    setTimeout(initWebSocket, 5000);
+                }
+            };
+            
+            socket.onerror = function(error) {
+                console.log(`WebSocket error: ${error.message}`);
+            };
+        }
+
+        // Handle real-time updates from WebSocket
+        function handleRealtimeUpdate(data) {
+            if (data.type === 'new_order') {
+                updateOrderStats(data);
+                addNewActivity(data.activity);
+                addNewOrder(data.order);
+            } else if (data.type === 'status_update') {
+                updateOrderStatus(data.orderId, data.newStatus);
+            } else if (data.type === 'stock_update') {
+                updateStockCount(data.currentStock, data.change);
+            } else if (data.type === 'notification') {
+                updateNotificationBadge(data.count);
+            }
+        }
+
+        // Fetch all dashboard data
+        async function fetchDashboardData() {
+            try {
+                // Fetch stats
+                const statsResponse = await fetch(`${apiBaseUrl}/stats`);
+                const statsData = await statsResponse.json();
+                updateStatsCards(statsData);
+                
+                // Fetch orders chart data
+                const ordersTimeframe = document.getElementById('orders-timeframe').value;
+                fetchOrdersChartData(ordersTimeframe);
+                
+                // Fetch revenue chart data
+                const revenueTimeframe = document.getElementById('revenue-timeframe').value;
+                fetchRevenueChartData(revenueTimeframe);
+                
+                // Fetch recent activity
+                const activityResponse = await fetch(`${apiBaseUrl}/recent-activity`);
+                const activityData = await activityResponse.json();
+                updateRecentActivity(activityData);
+                
+                // Fetch recent orders
+                const ordersResponse = await fetch(`${apiBaseUrl}/recent-orders`);
+                const ordersData = await ordersResponse.json();
+                updateRecentOrders(ordersData);
+                
+                // Fetch notification count
+                const notifResponse = await fetch(`${apiBaseUrl}/notifications/count`);
+                const notifData = await notifResponse.json();
+                updateNotificationBadge(notifData.count);
+                
+            } catch (error) {
+                console.error('Error fetching dashboard data:', error);
+                showError('Failed to load dashboard data. Please try again.');
+            }
+        }
+
+        // Update stats cards with data
+        function updateStatsCards(data) {
+            document.getElementById('total-orders').textContent = data.totalOrders.toLocaleString();
+            document.getElementById('active-users').textContent = data.activeUsers.toLocaleString();
+            document.getElementById('today-revenue').textContent = `₦${data.todayRevenue.toLocaleString()}`;
+            document.getElementById('cylinder-stock').textContent = data.cylinderStock.toLocaleString();
+            
+            // Update change indicators
+            updateChangeIndicator('orders-change', data.ordersChange);
+            updateChangeIndicator('users-change', data.usersChange);
+            updateChangeIndicator('revenue-change', data.revenueChange);
+            updateChangeIndicator('stock-change', data.stockChange);
+        }
+
+        // Update change indicator with arrow and color
+        function updateChangeIndicator(elementId, change) {
+            const element = document.getElementById(elementId);
+            const changeValue = parseFloat(change);
+            
+            if (isNaN(changeValue)) {
+                element.innerHTML = '<span class="text-gray-500">No change</span>';
+                return;
+            }
+            
+            const absChange = Math.abs(changeValue);
+            const arrow = changeValue > 0 ? 'fa-arrow-up' : 'fa-arrow-down';
+            const color = changeValue > 0 ? 'text-green-500' : 'text-red-500';
+            
+            element.innerHTML = `
+                <span class="inline-flex items-center ${color}">
+                    <i class="fas ${arrow} mr-1"></i>
+                    ${absChange}%
+                </span>
+                <span class="ml-1">vs yesterday</span>
+            `;
+        }
+
+        // Initialize charts
+        function initializeCharts() {
+            const ordersCtx = document.getElementById('orders-chart').getContext('2d');
+            const revenueCtx = document.getElementById('revenue-chart').getContext('2d');
+            
+            // Common chart configuration
+            const commonOptions = {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: 'day'
+                        },
+                        grid: {
+                            display: false
+                        }
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            drawBorder: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false
+                    }
+                },
+                interaction: {
+                    mode: 'nearest',
+                    axis: 'x',
+                    intersect: false
+                }
+            };
+            
+            // Orders chart
+            ordersChart = new Chart(ordersCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Orders',
+                        data: [],
+                        borderColor: '#3B82F6',
+                        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        fill: true
+                    }]
+                },
+                options: commonOptions
+            });
+            
+            // Revenue chart
+            revenueChart = new Chart(revenueCtx, {
+                type: 'bar',
+                data: {
+                    datasets: [{
+                        label: 'Revenue (₦)',
+                        data: [],
+                        backgroundColor: '#8B5CF6',
+                        borderColor: '#8B5CF6',
+                        borderWidth: 1
+                    }]
+                },
+                options: commonOptions
+            });
+        }
+
+        // Fetch orders chart data
+        async function fetchOrdersChartData(days) {
+            try {
+                const response = await fetch(`${apiBaseUrl}/orders-chart?days=${days}`);
+                const data = await response.json();
+                
+                // Format data for Chart.js
+                const formattedData = data.map(item => ({
+                    x: new Date(item.date).toISOString(),
+                    y: item.count
+                }));
+                
+                // Update chart
+                ordersChart.data.datasets[0].data = formattedData;
+                ordersChart.update();
+            } catch (error) {
+                console.error('Error fetching orders chart data:', error);
+            }
+        }
+
+        // Fetch revenue chart data
+        async function fetchRevenueChartData(days) {
+            try {
+                const response = await fetch(`${apiBaseUrl}/revenue-chart?days=${days}`);
+                const data = await response.json();
+                
+                // Format data for Chart.js
+                const formattedData = data.map(item => ({
+                    x: new Date(item.date).toISOString(),
+                    y: item.amount
+                }));
+                
+                // Update chart
+                revenueChart.data.datasets[0].data = formattedData;
+                revenueChart.update();
+            } catch (error) {
+                console.error('Error fetching revenue chart data:', error);
+            }
+        }
+
+        // Update recent activity list
+        function updateRecentActivity(activities) {
+            const activityList = document.getElementById('activity-list');
+            
+            if (activities.length === 0) {
+                activityList.innerHTML = '<div class="p-4 text-center text-gray-500">No recent activity</div>';
+                return;
+            }
+            
+            activityList.innerHTML = activities.map(activity => `
+                <div class="p-4 flex items-start">
+                    <div class="flex-shrink-0 mt-1">
+                        <div class="h-8 w-8 rounded-full ${getActivityIconBg(activity.type)} flex items-center justify-center">
+                            <i class="${getActivityIcon(activity.type)} text-white"></i>
+                        </div>
+                    </div>
+                    <div class="ml-3 flex-1">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm font-medium">${activity.description}</p>
+                            <span class="text-xs text-gray-500">${formatTimeAgo(activity.timestamp)}</span>
+                        </div>
+                        ${activity.details ? `<p class="text-sm text-gray-500 mt-1">${activity.details}</p>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Add new activity to the top of the list
+        function addNewActivity(activity) {
+            const activityList = document.getElementById('activity-list');
+            const firstChild = activityList.firstElementChild;
+            
+            const activityElement = document.createElement('div');
+            activityElement.className = 'p-4 flex items-start';
+            activityElement.innerHTML = `
+                <div class="flex-shrink-0 mt-1">
+                    <div class="h-8 w-8 rounded-full ${getActivityIconBg(activity.type)} flex items-center justify-center">
+                        <i class="${getActivityIcon(activity.type)} text-white"></i>
+                    </div>
+                </div>
+                <div class="ml-3 flex-1">
+                    <div class="flex items-center justify-between">
+                        <p class="text-sm font-medium">${activity.description}</p>
+                        <span class="text-xs text-gray-500">${formatTimeAgo(activity.timestamp)}</span>
+                    </div>
+                    ${activity.details ? `<p class="text-sm text-gray-500 mt-1">${activity.details}</p>` : ''}
+                </div>
+            `;
+            
+            if (firstChild) {
+                activityList.insertBefore(activityElement, firstChild);
+            } else {
+                activityList.appendChild(activityElement);
+            }
+            
+            // Limit to 10 activities
+            if (activityList.children.length > 10) {
+                activityList.removeChild(activityList.lastElementChild);
+            }
+        }
+
+        // Update recent orders table
+        function updateRecentOrders(orders) {
+            const ordersTable = document.getElementById('recent-orders');
+            
+            if (orders.length === 0) {
+                ordersTable.innerHTML = `
+                    <tr>
+                        <td colspan="6" class="px-6 py-4 text-center text-gray-500">No recent orders</td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            ordersTable.innerHTML = orders.map(order => `
+                <tr>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#${order.id}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.customer}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(order.date)}</td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(order.status)}">
+                            ${order.status}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₦${order.amount.toLocaleString()}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <a href="admin-dashboard-orders.html?order=${order.id}" class="text-blue-600 hover:text-blue-900">View</a>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Add new order to the top of the table
+        function addNewOrder(order) {
+            const ordersTable = document.getElementById('recent-orders');
+            
+            // Remove loading row if present
+            if (ordersTable.firstElementChild && ordersTable.firstElementChild.querySelector('.fa-spinner')) {
+                ordersTable.removeChild(ordersTable.firstElementChild);
+            }
+            
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">#${order.id}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${order.customer}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${formatDate(order.date)}</td>
+                <td class="px-6 py-4 whitespace-nowrap">
+                    <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(order.status)}">
+                        ${order.status}
+                    </span>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">₦${order.amount.toLocaleString()}</td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <a href="admin-dashboard-orders.html?order=${order.id}" class="text-blue-600 hover:text-blue-900">View</a>
+                </td>
+            `;
+            
+            if (ordersTable.firstElementChild) {
+                ordersTable.insertBefore(newRow, ordersTable.firstElementChild);
+            } else {
+                ordersTable.appendChild(newRow);
+            }
+            
+            // Limit to 10 orders
+            if (ordersTable.children.length > 10) {
+                ordersTable.removeChild(ordersTable.lastElementChild);
+            }
+        }
+
+        // Update order status in the table
+        function updateOrderStatus(orderId, newStatus) {
+            const ordersTable = document.getElementById('recent-orders');
+            const rows = ordersTable.getElementsByTagName('tr');
+            
+            for (let row of rows) {
+                const orderIdCell = row.cells[0];
+                if (orderIdCell && orderIdCell.textContent === `#${orderId}`) {
+                    const statusCell = row.cells[3];
+                    if (statusCell) {
+                        statusCell.innerHTML = `
+                            <span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${getStatusClass(newStatus)}">
+                                ${newStatus}
+                            </span>
+                        `;
+                    }
+                    break;
+                }
+            }
+        }
+
+        // Update stock count
+        function updateStockCount(currentStock, change) {
+            const stockElement = document.getElementById('cylinder-stock');
+            stockElement.textContent = currentStock.toLocaleString();
+            
+            // Update change indicator
+            const changeElement = document.getElementById('stock-change');
+            updateChangeIndicator('stock-change', change);
+        }
+
+        // Update notification badge
+        function updateNotificationBadge(count) {
+            const badge = document.getElementById('notification-badge');
+            if (count > 0) {
+                badge.textContent = count;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+
+        // Helper functions
+        function getActivityIcon(type) {
+            const icons = {
+                'order': 'fa-shopping-cart',
+                'payment': 'fa-credit-card',
+                'delivery': 'fa-truck',
+                'user': 'fa-user',
+                'system': 'fa-cog',
+                'alert': 'fa-exclamation-circle'
+            };
+            return icons[type] || 'fa-info-circle';
+        }
+
+        function getActivityIconBg(type) {
+            const colors = {
+                'order': 'bg-blue-500',
+                'payment': 'bg-green-500',
+                'delivery': 'bg-yellow-500',
+                'user': 'bg-purple-500',
+                'system': 'bg-gray-500',
+                'alert': 'bg-red-500'
+            };
+            return colors[type] || 'bg-gray-500';
+        }
+
+        function getStatusClass(status) {
+            const classes = {
+                'Pending': 'bg-yellow-100 text-yellow-800',
+                'Processing': 'bg-blue-100 text-blue-800',
+                'Shipped': 'bg-indigo-100 text-indigo-800',
+                'Delivered': 'bg-green-100 text-green-800',
+                'Cancelled': 'bg-red-100 text-red-800'
+            };
+            return classes[status] || 'bg-gray-100 text-gray-800';
+        }
+
+        function formatDate(dateString) {
+            const options = { year: 'numeric', month: 'short', day: 'numeric' };
+            return new Date(dateString).toLocaleDateString(undefined, options);
+        }
+
+        function formatTimeAgo(timestamp) {
+            const now = new Date();
+            const date = new Date(timestamp);
+            const seconds = Math.floor((now - date) / 1000);
+            
+            if (seconds < 60) return `${seconds} seconds ago`;
+            
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes} minute${minutes === 1 ? '' : 's'} ago`;
+            
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+            
+            const days = Math.floor(hours / 24);
+            return `${days} day${days === 1 ? '' : 's'} ago`;
+        }
+
+        function showError(message) {
+            // In a real app, you'd show this more elegantly
+            alert(message);
+        }
+
+        // Update order stats when new order comes in
+        function updateOrderStats(data) {
+            const totalOrdersElement = document.getElementById('total-orders');
+            const currentOrders = parseInt(totalOrdersElement.textContent.replace(/,/g, '')) || 0;
+            totalOrdersElement.textContent = (currentOrders + 1).toLocaleString();
+            
+            const todayRevenueElement = document.getElementById('today-revenue');
+            const currentRevenue = parseFloat(todayRevenueElement.textContent.replace(/[^0-9.]/g, '')) || 0;
+            todayRevenueElement.textContent = `₦${(currentRevenue + data.order.amount).toLocaleString()}`;
+        }
+    </script>
+</body>
+</html>

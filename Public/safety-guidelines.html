@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Safety Guidelines - e-GAS Online Gas Supply</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    /* Global Styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    
+    body {
+      background-color: #f9f9f9;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    /* Header Styles */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 5%;
+      background-color: #fff;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    
+    .hamburger {
+      display: none;
+      cursor: pointer;
+      font-size: 1.5rem;
+    }
+    
+    .navbar h1 {
+      color: #2c3e50;
+      font-size: 1.8rem;
+    }
+    
+    .auth-buttons {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .auth-buttons button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+      transition: all 0.3s ease;
+    }
+    
+    .signin-btn {
+      background-color: transparent;
+      color: #2c3e50;
+      border: 1px solid #2c3e50 !important;
+    }
+    
+    .signup-btn {
+      background-color: #e74c3c;
+      color: white;
+    }
+    
+    .signin-btn:hover {
+      background-color: #f1f1f1;
+    }
+    
+    .signup-btn:hover {
+      background-color: #c0392b;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+    }
+    
+    .nav-links a {
+      text-decoration: none;
+      color: #2c3e50;
+      font-weight: 500;
+      transition: color 0.3s ease;
+    }
+    
+    .nav-links a:hover {
+      color: #e74c3c;
+    }
+    
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                  url('https://images.unsplash.com/photo-1615529328331-f8917597711f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+      text-align: center;
+      padding: 5rem 1rem;
+    }
+    
+    .page-header h2 {
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+    
+    .page-header p {
+      font-size: 1.2rem;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    
+    /* Breadcrumb */
+    .breadcrumb {
+      padding: 1rem 5%;
+      background-color: #f1f1f1;
+    }
+    
+    .breadcrumb a {
+      color: #2c3e50;
+      text-decoration: none;
+    }
+    
+    .breadcrumb a:hover {
+      text-decoration: underline;
+      color: #e74c3c;
+    }
+    
+    /* Content Section */
+    .content-section {
+      padding: 4rem 5%;
+    }
+    
+    .section-title {
+      text-align: center;
+      margin-bottom: 3rem;
+      color: #2c3e50;
+      position: relative;
+      padding-bottom: 1rem;
+    }
+    
+    .section-title::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80px;
+      height: 3px;
+      background-color: #e74c3c;
+    }
+    
+    .safety-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      margin: 3rem 0;
+    }
+    
+    .safety-card {
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s ease;
+    }
+    
+    .safety-card:hover {
+      transform: translateY(-10px);
+    }
+    
+    .safety-img {
+      height: 200px;
+      overflow: hidden;
+    }
+    
+    .safety-img img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.5s ease;
+    }
+    
+    .safety-card:hover .safety-img img {
+      transform: scale(1.1);
+    }
+    
+    .safety-content {
+      padding: 1.5rem;
+    }
+    
+    .safety-content h3 {
+      color: #2c3e50;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .safety-content h3 i {
+      color: #e74c3c;
+      margin-right: 10px;
+    }
+    
+    .safety-content ul {
+      list-style: none;
+      margin: 1rem 0;
+    }
+    
+    .safety-content li {
+      padding: 0.5rem 0;
+      border-bottom: 1px solid #f1f1f1;
+    }
+    
+    .safety-content li:last-child {
+      border-bottom: none;
+    }
+    
+    .safety-content li i {
+      color: #e74c3c;
+      margin-right: 10px;
+    }
+    
+    /* Emergency Section */
+    .emergency-section {
+      background-color: #fff4f4;
+      padding: 4rem 5%;
+      border-left: 5px solid #e74c3c;
+      margin: 3rem 0;
+    }
+    
+    .emergency-section h2 {
+      color: #e74c3c;
+      margin-bottom: 1.5rem;
+    }
+    
+    .emergency-steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+    
+    .emergency-step {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .emergency-step h3 {
+      color: #e74c3c;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .emergency-step h3 i {
+      margin-right: 10px;
+    }
+    
+    /* FAQ Section */
+    .faq-section {
+      padding: 4rem 5%;
+      background-color: #f1f1f1;
+    }
+    
+    .faq-item {
+      margin-bottom: 1.5rem;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.1);
+    }
+    
+    .faq-question {
+      padding: 1.5rem;
+      background-color: #2c3e50;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: 600;
+    }
+    
+    .faq-answer {
+      padding: 1.5rem;
+      display: none;
+    }
+    
+    .faq-active .faq-answer {
+      display: block;
+    }
+    
+    /* CTA Section */
+    .cta-section {
+      padding: 5rem 5%;
+      text-align: center;
+      background: linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), 
+                  url('https://images.unsplash.com/photo-1615529328331-f8917597711f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80');
+      background-size: cover;
+      background-position: center;
+      color: white;
+    }
+    
+    .cta-section h2 {
+      font-size: 2.2rem;
+      margin-bottom: 1.5rem;
+    }
+    
+    .cta-section p {
+      max-width: 700px;
+      margin: 0 auto 2rem;
+      font-size: 1.1rem;
+    }
+    
+    .cta-button {
+      display: inline-block;
+      padding: 1rem 2rem;
+      background-color: #e74c3c;
+      color: white;
+      text-decoration: none;
+      font-weight: 600;
+      border-radius: 4px;
+      transition: background-color 0.3s ease;
+    }
+    
+    .cta-button:hover {
+      background-color: #c0392b;
+    }
+    
+    /* Footer Styles */
+    footer {
+      background-color: #2c3e50;
+      color: white;
+      padding: 3rem 5% 1rem;
+    }
+    
+    .footer-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+    
+    .footer-logo h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+    
+    .footer-logo p {
+      margin-bottom: 1.5rem;
+    }
+    
+    .social-links {
+      display: flex;
+      gap: 1rem;
+    }
+    
+    .social-links a {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 40px;
+      height: 40px;
+      background-color: rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      color: white;
+      text-decoration: none;
+      transition: background-color 0.3s ease;
+    }
+    
+    .social-links a:hover {
+      background-color: #e74c3c;
+    }
+    
+    .footer-links-section h3 {
+      margin-bottom: 1.5rem;
+      position: relative;
+      padding-bottom: 0.5rem;
+    }
+    
+    .footer-links-section h3::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 40px;
+      height: 2px;
+      background-color: #e74c3c;
+    }
+    
+    .footer-links {
+      list-style: none;
+    }
+    
+    .footer-links li {
+      margin-bottom: 0.8rem;
+    }
+    
+    .footer-links a {
+      color: #ddd;
+      text-decoration: none;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-links a:hover {
+      color: #e74c3c;
+    }
+    
+    .footer-contact p {
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+    }
+    
+    .footer-contact i {
+      margin-right: 10px;
+      color: #e74c3c;
+    }
+    
+    .footer-bottom {
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding-top: 1.5rem;
+      text-align: center;
+    }
+    
+    .footer-bottom-links {
+      margin-bottom: 1rem;
+    }
+    
+    .footer-bottom-links a {
+      color: #ddd;
+      text-decoration: none;
+      margin: 0 1rem;
+      transition: color 0.3s ease;
+    }
+    
+    .footer-bottom-links a:hover {
+      color: #e74c3c;
+    }
+    
+    /* Responsive Styles */
+    @media (max-width: 768px) {
+      .hamburger {
+        display: block;
+      }
+      
+      .nav-links {
+        display: none;
+        flex-direction: column;
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: white;
+        padding: 1rem;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.1);
+      }
+      
+      .nav-links.active {
+        display: flex;
+      }
+      
+      .auth-buttons {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== Header with Navbar ===== -->
+  <header>
+    <div class="navbar">
+      <div class="hamburger" onclick="toggleMenu()">
+        <i class="fas fa-bars"></i>
+      </div>
+      <h1>e-GAS</h1>
+      <div class="auth-buttons">
+        <button class="signin-btn" onclick="window.location.href='login.html'">Sign In</button>
+        <button class="signup-btn" onclick="window.location.href='register.html'">Sign Up</button>
+      </div>
+      <nav class="nav-links" id="navLinks">
+        <a href="index.html">Home</a>
+        <a href="products.html">Products</a>
+        <a href="services.html">Services</a>
+        <a href="contact.html">Contact</a>
+        <a href="about.html">About</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- ===== Page Header ===== -->
+  <section class="page-header">
+    <h2>Safety Guidelines</h2>
+    <p>Essential safety information for the proper handling, storage, and use of gas cylinders and appliances.</p>
+  </section>
+
+  <!-- ===== Breadcrumb ===== -->
+  <div class="breadcrumb">
+    <a href="index.html">Home</a> > 
+    <a href="quick-links.html">Quick Links</a> > 
+    Safety Guidelines
+  </div>
+
+  <!-- ===== Content Section ===== -->
+  <section class="content-section">
+    <h2 class="section-title">Gas Safety Guidelines</h2>
+    
+    <div class="safety-grid">
+      <div class="safety-card">
+        <div class="safety-img">
+          <img src="https://images.unsplash.com/photo-1589923188937-cb64779f4abe?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Cylinder Storage">
+        </div>
+        <div class="safety-content">
+          <h3><i class="fas fa-box"></i> Cylinder Storage</h3>
+          <ul>
+            <li><i class="fas fa-check"></i> Store cylinders in a well-ventilated area</li>
+            <li><i class="fas fa-check"></i> Keep away from heat sources and sunlight</li>
+            <li><i class="fas fa-check"></i> Store upright and secure to prevent tipping</li>
+            <li><i class="fas fa-check"></i> Keep away from flammable materials</li>
+            <li><i class="fas fa-check"></i> Do not store in basements or below ground level</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="safety-card">
+        <div class="safety-img">
+          <img src="https://images.unsplash.com/photo-1556911220-e15b29be8c8f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Appliance Usage">
+        </div>
+        <div class="safety-content">
+          <h3><i class="fas fa-fire"></i> Appliance Usage</h3>
+          <ul>
+            <li><i class="fas fa-check"></i> Use only approved gas appliances</li>
+            <li><i class="fas fa-check"></i> Ensure proper ventilation when in use</li>
+            <li><i class="fas fa-check"></i> Never leave cooking unattended</li>
+            <li><i class="fas fa-check"></i> Turn off appliances after use</li>
+            <li><i class="fas fa-check"></i> Keep flammable items away from burners</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div class="safety-card">
+        <div class="safety-img">
+          <img src="https://images.unsplash.com/photo-1615529328331-f8917597711f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1470&q=80" alt="Leak Detection">
+        </div>
+        <div class="safety-content">
+          <h3><i class="fas fa-exclamation-triangle"></i> Leak Detection</h3>
+          <ul>
+            <li><i class="fas fa-check"></i> Regularly check connections for leaks</li>
+            <li><i class="fas fa-check"></i> Use soapy water to check for bubbles indicating leaks</li>
+            <li><i class="fas fa-check"></i> Never use a flame to check for leaks</li>
+            <li><i class="fas fa-check"></i> If you smell gas, turn off supply immediately</li>
+            <li><i class="fas fa-check"></i> Evacuate area if leak is suspected</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Emergency Section -->
+    <div class="emergency-section">
+      <h2><i class="fas fa-exclamation-circle"></i> Emergency Procedures</h2>
+      <p>In case of a gas leak or emergency, follow these steps immediately:</p>
+      
+      <div class="emergency-steps">
+        <div class="emergency-step">
+          <h3><i class="fas fa-1"></i> Turn Off Supply</h3>
+          <p>Close the cylinder valve immediately to stop the flow of gas.</p>
+        </div>
+        
+        <div class="emergency-step">
+          <h3><i class="fas fa-2"></i> Eliminate Ignition Sources</h3>
+          <p>Extinguish all flames, avoid switching electrical devices on or off.</p>
+        </div>
+        
+        <div class="emergency-step">
+          <h3><i class="fas fa-3"></i> Ventilate Area</h3>
+          <p>Open all doors and windows to allow gas to disperse.</p>
+        </div>
+        
+        <div class="emergency-step">
+          <h3><i class="fas fa-4"></i> Evacuate & Call for Help</h3>
+          <p>Leave the area and call our emergency line: <strong>+234 123 456 7890</strong></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== FAQ Section ===== -->
+  <section class="faq-section">
+    <h2 class="section-title">Safety Frequently Asked Questions</h2>
+    
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        What should I do if I smell gas? <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        <p>If you smell gas: 1) Extinguish all open flames immediately, 2) Do not operate electrical switches, 3) Open doors and windows for ventilation, 4) Turn off the gas supply at the cylinder, 5) Leave the area and call our emergency line for assistance.</p>
+      </div>
+    </div>
+    
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        How often should I have my gas appliances serviced? <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        <p>Gas appliances should be serviced at least once a year by a qualified technician. Regular maintenance ensures safe operation, efficiency, and extends the lifespan of your appliances.</p>
+      </div>
+    </div>
+    
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        Can I store my gas cylinder indoors? <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        <p>Gas cylinders should never be stored indoors. They must be kept in a well-ventilated outdoor area, away from heat sources, direct sunlight, and flammable materials. Cylinders should be stored upright and secured to prevent tipping.</p>
+      </div>
+    </div>
+    
+    <div class="faq-item">
+      <div class="faq-question" onclick="toggleFaq(this)">
+        What is the safe distance between gas cylinders and heat sources? <i class="fas fa-chevron-down"></i>
+      </div>
+      <div class="faq-answer">
+        <p>Gas cylinders should be kept at least 3 meters (10 feet) away from heat sources, including stoves, heaters, and direct sunlight. Never place cylinders near open flames or electrical equipment that could generate sparks.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== CTA Section ===== -->
+  <section class="cta-section">
+    <h2>Stay Safe with e-GAS</h2>
+    <p>Our certified technicians are available to inspect your gas equipment and ensure everything is operating safely.</p>
+    <a href="contact.html" class="cta-button">Schedule Safety Inspection</a>
+  </section>
+
+  <!-- ===== Footer ===== -->
+  <footer>
+    <div class="footer-container">
+      <div class="footer-logo">
+        <h2>e-GAS</h2>
+        <p>Providing reliable gas delivery services to homes and businesses across the region. Your comfort is our priority.</p>
+        <div class="social-links">
+          <a href="#"><i class="fab fa-facebook-f"></i></a>
+          <a href="#"><i class="fab fa-twitter"></i></a>
+          <a href="#"><i class="fab fa-instagram"></i></a>
+          <a href="#"><i class="fab fa-linkedin-in"></i></a>
+        </div>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Quick Links</h3>
+        <ul class="footer-links">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="products.html">Products</a></li>
+          <li><a href="services.html">Services</a></li>
+          <li><a href="about.html">About Us</a></li>
+          <li><a href="contact.html">Contact</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Services</h3>
+        <ul class="footer-links">
+          <li><a href="delivery.html">Gas Delivery</a></li>
+          <li><a href="subscription.html">Subscription Plans</a></li>
+          <li><a href="maintenance.html">Equipment Maintenance</a></li>
+          <li><a href="safety.html">Safety Checks</a></li>
+          <li><a href="business.html">Business Solutions</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-links-section">
+        <h3>Contact Us</h3>
+        <div class="footer-contact">
+          <p><i class="fas fa-map-marker-alt"></i> 123 Gas Street, Energy City</p>
+          <p><i class="fas fa-phone-alt"></i> +234 123 456 7890</p>
+          <p><i class="fas fa-envelope"></i> info@egas.com</p>
+          <p><i class="fas fa-clock"></i> Mon-Frid: 8AM - 6PM</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <div class="footer-bottom-links">
+        <a href="privacy.html">Privacy Policy</a>
+        <a href="terms.html">Terms of Service</a>
+        <a href="cookies.html">Cookie Policy</a>
+        <a href="support.html">Support</a>
+      </div>
+      <p>&copy; 2025 e-GAS. All rights reserved.</p>
+    </div>
+  </footer>
+
+  <script>
+    // Toggle mobile menu
+    function toggleMenu() {
+      const navLinks = document.getElementById('navLinks');
+      navLinks.classList.toggle('active');
+    }
+    
+    // Toggle FAQ items
+    function toggleFaq(element) {
+      element.parentElement.classList.toggle('faq-active');
+    }
+  </script>
+</body>
+</html>
