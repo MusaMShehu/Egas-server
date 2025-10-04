@@ -1,4 +1,4 @@
-const Wallet = require("../models/Wallet");
+const Wallet = require("../models/wallet");
 const Order = require("../models/Order");
 const Subscription = require("../models/Subscription");
 
