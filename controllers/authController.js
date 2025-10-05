@@ -159,13 +159,13 @@ exports.login = asyncHandler(async (req, res, next) => {
   }
 
   // Log successful login
-  await LoginHistory.create({
-    userId: user._id,
-    email: req.body.email,
-    ipAddress: req.ip,
-    userAgent: req.get('User-Agent'),
-    status: 'success'
-  });
+  // await LoginHistory.create({
+  //   userId: user._id,
+  //   email: req.body.email,
+  //   ipAddress: req.ip,
+  //   userAgent: req.get('User-Agent'),
+  //   status: 'success'
+  // });
 
   // FIXED: Use signToken instead of sendTokenResponse which expects getSignedJwtToken
   const token = signToken(user._id);
