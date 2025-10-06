@@ -19,58 +19,92 @@ const signToken = (id) => {
 // @access  Public
 
 exports.register = asyncHandler(async (req, res, next) => {
-  const {
-    firstName,
-    lastName,
-    email,
-    password,
-    confirmPassword,
-    phone,
-    address,
-    dob,
-    gender,
-    state,
-    city,
-    gps,
-  } = req.body;
+  try {
+    const {
+      firstName,
+      lastName,
+      email,
+      password,
+      confirmPassword,
+      phone,
+      address,
+      dob,
+      gender,
+      state,
+      city,
+      gps,
+    } = req.body;
 
-  // 1) Validate passwords
-  if (password !== confirmPassword) {
-    return next(new ErrorResponse("Passwords do not match", 400));
+    // 1️⃣ Validate passwords
+    if (password !== confirmPassword) {
+      return next(new ErrorResponse("Passwords do not match", 400));
+    }
+
+    // 2️⃣ Parse GPS coordinates (GeoJSON Point)
+    let gpsCoordinates = null;
+    if (gps) {
+      try {
+        const parsed = JSON.parse(gps);
+
+        if (
+          parsed.type === "Point" &&
+          Array.isArray(parsed.coordinates) &&
+          parsed.coordinates.length === 2 &&
+          parsed.coordinates.every((n) => typeof n === "number")
+        ) {
+          gpsCoordinates = parsed;
+        } else {
+          return next(
+            new ErrorResponse(
+              "Invalid GPS format. Expected GeoJSON { type: 'Point', coordinates: [lng, lat] }",
+              400
+            )
+          );
+        }
+      } catch (err) {
+        return next(new ErrorResponse("GPS must be valid JSON string", 400));
+      }
+    } else {
+      return next(new ErrorResponse("GPS coordinates are required", 400));
+    }
+
+    // 3️⃣ Handle profile picture (multer saves req.file)
+    const profilePic = req.file ? req.file.filename : "default.jpg";
+
+    // 4️⃣ Create user in MongoDB
+    const user = await User.create({
+      firstName,
+      lastName,
+      email,
+      password,
+      phone,
+      address,
+      dob,
+      gender,
+      state,
+      city,
+      gpsCoordinates, // ✅ Correct GeoJSON format
+      profilePic,
+    });
+
+    // 5️⃣ Remove sensitive fields
+    user.password = undefined;
+
+    // 6️⃣ Generate JWT token
+    const token = signToken(user._id);
+
+    // 7️⃣ Respond to frontend
+    res.status(201).json({
+      success: true,
+      token,
+      user,
+    });
+  } catch (err) {
+    console.error("Error during registration:", err);
+    return next(new ErrorResponse(err.message || "Registration failed", 500));
   }
-
-  // 2) Handle profile picture (multer saves req.file)
-  const profilePic = req.file ? req.file.filename : "default.jpg";
-
-  // 3) Create user
-  const user = await User.create({
-    firstName,
-    lastName,
-    email,
-    password,
-    phone,
-    address,
-    dob,
-    gender,
-    state,
-    city,
-    gpsCoordinates: gps,
-    profilePic,
-  });
-
-  // 4) Remove sensitive fields
-  user.password = undefined;
-
-  // 5) Generate JWT
-  const token = signToken(user._id);
-
-  // 6) Send response
-  res.status(201).json({
-    success: true,
-    token,
-    user, // frontend stores minimal user immediately
-  });
 });
+
 
 
 // @desc    Login user

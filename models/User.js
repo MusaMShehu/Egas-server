@@ -61,12 +61,12 @@ const userSchema = new mongoose.Schema({
     type: {
       type: String,
       enum: ["Point"],
-      // required: [true, "GPS type is required"],
+      required: [true, "GPS type is required"],
       default: "Point",
     },
     coordinates: {
       type: [Number], // [longitude, latitude]
-      // required: [true, "GPS coordinates are required"],
+      required: [true, "GPS coordinates are required"],
     },
   },
 
