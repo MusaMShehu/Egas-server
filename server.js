@@ -35,6 +35,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "https://egas-nigeria.netlify.app",
+      "https://egas-ng.onrender.com"
     ],
     credentials: true,
   })
