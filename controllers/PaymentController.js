@@ -294,7 +294,7 @@ exports.verifySubscriptioTransaction = async (req, res) => {
 // @desc    Paystack webhook handler
 // @route   POST /api/payments/webhook
 // @access  Public (Paystack calls this)
-exports.handleWebhook = async (req, res) => {
+exports.handleWebhooksssssssssssss = async (req, res) => {
   try {
     const rawBody = req.rawBody || req.body;
     const signature = req.headers['x-paystack-signature'];
@@ -800,6 +800,112 @@ exports.verifyTopup = async (req, res) => {
     res.status(500).json({ success: false, message: "Verification failed" });
   }
 };
+
+
+// Wallet Top-Up Webhook
+exports.handleWebhook = async (req, res) => {
+  try {
+    const rawBody = req.rawBody || JSON.stringify(req.body);
+    const signature = req.headers["x-paystack-signature"];
+
+    // 🔐 1. Validate signature
+    if (!signature) {
+      console.warn("❌ Missing Paystack signature");
+      return res.status(400).send("Missing signature");
+    }
+
+    const hash = crypto
+      .createHmac("sha512", PAYSTACK_SECRET)
+      .update(rawBody)
+      .digest("hex");
+
+    if (hash !== signature) {
+      console.warn("⚠️ Invalid webhook signature");
+      return res.status(400).send("Invalid signature");
+    }
+
+    // ✅ 2. Parse event safely
+    const event =
+      typeof rawBody === "string" ? JSON.parse(rawBody) : req.body;
+
+    console.log(`📬 Paystack Webhook received: ${event.event}`);
+    res.status(200).send("Webhook received"); // respond early
+
+    // ✅ 3. Process in background
+    process.nextTick(async () => {
+      try {
+        if (event.event === "charge.success") {
+          const data = event.data;
+
+          // Extract details
+          const reference = data.reference;
+          const email = data.customer.email;
+          const amount = data.amount / 100; // convert from kobo
+
+          // Find user
+          const user = await User.findOne({ email });
+          if (!user) {
+            console.warn(`⚠️ No user found for email: ${email}`);
+            return;
+          }
+
+          // Check if this transaction already exists
+          const existingPayment = await Payment.findOne({ reference });
+          if (existingPayment) {
+            console.log(`ℹ️ Payment ${reference} already processed`);
+            return;
+          }
+
+          // ✅ Update wallet balance
+          user.walletBalance += amount;
+          await user.save();
+
+          // ✅ Log transaction
+          await Payment.create({
+            user: user._id,
+            reference,
+            amount,
+            type: "wallet_topup",
+            status: "success",
+            provider: "Paystack",
+            metadata: data,
+          });
+
+          console.log(`✅ Wallet top-up successful for ${email} (+₦${amount})`);
+        }
+
+        else if (event.event === "charge.failed") {
+          const data = event.data;
+          const reference = data.reference;
+          const email = data.customer.email;
+          const amount = data.amount / 100;
+
+          await Payment.create({
+            reference,
+            amount,
+            status: "failed",
+            type: "wallet_topup",
+            provider: "Paystack",
+            metadata: data,
+          });
+
+          console.warn(`❌ Wallet top-up failed for ${email} (₦${amount})`);
+        }
+
+        else {
+          console.log(`ℹ️ Unhandled event type: ${event.event}`);
+        }
+      } catch (error) {
+        console.error("🔥 Webhook processing error:", error);
+      }
+    });
+  } catch (error) {
+    console.error("❌ Webhook handler error:", error);
+    res.status(500).send("Webhook processing failed");
+  }
+};
+
+
 
 // ✅ Get Wallet Balance
 exports.getWalletBalance = async (req, res) => {

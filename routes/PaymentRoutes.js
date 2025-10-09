@@ -1,16 +1,15 @@
 const express = require("express");
-const bodyParser = require ("body-parser");
-// import bodyParser from "body-parser";
+const bodyParser = require("body-parser");
 const router = express.Router();
 const {
   initializeSubscriptionPayment,
   verifySubscriptioTransaction,
-  handleWebhook,
+  // handleWebhook,
   getTransactionHistory,
   getSubscriptionDetails,
   initiateTopup,
   verifyTopup,
-  handleTopupWebhook,
+  handleWebhook,
   getWalletBalance,
   getPaymentHistory,
   payWithWallet,
@@ -23,14 +22,14 @@ const { protect } = require("../middleware/auth");
 // ✅ Subscription Payment
 router.post("/subscription/initialize", protect, initializeSubscriptionPayment);
 router.get("/subscription/verify/:reference", protect, verifySubscriptioTransaction);
-router.post("/subscription/webhook", express.raw({ type: "application/json" }), handleWebhook);
+// router.post("/subscription/webhook", express.raw({ type: "application/json" }), handleWebhook);
 router.get("/subscription/history/:userId", protect, getTransactionHistory);
 router.get("/subscription/details", protect, getSubscriptionDetails);
 
 // ✅ Wallet Top-up
 router.post("/wallet/topup", protect, initiateTopup);
 router.get("/wallet/verify", protect, verifyTopup);
-router.post("/paystack/webhook", bodyParser.raw({ type: "application/json" }), handleTopupWebhook);
+router.post("/paystack/webhook", bodyParser.raw({ type: "application/json" }), handleWebhook);
 router.get("/wallet/balance", protect, getWalletBalance);
 router.get("/wallet/history", protect, getPaymentHistory);
 
