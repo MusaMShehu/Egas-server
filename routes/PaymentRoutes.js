@@ -1,4 +1,6 @@
 const express = require("express");
+const bodyParser = require ("body-parser");
+// import bodyParser from "body-parser";
 const router = express.Router();
 const {
   initializeSubscriptionPayment,
@@ -8,6 +10,7 @@ const {
   getSubscriptionDetails,
   initiateTopup,
   verifyTopup,
+  handleTopupWebhook,
   getWalletBalance,
   getPaymentHistory,
   payWithWallet,
@@ -27,6 +30,7 @@ router.get("/subscription/details", protect, getSubscriptionDetails);
 // ✅ Wallet Top-up
 router.post("/wallet/topup", protect, initiateTopup);
 router.get("/wallet/verify", protect, verifyTopup);
+router.post("/paystack/webhook", bodyParser.raw({ type: "application/json" }), handleTopupWebhook);
 router.get("/wallet/balance", protect, getWalletBalance);
 router.get("/wallet/history", protect, getPaymentHistory);
 
