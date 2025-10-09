@@ -691,7 +691,8 @@ exports._sendPaymentNotifications = async (userId, subscription, transaction) =>
 
 
 
-// ✅ Initiate top-up
+
+// ✅ Initiate Top-up
 exports.initiateTopup = async (req, res) => {
   try {
     const { amount } = req.body;
@@ -706,15 +707,11 @@ exports.initiateTopup = async (req, res) => {
       return res.status(404).json({ success: false, message: "User not found" });
     }
 
-    // Convert Naira to Kobo
     const paystackAmount = amount * 100;
 
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
-      {
-        email: user.email,
-        amount: paystackAmount,
-      },
+      { email: user.email, amount: paystackAmount },
       {
         headers: {
           Authorization: `Bearer ${PAYSTACK_SECRET}`,
@@ -732,32 +729,36 @@ exports.initiateTopup = async (req, res) => {
       type: "topup",
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       authorization_url: response.data.data.authorization_url,
       reference: response.data.data.reference,
       transaction,
     });
   } catch (err) {
-    console.error(err.response?.data || err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Payment initiation failed" });
+    console.error("Top-up initiation error:", err.response?.data || err.message);
+    return res.status(500).json({
+      success: false,
+      message: "Payment initiation failed",
+      error: err.response?.data || err.message,
+    });
   }
 };
 
-// ✅ Verify top-up
+// ✅ Verify Top-up
 exports.verifyTopup = async (req, res) => {
   try {
     const { reference } = req.query;
     const userId = req.user._id;
 
+    if (!reference) {
+      return res.status(400).json({ success: false, message: "Missing reference" });
+    }
+
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
-        headers: {
-          Authorization: `Bearer ${PAYSTACK_SECRET}`,
-        },
+        headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
       }
     );
 
@@ -765,18 +766,15 @@ exports.verifyTopup = async (req, res) => {
     const transaction = await Transaction.findOne({ reference });
 
     if (!transaction) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Transaction not found" });
+      return res.status(404).json({ success: false, message: "Transaction not found" });
     }
 
-    if (data.status === "success") {
+    if (data.status === "success" && transaction.status !== "success") {
       transaction.status = "success";
       await transaction.save();
 
-      // Update wallet balance
       const user = await User.findById(userId);
-      user.walletBalance += transaction.amount;
+      user.walletBalance = (user.walletBalance || 0) + transaction.amount;
       await user.save();
 
       return res.status(200).json({
@@ -784,67 +782,69 @@ exports.verifyTopup = async (req, res) => {
         message: "Top-up successful",
         walletBalance: user.walletBalance,
       });
-    } else {
+    } else if (data.status !== "success") {
       transaction.status = "failed";
       await transaction.save();
-
-      return res
-        .status(400)
-        .json({ success: false, message: "Top-up failed" });
+      return res.status(400).json({ success: false, message: "Top-up failed" });
     }
+
+    // Already verified
+    const user = await User.findById(userId);
+    return res.status(200).json({
+      success: true,
+      message: "Already verified",
+      walletBalance: user.walletBalance,
+    });
   } catch (err) {
-    console.error(err.response?.data || err.message);
+    console.error("Verification error:", err.response?.data || err.message);
     res.status(500).json({ success: false, message: "Verification failed" });
   }
 };
 
-// ✅ Get wallet balance
+// ✅ Get Wallet Balance
 exports.getWalletBalance = async (req, res) => {
   try {
     const user = await User.findById(req.user._id);
-    res.status(200).json({ success: true, balance: user.walletBalance });
+    if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+    res.status(200).json({ success: true, balance: user.walletBalance || 0 });
   } catch (err) {
-    res
-      .status(500)
-      .json({ success: false, message: "Failed to fetch balance" });
+    res.status(500).json({ success: false, message: "Failed to fetch balance" });
   }
 };
 
-// ✅ Get payment history
+// ✅ Get Payment History
 exports.getPaymentHistory = async (req, res) => {
   try {
     const userId = req.user._id;
-    const { page = 1, limit = 10 } = req.query;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
 
-    const pageNum = parseInt(page);
-    const limitNum = parseInt(limit);
-
-    if (pageNum < 1 || limitNum < 1) {
+    if (page < 1 || limit < 1) {
       return res.status(400).json({
         success: false,
         message: "Page and limit must be positive numbers",
       });
     }
 
-    const skip = (pageNum - 1) * limitNum;
-
+    const skip = (page - 1) * limit;
     const transactions = await Transaction.find({ userId })
       .sort({ createdAt: -1 })
-      .limit(limitNum)
+      .limit(limit)
       .skip(skip);
 
     const total = await Transaction.countDocuments({ userId });
-    const totalPages = Math.ceil(total / limitNum);
+    const totalPages = Math.ceil(total / limit);
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: transactions,
       pagination: {
-        current: pageNum,
+        current: page,
         pages: totalPages,
         total,
-        hasNext: pageNum < totalPages,
-        hasPrev: pageNum > 1,
+        hasNext: page < totalPages,
+        hasPrev: page > 1,
       },
     });
   } catch (err) {
