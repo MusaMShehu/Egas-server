@@ -294,7 +294,7 @@ exports.verifySubscriptioTransaction = async (req, res) => {
 // @desc    Paystack webhook handler
 // @route   POST /api/payments/webhook
 // @access  Public (Paystack calls this)
-exports.handleWebhooksssssssssssss = async (req, res) => {
+exports.handleWebhook= async (req, res) => {
   try {
     const rawBody = req.rawBody || req.body;
     const signature = req.headers['x-paystack-signature'];
