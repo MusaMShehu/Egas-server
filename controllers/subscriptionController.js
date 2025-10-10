@@ -14,7 +14,7 @@ const crypto = require('crypto');
 exports.getSubscriptions = asyncHandler(async (req, res, next) => {
   if (req.params.userId) {
     const subscriptions = await Subscription.find({ userId: req.params.userId })
-      .populate('plan')
+      // .populate('plan')
       .populate('userId', 'firstName lastName email phone');
 
     return res.status(200).json({
@@ -32,7 +32,7 @@ exports.getSubscriptions = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.getSubscription = asyncHandler(async (req, res, next) => {
   const subscription = await Subscription.findById(req.params.id)
-    .populate('plan')
+    // .populate('plan')
     .populate('userId', 'firstName lastName email phone');
 
   if (!subscription) {
@@ -153,7 +153,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
         subscriptionPeriod: periodMonths,
         type: 'subscription' 
       },
-      callback_url: `${process.env.BASE_URL}/api/v1/subscriptions/verify`,
+      callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
       webhook_url: `${process.env.BASE_URL}/api/v1/subscriptions/webhook`
     });
   } catch (error) {
@@ -603,7 +603,7 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.getMySubscriptions = asyncHandler(async (req, res, next) => {
   const subscriptions = await Subscription.find({ userId: req.user.id })
-    .populate('plan')
+    // .populate('plan')
     .sort({ createdAt: -1 });
 
   res.status(200).json({
@@ -700,7 +700,7 @@ exports.renewSubscription = asyncHandler(async (req, res, next) => {
         subscriptionId: newSubscription._id,
         type: 'renewal' 
       },
-      callback_url: `${process.env.BASE_URL}/api/v1/subscriptions/verify`,
+      callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
       webhook_url: `${process.env.BASE_URL}/api/v1/subscriptions/webhook`
     });
   } catch (error) {
