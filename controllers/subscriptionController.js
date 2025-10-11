@@ -325,7 +325,7 @@ const processSuccessfulPayment = async (data) => {
   let subscription = null;
 
   if (subscriptionId) {
-    subscription = await Subscription.findById(subscriptionId);
+    subscription = await Subscription.findById(subscription._id);
   }
 
   if (!subscription) {
