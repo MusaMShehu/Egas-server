@@ -237,6 +237,7 @@ exports.verifySubscriptionPayment = asyncHandler(async (req, res, next) => {
 // @desc    Paystack Webhook Handler
 // @route   POST /api/v1/subscriptions/webhook
 // @access  Public (called by Paystack)
+
 exports.handleWebhook = asyncHandler(async (req, res, next) => {
   // Validate webhook signature
   const signature = req.headers['x-paystack-signature'];
@@ -316,27 +317,36 @@ const processSuccessfulPayment = async (data) => {
   const { userId, planId, size, frequency, subscriptionPeriod, type, subscriptionId } = metadata;
 
   // Handle renewal payments
-  if (type === 'renewal' && subscriptionId) {
+  if (type === "renewal" && subscriptionId) {
     return await processRenewalPayment(subscriptionId, reference);
   }
 
-  // Handle new subscription payments
-  // Find and update the pending subscription
-const subscription = await Subscription.findOne({
-  $or: [{ reference }, { paystackReference: reference }],
-  status: 'pending'
-});
+  // ✅ Find the subscription by ID first, fallback to reference if not found
+  let subscription = null;
 
+  if (subscriptionId) {
+    subscription = await Subscription.findById(subscriptionId);
+  }
 
   if (!subscription) {
-    console.error('Subscription not found for reference:', reference);
+    subscription = await Subscription.findOne({
+      $or: [{ reference }, { paystackReference: reference }],
+      status: "pending",
+    });
+  }
+
+  if (!subscription) {
+    console.error("Subscription not found for ID or reference:", subscriptionId || reference);
     return;
   }
 
   // Update subscription status to active
-  subscription.status = 'active';
+  subscription.status = "active";
   subscription.paidAt = new Date();
   await subscription.save();
+
+  console.log("Subscription activated successfully:", subscription._id);
+
 
   // Create initial order for the subscription
 
