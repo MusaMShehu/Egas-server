@@ -520,36 +520,36 @@ const handleTransferReversed = async (data) => {
 };
 
 // Send subscription confirmation (placeholder)
-const sendSubscriptionConfirmation = async (subscription) => {
-  try {
-    // Implement email sending logic here
-    console.log('Sending subscription confirmation for:', subscription._id);
-    // await sendEmail({
-    //   to: subscription.userId.email,
-    //   subject: 'Subscription Confirmed',
-    //   template: 'subscription-confirmation',
-    //   data: { subscription }
-    // });
-  } catch (error) {
-    console.error('Error sending confirmation email:', error);
-  }
-};
+// const sendSubscriptionConfirmation = async (subscription) => {
+//   try {
+//     // Implement email sending logic here
+//     console.log('Sending subscription confirmation for:', subscription._id);
+//     // await sendEmail({
+//     //   to: subscription.userId.email,
+//     //   subject: 'Subscription Confirmed',
+//     //   template: 'subscription-confirmation',
+//     //   data: { subscription }
+//     // });
+//   } catch (error) {
+//     console.error('Error sending confirmation email:', error);
+//   }
+// };
 
 // Send renewal confirmation (placeholder)
-const sendRenewalConfirmation = async (subscription) => {
-  try {
-    // Implement email sending logic here
-    console.log('Sending renewal confirmation for:', subscription._id);
-    // await sendEmail({
-    //   to: subscription.userId.email,
-    //   subject: 'Subscription Renewed',
-    //   template: 'subscription-renewal',
-    //   data: { subscription }
-    // });
-  } catch (error) {
-    console.error('Error sending renewal email:', error);
-  }
-};
+// const sendRenewalConfirmation = async (subscription) => {
+//   try {
+//     // Implement email sending logic here
+//     console.log('Sending renewal confirmation for:', subscription._id);
+//     // await sendEmail({
+//     //   to: subscription.userId.email,
+//     //   subject: 'Subscription Renewed',
+//     //   template: 'subscription-renewal',
+//     //   data: { subscription }
+//     // });
+//   } catch (error) {
+//     console.error('Error sending renewal email:', error);
+//   }
+// };
 
 // @desc    Update subscription
 // @route   PUT /api/v1/subscriptions/:id
