@@ -312,6 +312,7 @@ const handleSuccessfulCharge = async (data) => {
 };
 
 // Process successful payment
+// Process successful payment
 const processSuccessfulPayment = async (data) => {
   const { reference, metadata, amount } = data;
   const { userId, planId, size, frequency, subscriptionPeriod, type, subscriptionId } = metadata;
@@ -321,11 +322,11 @@ const processSuccessfulPayment = async (data) => {
     return await processRenewalPayment(subscriptionId, reference);
   }
 
-  // ✅ Find the subscription by ID first, fallback to reference if not found
+  // ✅ Try to find subscription by ID first, fallback to reference
   let subscription = null;
 
   if (subscriptionId) {
-    subscription = await Subscription.findById(subscription._id);
+    subscription = await Subscription.findById(subscriptionId);
   }
 
   if (!subscription) {
@@ -340,58 +341,56 @@ const processSuccessfulPayment = async (data) => {
     return;
   }
 
-  // Update subscription status to active
+  // ✅ Activate the subscription
   subscription.status = "active";
   subscription.paidAt = new Date();
   await subscription.save();
 
   console.log("Subscription activated successfully:", subscription._id);
 
+  // ✅ Create initial order for the subscription
+  try {
+    const User = require("../models/User");
+    const user = await User.findById(userId).lean();
 
-  // Create initial order for the subscription
+    const order = await Order.create({
+      orderId: `ORD-${Date.now()}`,
+      user: userId,
+      products: [
+        {
+          product: planId,
+          productName: subscription.planName,
+          quantity: 1,
+          price: subscription.price,
+        },
+      ],
+      totalAmount: subscription.price,
+      deliveryAddress: user?.address || "Not provided",
+      deliveryOption: "standard",
+      paymentMethod: "card",
+      paymentStatus: "completed",
+      orderStatus: "processing",
+      subscription: subscription._id,
+      reference,
+      paymentDetails: {
+        gateway: "paystack",
+        amount: amount / 100,
+        currency: "NGN",
+        paidAt: new Date(),
+      },
+    });
 
-try {
-  // fetch user profile to get delivery address if needed
-  const user = await require('../models/User').findById(userId).lean();
-  
-  const order = await Order.create({
-    orderId: `ORD-${Date.now()}`, // simple unique order id
-    user: userId,
-    products: [{
-      product: planId,
-      productName: subscription.planName,
-      quantity: 1,
-      price: subscription.price
-    }],
-    totalAmount: subscription.price,
-    deliveryAddress: user?.address || "Not provided",
-    deliveryOption: "standard",
-    paymentMethod: 'card',
-    paymentStatus: 'completed',
-    orderStatus: 'processing',
-    subscription: subscription._id,
-    reference,
-    paymentDetails: {
-      gateway: 'paystack',
-      amount: amount / 100,
-      currency: 'NGN',
-      paidAt: new Date()
-    }
-  });
+    // Link order to subscription
+    subscription.order = order._id;
+    await subscription.save();
 
-  // Link order to subscription
-  subscription.order = order._id;
-  await subscription.save();
-
-  console.log('Subscription activated successfully:', subscription._id);
-} catch (orderError) {
-  console.error('Order creation error:', orderError);
-  // Continue even if order creation fails
-}
-
+    console.log("Order created for subscription:", subscription._id);
+  } catch (orderError) {
+    console.error("Order creation error:", orderError);
+  }
 
   // Send confirmation email or notification here
-  await sendSubscriptionConfirmation(subscription);
+  // await sendSubscriptionConfirmation(subscription);
 };
 
 // Process renewal payment
@@ -453,7 +452,7 @@ const processRenewalPayment = async (subscriptionId, reference) => {
     console.log('Subscription renewed successfully:', subscription._id);
     
     // Send renewal confirmation
-    await sendRenewalConfirmation(subscription);
+    // await sendRenewalConfirmation(subscription);
   } catch (error) {
     console.error('Renewal processing failed:', error);
     throw error;
