@@ -322,10 +322,11 @@ const processSuccessfulPayment = async (data) => {
 
   // Handle new subscription payments
   // Find and update the pending subscription
-  const subscription = await Subscription.findOne({ 
-    reference, 
-    status: 'pending' 
-  });
+const subscription = await Subscription.findOne({
+  $or: [{ reference }, { paystackReference: reference }],
+  status: 'pending'
+});
+
 
   if (!subscription) {
     console.error('Subscription not found for reference:', reference);
@@ -338,38 +339,46 @@ const processSuccessfulPayment = async (data) => {
   await subscription.save();
 
   // Create initial order for the subscription
-  try {
-    const order = await Order.create({
-      user: userId,
-      products: [{
-        product: planId,
-        productName: subscription.planName,
-        quantity: 1,
-        price: subscription.price
-      }],
-      totalAmount: subscription.price,
-      paymentMethod: 'card',
-      paymentStatus: 'completed',
-      orderStatus: 'processing',
-      subscription: subscription._id,
-      reference: reference,
-      paymentDetails: {
-        gateway: 'paystack',
-        amount: amount / 100, // Convert from kobo to naira
-        currency: 'NGN',
-        paidAt: new Date()
-      }
-    });
 
-    // Update subscription with order reference
-    subscription.order = order._id;
-    await subscription.save();
+try {
+  // fetch user profile to get delivery address if needed
+  const user = await require('../models/User').findById(userId).lean();
+  
+  const order = await Order.create({
+    orderId: `ORD-${Date.now()}`, // simple unique order id
+    user: userId,
+    products: [{
+      product: planId,
+      productName: subscription.planName,
+      quantity: 1,
+      price: subscription.price
+    }],
+    totalAmount: subscription.price,
+    deliveryAddress: user?.address || "Not provided",
+    deliveryOption: "standard",
+    paymentMethod: 'card',
+    paymentStatus: 'completed',
+    orderStatus: 'processing',
+    subscription: subscription._id,
+    reference,
+    paymentDetails: {
+      gateway: 'paystack',
+      amount: amount / 100,
+      currency: 'NGN',
+      paidAt: new Date()
+    }
+  });
 
-    console.log('Subscription activated successfully:', subscription._id);
-  } catch (orderError) {
-    console.error('Order creation error:', orderError);
-    // Continue even if order creation fails - subscription is still active
-  }
+  // Link order to subscription
+  subscription.order = order._id;
+  await subscription.save();
+
+  console.log('Subscription activated successfully:', subscription._id);
+} catch (orderError) {
+  console.error('Order creation error:', orderError);
+  // Continue even if order creation fails
+}
+
 
   // Send confirmation email or notification here
   await sendSubscriptionConfirmation(subscription);
@@ -393,28 +402,37 @@ const processRenewalPayment = async (subscriptionId, reference) => {
 
     // Create order for renewal
     try {
-      const order = await Order.create({
-        user: subscription.userId,
-        products: [{
-          product: subscription.plan,
-          productName: subscription.planName,
-          quantity: 1,
-          price: subscription.price
-        }],
-        totalAmount: subscription.price,
-        paymentMethod: 'card',
-        paymentStatus: 'completed',
-        orderStatus: 'processing',
-        subscription: subscription._id,
-        reference: reference,
-        isRenewalOrder: true,
-        paymentDetails: {
-          gateway: 'paystack',
-          amount: subscription.price,
-          currency: 'NGN',
-          paidAt: new Date()
-        }
-      });
+  // Fetch user profile to get their delivery address (if applicable)
+  const User = require("../models/User");
+  const user = await User.findById(subscription.userId).lean();
+
+  const order = await Order.create({
+    orderId: `ORD-${Date.now()}`, // generate a unique order ID
+    user: subscription.userId,
+    products: [
+      {
+        product: subscription.plan,
+        productName: subscription.planName,
+        quantity: 1,
+        price: subscription.price,
+      },
+    ],
+    totalAmount: subscription.price,
+    deliveryAddress: user?.address || "Not provided", // fallback if address not stored
+    deliveryOption: "standard",
+    paymentMethod: "card",
+    paymentStatus: "completed",
+    orderStatus: "processing",
+    subscription: subscription._id,
+    reference: reference,
+    isRenewalOrder: true,
+    paymentDetails: {
+      gateway: "paystack",
+      amount: subscription.price,
+      currency: "NGN",
+      paidAt: new Date(),
+    },
+  });
 
       subscription.order = order._id;
       await subscription.save();
