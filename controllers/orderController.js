@@ -4,9 +4,11 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
+const paystack = require('../utils/paystack');
+const crypto = require('crypto');
 
-const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
-const PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize";
+// const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
+// const PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize";
 
 
 // @desc    Get all orders
@@ -84,13 +86,16 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     deliveryOption,
     address,
     city,
-    postalCode,
-    country,
-    paymentMethod, // "wallet", "paystack", or "cod"
+    paymentMethod, // "wallet" or "paystack" only
   } = req.body;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
     return next(new ErrorResponse("Please provide at least one product", 400));
+  }
+
+  // Validate payment method
+  if (!paymentMethod || !['wallet', 'paystack'].includes(paymentMethod)) {
+    return next(new ErrorResponse("Payment method is required and must be either 'wallet' or 'paystack'", 400));
   }
 
   let totalAmount = 0;
@@ -113,7 +118,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     totalAmount += product.price * item.quantity;
     products.push({
       product: product._id,
-      productName: product.name, // Add product name like in subscription
+      productName: product.name,
       quantity: item.quantity,
       price: product.price,
     });
@@ -127,7 +132,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
   }
 
   // ✅ Build order data
-  const deliveryAddress = `${address}, ${city}, ${postalCode}, ${country}`;
+  const deliveryAddress = `${address}, ${city}`;
   const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
   
   // Create order in DB first (with pending status for paystack)
@@ -139,15 +144,15 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     deliveryFee,
     deliveryAddress,
     deliveryOption: deliveryOption || 'standard',
-    paymentMethod: paymentMethod || "cod",
-    paymentStatus: paymentMethod === "cod" ? "pending" : "pending",
-    orderStatus: "pending",
+    paymentMethod: paymentMethod,
+    paymentStatus: "pending",
+    orderStatus: "processing",
     isPaid: false
   };
 
   const order = await Order.create(orderData);
 
-  // ✅ Handle Paystack payment initialization (similar to subscription)
+  // ✅ Handle Paystack payment initialization 
   if (paymentMethod === "paystack") {
     try {
       const response = await paystack.post('/transaction/initialize', {
@@ -239,27 +244,6 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
       return next(new ErrorResponse('Wallet payment failed', 500));
     }
   }
-
-  // ✅ Handle COD (Cash on Delivery)
-  if (paymentMethod === "cod" || !paymentMethod) {
-    // For COD, just create the order without payment
-    // Reduce stock for COD orders as well
-    for (const item of products) {
-      await Product.findByIdAndUpdate(item.product, {
-        $inc: { stock: -item.quantity },
-      });
-    }
-
-    return res.status(201).json({
-      success: true,
-      data: order,
-      message: "Order created successfully (Cash on Delivery)"
-    });
-  }
-
-  // If we get here, it's an unknown payment method
-  await Order.findByIdAndDelete(order._id);
-  return next(new ErrorResponse('Unknown payment method', 400));
 });
 
 // @desc    Verify order payment
@@ -278,21 +262,32 @@ exports.verifyOrderPayment = asyncHandler(async (req, res, next) => {
   }
 
   const data = response.data.data;
-
   if (data.status !== 'success') {
     return next(new ErrorResponse('Payment not successful', 400));
   }
 
-  // Process successful payment
-  await processSuccessfulOrderPayment(data);
-
-  const order = await Order.findOne({ reference })
-    .populate('products.product')
-    .populate('user', 'firstName lastName email phone');
+  // ✅ Try finding by reference or by metadata orderId
+  let order = await Order.findOne({ reference });
+  if (!order && data.metadata?.orderId) {
+    order = await Order.findById(data.metadata.orderId);
+  }
 
   if (!order) {
+    console.error("Order not found for reference:", reference);
     return next(new ErrorResponse('Order not found after verification', 404));
   }
+
+  // ✅ Mark order as paid
+  order.paymentStatus = 'completed';
+  order.isPaid = true;
+  order.paidAt = new Date();
+  order.paymentResult = {
+    reference,
+    status: "success",
+    gateway: "paystack",
+    paidAt: new Date(),
+  };
+  await order.save();
 
   return res.status(200).json({
     success: true,
@@ -301,6 +296,7 @@ exports.verifyOrderPayment = asyncHandler(async (req, res, next) => {
     data: order,
   });
 });
+
 
 // @desc    Order Webhook Handler
 // @route   POST /api/v1/orders/webhook
