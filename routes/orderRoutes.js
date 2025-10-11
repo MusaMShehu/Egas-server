@@ -3,6 +3,9 @@ const {
   getOrders,
   getOrder,
   createOrder,
+  verifyOrderPayment,
+  handleOrderWebhook,
+  payOrderWithWallet,
   updateOrder,
   deleteOrder,
   getOrderStats
@@ -17,6 +20,10 @@ router
   .route('/')
   .get(protect, getOrders)
   .post(protect, createOrder);
+
+router.get('/verify', verifyOrderPayment);
+router.post('/webhook', express.raw({ type: 'application/json' }), handleOrderWebhook);
+router.post('/wallet-pay', payOrderWithWallet)
 
 router
   .route('/:_id')
