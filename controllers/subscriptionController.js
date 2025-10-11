@@ -220,17 +220,13 @@ exports.verifySubscriptionPayment = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Subscription not found after verification', 404));
   }
 
-  // ✅ If API request (e.g. from Postman or frontend axios)
-  if (req.headers['content-type'] === 'application/json') {
-    return res.status(200).json({
-      success: true,
-      data: subscription,
-      message: 'Subscription activated successfully',
-    });
-  }
-
-  // ✅ Otherwise redirect to success page on frontend
-  res.redirect(`${process.env.FRONTEND_URL}/subscriptions/success?subscriptionId=${subscription._id}`);
+  // ✅ Always respond with JSON to avoid CORS redirect issues
+  return res.status(200).json({
+    success: true,
+    message: "Payment verified successfully",
+    subscriptionId: subscription._id,
+    data: subscription,
+  });
 });
 
 
