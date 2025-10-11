@@ -25,38 +25,35 @@ const userHistoryRoutes = require("./routes/userHistoryRoutes");
 
 const app = express();
 
-// ===============================
-// ✅ Enhanced and Safe CORS Setup
-// ===============================
+// --- CORS CONFIGURATION ---
 const allowedOrigins = [
-  "http://localhost:3000",
-  "https://egas-nigeria.netlify.app",
-  "https://egas-ng.onrender.com"
+  "http://localhost:3000",                     // local frontend
+  "https://egas-ng.onrender.com/",             // production frontend
+  "https://egas-ng.netlify.app",                  // custom domain if you have one
 ];
 
-app.use((req, res, next) => {
-  const origin = req.headers.origin;
-
-  if (allowedOrigins.includes(origin)) {
-    res.setHeader("Access-Control-Allow-Origin", origin);
-  }
-
-  res.setHeader(
-    "Access-Control-Allow-Methods",
-    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-  );
-  res.setHeader(
-    "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, x-requested-with"
-  );
-  res.setHeader("Access-Control-Allow-Credentials", "true");
-
-  if (req.method === "OPTIONS") {
-    return res.sendStatus(200);
-  }
-
-  next();
-});
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // Allow requests with no origin (like mobile apps or curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true, // allow cookies or authorization headers
+    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allowedHeaders: [
+      "Content-Type",
+      "Authorization",
+      "X-Requested-With",
+      "Accept",
+      "Origin",
+    ],
+  })
+);
 
 // ===============================
 // ✅ Body Parsing Middleware
