@@ -164,7 +164,7 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
           type: 'order'
         },
         callback_url: `${process.env.FRONTEND_URL}/orders/verify`,
-        webhook_url: `${process.env.BASE_URL}/api/v1/orders/webhook`
+        webhook_url: `${process.env.BASE_URL}/api/v1/orders/order_webhook`
       });
 
       const { authorization_url, reference } = response.data.data;
@@ -355,10 +355,14 @@ const processSuccessfulOrderPayment = async (data) => {
 
   if (type !== 'order') return;
 
-  const order = await Order.findOne({
-    $or: [{ reference }, { 'paymentResult.reference': reference }],
-    paymentStatus: "pending",
+  let order = await Order.findOne({ reference, paymentStatus: "pending" });
+
+if (!order && data.metadata?.orderId) {
+  order = await Order.findOne({ 
+    _id: data.metadata.orderId, 
+    paymentStatus: "pending" 
   });
+}
 
   if (!order) {
     console.error("Order not found for reference:", reference);
