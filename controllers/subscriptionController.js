@@ -189,11 +189,12 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/subscriptions/verify
 // @access  Private
 exports.verifySubscriptionPayment = asyncHandler(async (req, res, next) => {
-  const { reference } = req.query;
+  const { reference } = req.query; // ✅ extract the actual reference string
   if (!reference) return next(new ErrorResponse('Reference missing', 400));
 
   let response;
   try {
+    // ✅ Verify transaction with Paystack
     response = await paystack.get(`/transaction/verify/${reference}`);
   } catch (error) {
     console.error('Paystack Verification Error:', error.response?.data || error.message);
@@ -201,28 +202,37 @@ exports.verifySubscriptionPayment = asyncHandler(async (req, res, next) => {
   }
 
   const data = response.data.data;
+
+  // ✅ Ensure payment was successful
   if (data.status !== 'success') {
     return next(new ErrorResponse('Payment not successful', 400));
   }
 
+  // ✅ Mark subscription active / handle success
   await processSuccessfulPayment(data);
 
-  // Find the updated subscription
+  // ✅ Fetch updated subscription
   const subscription = await Subscription.findOne({ reference })
-    .populate('plan')
+    // .populate('plan')
     .populate('userId', 'firstName lastName email phone');
 
-  // If this is an API call, return JSON, otherwise redirect
+  if (!subscription) {
+    return next(new ErrorResponse('Subscription not found after verification', 404));
+  }
+
+  // ✅ If API request (e.g. from Postman or frontend axios)
   if (req.headers['content-type'] === 'application/json') {
     return res.status(200).json({
       success: true,
       data: subscription,
-      message: 'Subscription activated successfully'
+      message: 'Subscription activated successfully',
     });
   }
 
+  // ✅ Otherwise redirect to success page on frontend
   res.redirect(`${process.env.FRONTEND_URL}/subscriptions/success?subscriptionId=${subscription._id}`);
 });
+
 
 // @desc    Paystack Webhook Handler
 // @route   POST /api/v1/subscriptions/webhook
