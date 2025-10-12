@@ -69,7 +69,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Request body is required', 400));
   }
 
-  const { plan: planId, size, frequency, subscriptionPeriod } = req.body;
+  const { plan: planId, size, frequency, subscriptionPeriod, customPlan } = req.body;
   const userId = req.user.id;
 
   // Validate required fields
@@ -87,32 +87,6 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('This plan is currently not active', 400));
   }
 
-  // Parse size to handle both "6kg" and "6" formats
-  const sizeValue = parseInt(size.toString().replace('kg', '').trim());
-  if (isNaN(sizeValue)) {
-    return next(new ErrorResponse('Invalid cylinder size format', 400));
-  }
-
-  // Validate cylinder size against plan
-  if (!plan.supportsCylinderSize(sizeValue)) {
-    return next(new ErrorResponse(`Cylinder size ${size} is not supported by this plan`, 400));
-  }
-
-  // Validate frequency against plan
-  if (!plan.supportsFrequency(frequency)) {
-    return next(new ErrorResponse(`Frequency ${frequency} is not supported by this plan`, 400));
-  }
-
-  // Validate subscription period for non one-time plans
-  if (plan.type !== 'one-time') {
-    if (!subscriptionPeriod) {
-      return next(new ErrorResponse('Subscription period is required for this plan type', 400));
-    }
-    if (!plan.supportsSubscriptionPeriod(parseInt(subscriptionPeriod))) {
-      return next(new ErrorResponse(`Subscription period ${subscriptionPeriod} months is not supported by this plan`, 400));
-    }
-  }
-
   // Check for existing active subscription for the same plan
   const existingSubscription = await Subscription.findOne({ 
     userId, 
@@ -124,20 +98,67 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('You already have an active subscription for this plan', 400));
   }
 
-  // Calculate price based on plan
+  // Calculate price using the same logic as frontend
   let price;
   try {
-    price = plan.calculatePrice(sizeValue);
+    if (plan.type === 'custom' && customPlan) {
+      // For custom plans, use the custom plan data
+      price = calculatePrice(plan, customPlan.size, customPlan.frequency, customPlan.subscriptionPeriod);
+    } else if (plan.type === 'one-time') {
+      // For one-time plans, use One-Time frequency and 1 month period
+      price = calculatePrice(plan, size, "One-Time", 1);
+    } else if (plan.type === 'emergency') {
+      // For emergency plans, use One-Time frequency and 1 month period
+      price = calculatePrice(plan, size, "One-Time", 1);
+    } else {
+      // For standard plans, use the provided parameters
+      price = calculatePrice(plan, size, frequency, subscriptionPeriod);
+    }
   } catch (error) {
     return next(new ErrorResponse('Error calculating price: ' + error.message, 400));
   }
 
   const startDate = new Date();
   
-  // Calculate end date based on subscription period (default to 1 month if not provided)
-  const periodMonths = subscriptionPeriod || 1;
-  const endDate = new Date(startDate);
-  endDate.setMonth(endDate.getMonth() + periodMonths);
+  // Calculate end date based on frequency and subscription period
+  const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standard') => {
+    const endDate = new Date(startDate);
+    const periodMonths = subscriptionPeriod || 1;
+    
+    // For one-time and emergency plans, end date is the same as start date
+    if (frequency === "One-Time" || planType === "one-time" || planType === "emergency") {
+      return startDate;
+    }
+    
+    // For all other plans, calculate based on frequency and subscription period
+    switch (frequency) {
+      case "Daily":
+        endDate.setDate(endDate.getDate() + (30 * periodMonths)); // 30 days per month
+        break;
+      case "Weekly":
+        endDate.setDate(endDate.getDate() + (7 * 4 * periodMonths)); // 4 weeks per month
+        break;
+      case "Bi-Weekly":
+        endDate.setDate(endDate.getDate() + (7 * 2 * 4 * periodMonths)); // 2 weeks * 4 weeks per month
+        break;
+      case "Monthly":
+      default:
+        endDate.setMonth(endDate.getMonth() + periodMonths);
+        break;
+    }
+    
+    return endDate;
+  };
+
+  // Determine frequency for end date calculation
+  let frequencyForEndDate = frequency;
+  if (plan.type === 'one-time' || plan.type === 'emergency') {
+    frequencyForEndDate = "One-Time";
+  } else if (plan.type === 'custom' && customPlan) {
+    frequencyForEndDate = customPlan.frequency;
+  }
+
+  const endDate = calculateEndDate(frequencyForEndDate, subscriptionPeriod, plan.type);
 
   // Initialize payment with Paystack
   let response;
@@ -148,9 +169,11 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
       metadata: { 
         userId, 
         planId, 
-        size: sizeValue, 
-        frequency, 
-        subscriptionPeriod: periodMonths,
+        size: size,
+        frequency,
+        subscriptionPeriod: subscriptionPeriod || 1,
+        planType: plan.type,
+        customPlan: plan.type === 'custom' ? customPlan : undefined,
         type: 'subscription' 
       },
       callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
@@ -164,18 +187,27 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
   const { authorization_url, reference } = response.data.data;
 
   // Create pending subscription
-  const subscription = await Subscription.create({
+  const subscriptionData = {
     userId,
     planName: plan.name,
     plan: planId,
-    size: sizeValue + 'kg',
+    planType: plan.type,
+    size: typeof size === 'string' && size.includes('kg') ? size : size + 'kg',
     frequency,
+    subscriptionPeriod: subscriptionPeriod || 1,
     price,
     reference,
     status: 'pending',
     startDate,
     endDate
-  });
+  };
+
+  // Add custom plan details if it's a custom plan
+  if (plan.type === 'custom' && customPlan) {
+    subscriptionData.customPlanDetails = customPlan;
+  }
+
+  const subscription = await Subscription.create(subscriptionData);
 
   res.status(200).json({
     success: true,
@@ -185,6 +217,46 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
   });
 });
 
+// Exact same pricing logic as frontend
+const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
+  if (!plan) return 0;
+  
+  // Extract numeric size value - handle both "6kg" and "6" formats
+  const sizeKg = parseInt(String(size).replace("kg", ""), 10) || parseInt(size, 10);
+  
+  // Calculate base price
+  let baseAmount = sizeKg * (plan.pricePerKg || 0);
+  
+  // Apply frequency multiplier
+  let frequencyMultiplier = 1;
+  switch (frequency) {
+    case "Daily": frequencyMultiplier = 30; break;
+    case "Weekly": frequencyMultiplier = 4; break;
+    case "Bi-Weekly": frequencyMultiplier = 2; break;
+    default: frequencyMultiplier = 1; // Monthly or One-Time
+  }
+  
+  // Apply subscription period (months)
+  const totalAmount = baseAmount * frequencyMultiplier * subscriptionPeriod;
+  
+  return Math.round(totalAmount);
+};
+
+// Helper functions matching your frontend pattern
+const getCustomPlanPrice = (plan, customPlanData) => {
+  if (!plan) return 0;
+  return calculatePrice(plan, customPlanData.size, customPlanData.frequency, customPlanData.subscriptionPeriod);
+};
+
+const getOneTimePlanPrice = (plan, size) => {
+  if (!plan) return 0;
+  return calculatePrice(plan, size, "One-Time", 1);
+};
+
+const getEmergencyPlanPrice = (plan, size) => {
+  if (!plan) return 0;
+  return calculatePrice(plan, size, "One-Time", 1);
+};
 // @desc    Verify subscription payment
 // @route   GET /api/v1/subscriptions/verify
 // @access  Private
@@ -635,7 +707,10 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/subscriptions/my-subscriptions
 // @access  Private
 exports.getMySubscriptions = asyncHandler(async (req, res, next) => {
-  const subscriptions = await Subscription.find({ userId: req.user.id })
+  const subscriptions = await Subscription.find({
+    userId: req.user.id,
+    status: "active" // 👈 Only fetch active subscriptions
+  })
     // .populate('plan')
     .sort({ createdAt: -1 });
 
@@ -645,6 +720,7 @@ exports.getMySubscriptions = asyncHandler(async (req, res, next) => {
     data: subscriptions
   });
 });
+
 
 // @desc    Cancel user's own subscription
 // @route   PUT /api/v1/subscriptions/:id/cancel-my
