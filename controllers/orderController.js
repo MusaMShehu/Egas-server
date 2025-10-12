@@ -1,6 +1,7 @@
 const axios = require("axios");
 const Order = require('../models/Order');
 const Product = require('../models/Product');
+const Cart = require("../models/Cart"); 
 const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
@@ -289,6 +290,25 @@ exports.verifyOrderPayment = asyncHandler(async (req, res, next) => {
   };
   await order.save();
 
+  // ✅ Reduce stock for each product
+  for (const item of order.products) {
+    if (item?.product?._id) {
+      await Product.findByIdAndUpdate(item.product._id, {
+        $inc: { stock: -item.quantity },
+      });
+    }
+  }
+
+  // ✅ Optionally clear user cart if you have a Cart model
+  try {
+    await Cart.deleteMany({ user: order.user._id });
+  } catch (err) {
+    console.warn("Cart clear skipped (no cart model or user not found)");
+  }
+
+  console.log(`✅ Order verified & stock reduced for reference: ${reference}`);
+
+
   return res.status(200).json({
     success: true,
     message: "Payment verified successfully",
@@ -400,64 +420,74 @@ if (!order && data.metadata?.orderId) {
 // @route   POST /api/v1/orders/:id/pay/wallet
 // @access  Private
 exports.payOrderWithWallet = asyncHandler(async (req, res, next) => {
-  const order = await Order.findById(req.params.id);
+  const order = await Order.findById(req.params.id)
+    .populate("products.product")
+    .populate("user", "firstName lastName email phone");
 
   if (!order) {
     return next(new ErrorResponse(`No order with the id of ${req.params.id}`, 404));
   }
 
-  // Make sure user is order owner
-  if (order.user.toString() !== req.user._id.toString()) {
+  // ✅ Make sure user is the owner
+  if (order.user._id.toString() !== req.user._id.toString()) {
     return next(
-      new ErrorResponse(
-        `User ${req.user._id} is not authorized to pay for this order`,
-        401
-      )
+      new ErrorResponse(`User ${req.user._id} is not authorized to pay for this order`, 401)
     );
   }
 
+  // ✅ Prevent duplicate payment
   if (order.isPaid) {
-    return next(new ErrorResponse('Order is already paid', 400));
+    return next(new ErrorResponse("Order is already paid", 400));
   }
 
+  // ✅ Get user
   const user = await User.findById(req.user._id);
-  
-  if (!user) {
-    return next(new ErrorResponse('User not found', 404));
-  }
+  if (!user) return next(new ErrorResponse("User not found", 404));
 
+  // ✅ Check wallet balance
   if (user.walletBalance < order.totalAmount) {
-    return next(new ErrorResponse('Insufficient wallet balance', 400));
+    return next(new ErrorResponse("Insufficient wallet balance", 400));
   }
 
-  // Deduct from wallet
+  // ✅ Deduct amount from wallet
   user.walletBalance -= order.totalAmount;
   await user.save();
 
-  // Update order status
-  order.paymentStatus = 'completed';
-  order.orderStatus = 'processing';
+  // ✅ Update order payment info
+  order.paymentStatus = "completed";
+  order.orderStatus = "processing";
   order.isPaid = true;
   order.paidAt = new Date();
-  order.paymentMethod = 'wallet';
+  order.paymentMethod = "wallet";
   order.paymentResult = {
     status: "completed",
     gateway: "wallet",
-    paidAt: new Date()
+    paidAt: new Date(),
   };
   await order.save();
 
-  // Reduce stock
+  // ✅ Reduce stock safely
   for (const item of order.products) {
-    await Product.findByIdAndUpdate(item.product, {
-      $inc: { stock: -item.quantity },
-    });
+    if (item?.product?._id) {
+      await Product.findByIdAndUpdate(item.product._id, {
+        $inc: { stock: -item.quantity },
+      });
+    }
   }
 
+  // ✅ Optionally clear cart if you have a Cart model
+  try {
+    await Cart.deleteMany({ user: order.user._id });
+  } catch (err) {
+    console.warn("Cart clear skipped (Cart model not found or user has no cart)");
+  }
+
+  // ✅ Respond
   res.status(200).json({
     success: true,
+    message: "Order paid successfully with wallet",
     data: order,
-    message: "Order paid successfully with wallet"
+    userWalletBalance: user.walletBalance,
   });
 });
 

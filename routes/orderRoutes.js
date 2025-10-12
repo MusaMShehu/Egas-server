@@ -22,8 +22,8 @@ router
   .post(protect, createOrder);
 
 router.get('/verify', verifyOrderPayment);
-router.post('/order_webhook', express.raw({ type: 'application/json' }), handleOrderWebhook);
-router.post('/wallet-pay', payOrderWithWallet)
+router.post('/orderwebhook', express.raw({ type: 'application/json' }), handleOrderWebhook);
+router.post('/walletpay', payOrderWithWallet)
 
 router
   .route('/:_id')
