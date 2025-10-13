@@ -17,11 +17,7 @@ const upload = require("../middleware/upload");
 
 
 
-router.post(
-  "/register",
-  upload.fields([{ name: "profilePic", maxCount: 1 }]),
-  register
-);
+router.post('/register', upload.single("profilePic"), register);
 router.post('/login', login);
 router.get('/logout', logout);
 router.get('/me', protect, getProfile);
