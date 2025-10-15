@@ -826,7 +826,7 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
 exports.getMySubscriptions = asyncHandler(async (req, res, next) => {
   const subscriptions = await Subscription.find({
     userId: req.user.id,
-    status: "active" // 👈 Only fetch active subscriptions
+    status: { $in: ["active", "paused"] } // ✅ Fetch only active and paused subscriptions
   })
     // .populate('plan')
     .sort({ createdAt: -1 });
@@ -837,7 +837,6 @@ exports.getMySubscriptions = asyncHandler(async (req, res, next) => {
     data: subscriptions
   });
 });
-
 
 // @desc    Cancel user's own subscription
 // @route   PUT /api/v1/subscriptions/:id/cancel-my
