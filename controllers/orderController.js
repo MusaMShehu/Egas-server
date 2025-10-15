@@ -12,26 +12,23 @@ const crypto = require('crypto');
 // const PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize";
 
 
-// @desc    Get all orders
-// @route   GET /api/v1/orders
-// @route   GET /api/v1/users/:userId/orders
-// @access  Private
 // @desc    Get all orders for a user (or all if admin)
 // @route   GET /api/v1/orders
 // @access  Private
 exports.getOrders = asyncHandler(async (req, res, next) => {
   let query;
 
-  // If the logged-in user is admin, fetch all orders
+  // If the logged-in user is admin, fetch all completed orders
   if (req.user.role === 'admin') {
-    query = Order.find()
+    query = Order.find({ paymentStatus: 'completed' })
       .populate('products.product')
-      .populate('user', 'firstName lastName email phone');
+      .populate('user', 'firstName lastName email phone')
+      .sort({ createdAt: -1 }); // ✅ Latest first
   } else {
-    // Otherwise, only fetch orders for that user
-    query = Order.find({ user: req.user.id })
+    // Otherwise, only fetch the logged-in user's completed orders
+    query = Order.find({ user: req.user.id, paymentStatus: 'completed' })
       .populate('products.product')
-      // .populate('user', 'firstName lastName email phone');
+      .sort({ createdAt: -1 }); // ✅ Latest first
   }
 
   const orders = await query;
@@ -42,7 +39,6 @@ exports.getOrders = asyncHandler(async (req, res, next) => {
     data: orders,
   });
 });
-
 
 // @desc    Get single order
 // @route   GET /api/v1/orders/:id
@@ -416,80 +412,81 @@ if (!order && data.metadata?.orderId) {
   console.log("Order payment completed successfully:", order._id);
 };
 
+
 // @desc    Pay with wallet for existing order
 // @route   POST /api/v1/orders/:id/pay/wallet
 // @access  Private
-exports.payOrderWithWallet = asyncHandler(async (req, res, next) => {
-  const order = await Order.findById(req.params.id)
-    .populate("products.product")
-    .populate("user", "firstName lastName email phone");
+// exports.payOrderWithWallet = asyncHandler(async (req, res, next) => {
+//   const order = await Order.findById(req.params.id)
+//     .populate("products.product")
+//     .populate("user", "firstName lastName email phone");
 
-  if (!order) {
-    return next(new ErrorResponse(`No order with the id of ${req.params.id}`, 404));
-  }
+//   if (!order) {
+//     return next(new ErrorResponse(`No order with the id of ${req.params.id}`, 404));
+//   }
 
-  // ✅ Make sure user is the owner
-  if (order.user._id.toString() !== req.user._id.toString()) {
-    return next(
-      new ErrorResponse(`User ${req.user._id} is not authorized to pay for this order`, 401)
-    );
-  }
+//   // ✅ Make sure user is the owner
+//   if (order.user._id.toString() !== req.user._id.toString()) {
+//     return next(
+//       new ErrorResponse(`User ${req.user._id} is not authorized to pay for this order`, 401)
+//     );
+//   }
 
-  // ✅ Prevent duplicate payment
-  if (order.isPaid) {
-    return next(new ErrorResponse("Order is already paid", 400));
-  }
+//   // ✅ Prevent duplicate payment
+//   if (order.isPaid) {
+//     return next(new ErrorResponse("Order is already paid", 400));
+//   }
 
-  // ✅ Get user
-  const user = await User.findById(req.user._id);
-  if (!user) return next(new ErrorResponse("User not found", 404));
+//   // ✅ Get user
+//   const user = await User.findById(req.user._id);
+//   if (!user) return next(new ErrorResponse("User not found", 404));
 
-  // ✅ Check wallet balance
-  if (user.walletBalance < order.totalAmount) {
-    return next(new ErrorResponse("Insufficient wallet balance", 400));
-  }
+//   // ✅ Check wallet balance
+//   if (user.walletBalance < order.totalAmount) {
+//     return next(new ErrorResponse("Insufficient wallet balance", 400));
+//   }
 
-  // ✅ Deduct amount from wallet
-  user.walletBalance -= order.totalAmount;
-  await user.save();
+//   // ✅ Deduct amount from wallet
+//   user.walletBalance -= order.totalAmount;
+//   await user.save();
 
-  // ✅ Update order payment info
-  order.paymentStatus = "completed";
-  order.orderStatus = "processing";
-  order.isPaid = true;
-  order.paidAt = new Date();
-  order.paymentMethod = "wallet";
-  order.paymentResult = {
-    status: "completed",
-    gateway: "wallet",
-    paidAt: new Date(),
-  };
-  await order.save();
+//   // ✅ Update order payment info
+//   order.paymentStatus = "completed";
+//   order.orderStatus = "processing";
+//   order.isPaid = true;
+//   order.paidAt = new Date();
+//   order.paymentMethod = "wallet";
+//   order.paymentResult = {
+//     status: "completed",
+//     gateway: "wallet",
+//     paidAt: new Date(),
+//   };
+//   await order.save();
 
-  // ✅ Reduce stock safely
-  for (const item of order.products) {
-    if (item?.product?._id) {
-      await Product.findByIdAndUpdate(item.product._id, {
-        $inc: { stock: -item.quantity },
-      });
-    }
-  }
+//   // ✅ Reduce stock safely
+//   for (const item of order.products) {
+//     if (item?.product?._id) {
+//       await Product.findByIdAndUpdate(item.product._id, {
+//         $inc: { stock: -item.quantity },
+//       });
+//     }
+//   }
 
-  // ✅ Optionally clear cart if you have a Cart model
-  try {
-    await Cart.deleteMany({ user: order.user._id });
-  } catch (err) {
-    console.warn("Cart clear skipped (Cart model not found or user has no cart)");
-  }
+//   // ✅ Optionally clear cart if you have a Cart model
+//   try {
+//     await Cart.deleteMany({ user: order.user._id });
+//   } catch (err) {
+//     console.warn("Cart clear skipped (Cart model not found or user has no cart)");
+//   }
 
-  // ✅ Respond
-  res.status(200).json({
-    success: true,
-    message: "Order paid successfully with wallet",
-    data: order,
-    userWalletBalance: user.walletBalance,
-  });
-});
+//   // ✅ Respond
+//   res.status(200).json({
+//     success: true,
+//     message: "Order paid successfully with wallet",
+//     data: order,
+//     userWalletBalance: user.walletBalance,
+//   });
+// });
 
 
 /**
@@ -498,27 +495,67 @@ exports.payOrderWithWallet = asyncHandler(async (req, res, next) => {
  * @access  Private/Admin
  */
 exports.updateOrder = asyncHandler(async (req, res, next) => {
-  let order = await Order.findById(req.params.id);
+  let order = await Order.findById(req.params._id);
 
   if (!order) {
-    return next(new ErrorResponse(`No order with the id of ${req.params.id}`, 404));
+    return next(new ErrorResponse(`No order with the id of ${req.params._id}`, 404));
   }
 
-  // Authorization (optional: uncomment if needed)
-  // if (req.user.role !== "admin") {
-  //   return next(new ErrorResponse("Not authorized to update order", 401));
-  // }
+  // ✅ USER logic
+  if (req.user.role === "user") {
+    // User can edit only if payment is completed AND order is still processing
+    if (order.paymentStatus === "completed" && order.orderStatus === "processing") {
+      order = await Order.findByIdAndUpdate(req.params._id, req.body, {
+        new: true,
+        runValidators: true,
+      });
 
-  order = await Order.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true,
-  });
+      return res.status(200).json({
+        success: true,
+        data: order,
+      });
+    }
 
-  res.status(200).json({
-    success: true,
-    data: order,
-  });
+    // Otherwise, block updates
+    return next(
+      new ErrorResponse(
+        "You cannot update paid and processed order ",
+        400
+      )
+    );
+  }
+
+  // ✅ ADMIN logic
+  if (req.user.role === "admin") {
+    if (order.paymentStatus === "pending") {
+      order = await Order.findByIdAndUpdate(req.params._id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+
+      return res.status(200).json({
+        success: true,
+        data: order,
+      });
+    }
+
+    return next(
+      new ErrorResponse(
+        "You cannot update paid and processed order",
+        400
+      )
+    );
+  }
+
+  // ❌ Fallback for unhandled cases
+  return next(
+    new ErrorResponse(
+      "You cannot update paid and processed order",
+      400
+    )
+  );
 });
+
 
 // @desc    Delete order
 // @route   DELETE /api/v1/orders/:id
@@ -532,22 +569,50 @@ exports.deleteOrder = asyncHandler(async (req, res, next) => {
     );
   }
 
-  // if (req.user.role !== 'admin') {
-  //   return next(
-  //     new ErrorResponse(
-  //       `User ${req.user._id} is not authorized to delete this order`,
-  //       401
-  //     )
-  //   );
-  // }
+  // ✅ If user is admin
+  if (req.user.role === 'admin') {
+    if (order.orderStatus !== 'processing') {
+      return next(
+        new ErrorResponse('Admin can only delete orders still in processing', 400)
+      );
+    }
+
+    await order.deleteOne();
+    return res.status(200).json({
+      success: true,
+      message: 'Order deleted successfully by admin (processing order)',
+    });
+  }
+
+  // ✅ For normal users
+  if (order.paymentStatus === 'completed') {
+    return next(new ErrorResponse('You cannot cancel paid order', 400));
+  }
+
+  if (!['pending', 'failed'].includes(order.paymentStatus)) {
+    return next(
+      new ErrorResponse('Only pending or failed orders can be cancelled', 400)
+    );
+  }
+
+  // ✅ Ensure the user owns the order
+  if (order.user.toString() !== req.user._id.toString()) {
+    return next(
+      new ErrorResponse(
+        `User ${req.user._id} is not authorized to delete this order`,
+        401
+      )
+    );
+  }
 
   await order.deleteOne();
 
   res.status(200).json({
     success: true,
-    data: {}
+    message: 'Order deleted successfully',
   });
 });
+
 
 // @desc    Get order statistics
 // @route   GET /api/v1/orders/stats
