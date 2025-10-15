@@ -11,7 +11,11 @@ const {
   renewSubscription,
   processSubscriptions,
   getSubscriptionAnalytics,
-  handleWebhook
+  handleWebhook,
+  getSubscriptionDeliveries,
+  getAllSubscriptionDeliveries,
+  pauseSubscription,
+  resumeSubscription
 } = require('../controllers/subscriptionController');
 
 const router = express.Router();
@@ -35,6 +39,15 @@ router
   .route('/:id')
   .get(protect, getSubscription)
   .put(protect, updateSubscription);
+
+  router.get('/:id/deliveries', protect, getSubscriptionDeliveries);
+
+  router.get('/deliveries/all', protect, authorize('admin'), getAllSubscriptionDeliveries);
+
+  router.put('/:id/pause', protect, pauseSubscription);
+
+  router.put('/:id/resume', protect, resumeSubscription);
+
 
 router
   .route('/:id/cancel')

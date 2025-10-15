@@ -673,6 +673,123 @@ exports.updateSubscription = asyncHandler(async (req, res, next) => {
   });
 });
 
+
+// @desc    Pause a subscription
+// @route   PUT /api/v1/subscriptions/:id/pause
+// @access  Private
+exports.pauseSubscription = asyncHandler(async (req, res, next) => {
+  const subscription = await Subscription.findOne({
+    _id: req.params.id,
+    userId: req.user.id
+  });
+
+  if (!subscription) {
+    return next(new ErrorResponse(`No subscription found with id of ${req.params.id}`, 404));
+  }
+
+  if (subscription.status !== 'active') {
+    return next(new ErrorResponse('Only active subscriptions can be paused', 400));
+  }
+
+  const now = new Date();
+  const remainingTimeMs = subscription.endDate - now;
+
+  // ✅ Calculate remaining time in days (rounded down)
+  const remainingDays = Math.max(Math.floor(remainingTimeMs / (1000 * 60 * 60 * 24)), 0);
+
+  subscription.remainingDuration = Math.max(remainingTimeMs, 0); // keep milliseconds for accuracy
+  subscription.remainingDays = remainingDays; // store in days for frontend
+  subscription.pausedAt = now;
+  subscription.status = 'paused';
+
+  // ✅ Ensure planType is set before saving (prevents validation error)
+  if (!subscription.planType && subscription.plan?.type) {
+    subscription.planType = subscription.plan.type;
+  }
+
+  await subscription.save({ validateBeforeSave: false }); // skip validation for missing fields
+
+  res.status(200).json({
+    success: true,
+    message: `Subscription paused successfully with ${remainingDays} day(s) remaining.`,
+    data: {
+      id: subscription._id,
+      status: subscription.status,
+      remainingDays,
+      pausedAt: subscription.pausedAt,
+      endDate: subscription.endDate
+    }
+  });
+});
+
+
+// @desc    Resume a paused subscription
+// @route   PUT /api/v1/subscriptions/:id/resume
+// @access  Private
+exports.resumeSubscription = asyncHandler(async (req, res, next) => {
+  const subscription = await Subscription.findOne({
+    _id: req.params.id,
+    userId: req.user.id
+  });
+
+  if (!subscription) {
+    return next(new ErrorResponse(`No subscription found with id of ${req.params.id}`, 404));
+  }
+
+  if (subscription.status !== 'paused') {
+    return next(new ErrorResponse('Only paused subscriptions can be resumed', 400));
+  }
+
+  if (!subscription.remainingDuration) {
+    return next(new ErrorResponse('No remaining duration stored. Cannot resume.', 400));
+  }
+
+  const now = new Date();
+  const pausedDurationMs = now - subscription.pausedAt;
+
+  // Extend endDate by the remaining duration
+  const newEndDate = new Date(now.getTime() + subscription.remainingDuration);
+
+  if (!subscription.pauseHistory) subscription.pauseHistory = [];
+  subscription.pauseHistory.push({
+    pausedAt: subscription.pausedAt,
+    resumedAt: now,
+    durationMs: pausedDurationMs
+  });
+
+  subscription.status = 'active';
+  subscription.pausedAt = null;
+  subscription.remainingDuration = null;
+  subscription.remainingDays = null;
+  subscription.startDate = now;
+  subscription.endDate = newEndDate;
+
+  // ✅ Ensure planType is set before saving
+  if (!subscription.planType && subscription.plan?.type) {
+    subscription.planType = subscription.plan.type;
+  }
+
+  await subscription.save({ validateBeforeSave: false });
+
+  const daysRemaining = Math.max(
+    Math.floor((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
+    0
+  );
+
+  res.status(200).json({
+    success: true,
+    message: `Subscription resumed successfully. ${daysRemaining} day(s) remaining.`,
+    data: {
+      id: subscription._id,
+      status: subscription.status,
+      startDate: subscription.startDate,
+      endDate: subscription.endDate,
+      remainingDays: daysRemaining
+    }
+  });
+});
+
+
 // @desc    Cancel subscription (Admin only)
 // @route   PUT /api/v1/subscriptions/:id/cancel
 // @access  Private/Admin
@@ -693,8 +810,8 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
   subscription.cancelledAt = new Date();
   await subscription.save();
   
-  await subscription.populate('plan');
-  await subscription.populate('userId', 'firstName lastName email phone');
+  // await subscription.populate('plan');
+  // await subscription.populate('userId', 'firstName lastName email phone');
 
   res.status(200).json({
     success: true,
@@ -744,8 +861,6 @@ exports.cancelMySubscription = asyncHandler(async (req, res, next) => {
   subscription.status = 'cancelled';
   subscription.cancelledAt = new Date();
   await subscription.save();
-
-  await subscription.populate('plan');
 
   res.status(200).json({
     success: true,
@@ -838,17 +953,20 @@ exports.renewSubscription = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/subscriptions/process
 // @access  Private/Admin
 exports.processSubscriptions = asyncHandler(async (req, res, next) => {
-  // Get all active subscriptions that need delivery
   const today = new Date();
+
+  // Get all active subscriptions still within validity period
   const subscriptions = await Subscription.find({
-    status: 'active',
-    endDate: { $gte: today } // Only process subscriptions that haven't expired
-  }).populate('plan').populate('userId');
+    status: { $in: ['active'] },
+    endDate: { $gte: today },
+  })
+    .populate('plan')
+    .populate('userId');
 
   if (subscriptions.length === 0) {
     return res.status(200).json({
       success: true,
-      message: 'No active subscriptions to process'
+      message: 'No active subscriptions to process',
     });
   }
 
@@ -857,39 +975,30 @@ exports.processSubscriptions = asyncHandler(async (req, res, next) => {
 
   for (const subscription of subscriptions) {
     try {
-      // Check if delivery is due based on frequency
-      const shouldDeliver = await checkDeliveryDue(subscription, today);
-      
-      if (shouldDeliver) {
-        // Create order for subscription delivery
-        const order = await Order.create({
-          user: subscription.userId._id,
-          products: [{
-            product: subscription.plan._id,
-            productName: subscription.planName,
-            quantity: 1,
-            price: subscription.price
-          }],
-          deliveryAddress: subscription.userId.address || 'Address not specified',
-          deliveryOption: 'standard',
-          totalAmount: subscription.price,
-          paymentMethod: 'wallet',
-          paymentStatus: 'completed',
-          orderStatus: 'processing',
-          subscription: subscription._id,
-          isSubscriptionOrder: true
-        });
-
-        results.push({
-          subscription: subscription._id,
-          order: order._id,
-          message: `Delivery order created for ${subscription.planName}`
-        });
+      // ⛔ Skip paused subscriptions (extra safety)
+      if (subscription.status === 'paused') {
+        console.log(`Skipping paused subscription: ${subscription._id}`);
+        continue;
       }
+
+      // Check if delivery is due
+      const shouldDeliver = await checkDeliveryDue(subscription, today);
+      if (!shouldDeliver) continue;
+
+      // ✅ Create delivery order + log delivery history
+      const order = await createOrderForSubscription(subscription);
+
+      results.push({
+        subscription: subscription._id,
+        order: order._id,
+        message: `Delivery order created for ${subscription.plan.planName || subscription.plan.name}`,
+      });
+
     } catch (error) {
+      console.error(`Error processing subscription ${subscription._id}:`, error.message);
       errors.push({
         subscription: subscription._id,
-        error: error.message
+        error: error.message,
       });
     }
   }
@@ -899,42 +1008,163 @@ exports.processSubscriptions = asyncHandler(async (req, res, next) => {
     processed: results.length,
     errors: errors.length,
     data: results,
-    errorsList: errors
+    errorsList: errors,
   });
 });
 
-// Helper function to check if delivery is due
-const checkDeliveryDue = async (subscription, today) => {
-  try {
-    const lastOrder = await Order.findOne({
-      subscription: subscription._id,
-      isSubscriptionOrder: true
-    }).sort({ createdAt: -1 });
 
-    if (!lastOrder) {
-      return true; // First delivery
-    }
 
-    const lastDeliveryDate = new Date(lastOrder.createdAt);
-    const daysSinceLastDelivery = Math.floor((today - lastDeliveryDate) / (1000 * 60 * 60 * 24));
+/**
+ * Creates an order for a given subscription delivery.
+ */
+/**
+ * Creates an order for a given subscription delivery and records it in the subscription's delivery history.
+ */
+const createOrderForSubscription = async (subscription) => {
+  const order = await Order.create({
+    user: subscription.userId._id,
+    products: [
+      {
+        product: subscription.plan._id,
+        productName: subscription.plan.planName || subscription.plan.name,
+        quantity: 1,
+        price: subscription.price,
+      },
+    ],
+    deliveryAddress: subscription.userId.address || 'Address not specified',
+    deliveryOption: 'standard',
+    totalAmount: subscription.price,
+    paymentMethod: 'wallet',
+    paymentStatus: 'completed',
+    orderStatus: 'processing',
+    subscription: subscription._id,
+    isSubscriptionOrder: true,
+  });
 
-    switch (subscription.frequency) {
-      case 'Daily':
-        return daysSinceLastDelivery >= 1;
-      case 'Weekly':
-        return daysSinceLastDelivery >= 7;
-      case 'Bi-weekly':
-        return daysSinceLastDelivery >= 14;
-      case 'Monthly':
-        return daysSinceLastDelivery >= 30;
-      default:
-        return false;
-    }
-  } catch (error) {
-    console.error('Error checking delivery due:', error);
-    return false;
-  }
+  // 🔁 Record this delivery in subscription history
+  subscription.deliveries = subscription.deliveries || [];
+  subscription.deliveries.push(order._id);
+  await subscription.save();
+
+  console.log(`✅ Created order ${order._id} for subscription ${subscription._id}`);
+
+  return order;
 };
+
+
+
+/**
+ * Checks whether a delivery is due for a given subscription today.
+ * Skips paused subscriptions and ignores paused duration in calculations.
+ */
+/**
+ * Checks whether a delivery is due for a given subscription today.
+ * Skips paused subscriptions and ignores paused duration in calculations.
+ */
+const checkDeliveryDue = async (subscription, today) => {
+  // ⛔ Skip paused subscriptions
+  if (subscription.status === 'paused') return false;
+
+  // Get last delivery date (from subscription history or last order)
+  let lastOrder;
+  if (subscription.deliveries?.length > 0) {
+    lastOrder = await Order.findById(subscription.deliveries.at(-1));
+  } else {
+    lastOrder = await Order.findOne({ subscription: subscription._id }).sort({ createdAt: -1 });
+  }
+
+  const lastDeliveryDate = lastOrder ? lastOrder.createdAt : subscription.startDate;
+  let effectiveLastDeliveryDate = new Date(lastDeliveryDate);
+
+  // 🧠 Exclude paused durations
+  if (subscription.pauseHistory && subscription.pauseHistory.length > 0) {
+    subscription.pauseHistory.forEach((pause) => {
+      if (pause.pausedAt >= effectiveLastDeliveryDate) {
+        const resumedAt = pause.resumedAt || today; // if still paused
+        const pauseDuration = resumedAt - pause.pausedAt;
+        effectiveLastDeliveryDate = new Date(
+          effectiveLastDeliveryDate.getTime() + pauseDuration
+        );
+      }
+    });
+  }
+
+  // 🔁 Determine frequency interval
+  let frequencyDays = 7; // default weekly
+  switch (subscription.plan.frequency) {
+    case 'daily':
+      frequencyDays = 1;
+      break;
+    case 'weekly':
+      frequencyDays = 7;
+      break;
+    case 'biweekly':
+      frequencyDays = 14;
+      break;
+    case 'monthly':
+      frequencyDays = 30;
+      break;
+  }
+
+  const nextDeliveryDate = new Date(effectiveLastDeliveryDate);
+  nextDeliveryDate.setDate(nextDeliveryDate.getDate() + frequencyDays);
+
+  // ✅ Delivery is due if today >= next scheduled date
+  return today >= nextDeliveryDate;
+};
+
+
+
+
+// @desc    Get all deliveries (orders) for a subscription
+// @route   GET /api/v1/subscriptions/:id/deliveries
+// @access  Private (user or admin)
+exports.getSubscriptionDeliveries = asyncHandler(async (req, res, next) => {
+  const { page = 1, limit = 10, startDate, endDate } = req.query;
+  const subscriptionId = req.params.id;
+
+  // ✅ Ensure subscription exists and belongs to user (unless admin)
+  const subscription = await Subscription.findById(subscriptionId);
+  if (!subscription) {
+    return next(new ErrorResponse('Subscription not found', 404));
+  }
+
+  // Only allow owner or admin
+  if (req.user.role !== 'admin' && subscription.userId.toString() !== req.user.id) {
+    return next(new ErrorResponse('Not authorized to view this subscription', 403));
+  }
+
+  // 🗓️ Optional date filtering
+  const dateFilter = {};
+  if (startDate || endDate) {
+    dateFilter.createdAt = {};
+    if (startDate) dateFilter.createdAt.$gte = new Date(startDate);
+    if (endDate) dateFilter.createdAt.$lte = new Date(endDate);
+  }
+
+  // 🔍 Query deliveries
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+  const query = { _id: { $in: subscription.deliveries }, ...dateFilter };
+
+  const deliveries = await Order.find(query)
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  const totalDeliveries = await Order.countDocuments(query);
+
+  res.status(200).json({
+    success: true,
+    count: deliveries.length,
+    totalDeliveries,
+    totalPages: Math.ceil(totalDeliveries / limit),
+    currentPage: parseInt(page),
+    data: deliveries,
+  });
+});
+
+
+
 
 // @desc    Get subscription analytics
 // @route   GET /api/v1/subscriptions/analytics
@@ -963,3 +1193,112 @@ exports.getSubscriptionAnalytics = asyncHandler(async (req, res, next) => {
     }
   });
 });
+
+
+
+
+
+
+// @desc    Pause subscription (admin)
+// @route   PUT /api/v1/subscriptions/:id/admin-pause
+// @access  Private/Admin
+exports.adminPauseSubscription = asyncHandler(async (req, res, next) => {
+  const subscription = await Subscription.findById(req.params.id);
+  if (!subscription) return next(new ErrorResponse('Subscription not found', 404));
+  if (subscription.status !== 'active')
+    return next(new ErrorResponse('Only active subscriptions can be paused', 400));
+
+  subscription.remainingDuration = Math.max(subscription.endDate - new Date(), 0);
+  subscription.pausedAt = new Date();
+  subscription.status = 'paused';
+  await subscription.save();
+
+  res.status(200).json({ success: true, message: 'Subscription paused by admin', data: subscription });
+});
+
+// @desc    Resume subscription (admin)
+// @route   PUT /api/v1/subscriptions/:id/admin-resume
+// @access  Private/Admin
+exports.adminResumeSubscription = asyncHandler(async (req, res, next) => {
+  const subscription = await Subscription.findById(req.params.id);
+  if (!subscription) return next(new ErrorResponse('Subscription not found', 404));
+  if (subscription.status !== 'paused')
+    return next(new ErrorResponse('Only paused subscriptions can be resumed', 400));
+
+  const now = new Date();
+  subscription.endDate = new Date(now.getTime() + subscription.remainingDuration);
+  subscription.status = 'active';
+  subscription.pausedAt = null;
+  subscription.remainingDuration = null;
+  await subscription.save();
+
+  res.status(200).json({ success: true, message: 'Subscription resumed by admin', data: subscription });
+});
+
+
+
+// @desc    Admin: Get all subscription deliveries (orders)
+// @route   GET /api/v1/subscriptions/deliveries/all
+// @access  Private/Admin
+exports.getAllSubscriptionDeliveries = asyncHandler(async (req, res, next) => {
+  const {
+    page = 1,
+    limit = 10,
+    startDate,
+    endDate,
+    user,
+    plan,
+    status,
+    search
+  } = req.query;
+
+  const filters = { isSubscriptionOrder: true }; // ✅ only subscription orders
+
+  // Optional date filter
+  if (startDate || endDate) {
+    filters.createdAt = {};
+    if (startDate) filters.createdAt.$gte = new Date(startDate);
+    if (endDate) filters.createdAt.$lte = new Date(endDate);
+  }
+
+  // Optional user filter
+  if (user) filters.user = user;
+
+  // Optional plan/product filter
+  if (plan) filters['products.product'] = plan;
+
+  // Optional delivery status filter
+  if (status) filters.orderStatus = status;
+
+  // Optional search (by plan name, user email, etc.)
+  if (search) {
+    filters.$or = [
+      { 'products.productName': { $regex: search, $options: 'i' } },
+      { 'user.name': { $regex: search, $options: 'i' } },
+      { 'user.email': { $regex: search, $options: 'i' } },
+      { 'deliveryAddress': { $regex: search, $options: 'i' } },
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const deliveries = await Order.find(filters)
+    .populate('user', 'name email')
+    .populate('products.product', 'name frequency')
+    .populate('subscription', 'planName frequency')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  const totalDeliveries = await Order.countDocuments(filters);
+
+  res.status(200).json({
+    success: true,
+    count: deliveries.length,
+    totalDeliveries,
+    totalPages: Math.ceil(totalDeliveries / limit),
+    currentPage: parseInt(page),
+    data: deliveries,
+  });
+});
+

@@ -14,7 +14,7 @@ const subscriptionSchema = new mongoose.Schema(
     planType: {
       type: String,
       enum: ["custom", "one-time", "emergency", "preset"],
-      required: true,
+      // required: true,
     },
     size: String,
     frequency: {
@@ -43,7 +43,7 @@ const subscriptionSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["active", "cancelled", "expired", "pending"],
+      enum: ["active", "paused", "cancelled", "expired", "pending"],
       default: "pending",
     },
 
@@ -52,6 +52,13 @@ const subscriptionSchema = new mongoose.Schema(
       frequency: String,
       subscriptionPeriod: Number,
     },
+    deliveries: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Order",
+      },
+    ],
+
     startDate: {
       type: Date,
       required: true,
@@ -60,7 +67,30 @@ const subscriptionSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    cancelledAt: Date,
+    cancelledAt: { type: Date },
+
+    pausedAt: { 
+      type: Date, 
+      default: null 
+    },
+
+    remainingDuration: { 
+      type: Number, 
+      default: null 
+    },
+
+    remainingDays: {
+      type: Number,
+      default: null,
+    },
+
+    pauseHistory: [
+      {
+        pausedAt: { type: Date },
+        resumedAt: { type: Date },
+        durationMs: { type: Number },
+      },
+    ],
   },
   {
     timestamps: true,
