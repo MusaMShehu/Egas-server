@@ -74,18 +74,24 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: "default.jpg",
   },
+
   walletBalance: {
     type: Number,
     default: 0,
   },
+  wallet: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Wallet",
+  },
+
   role: {
     type: String,
     enum: ["user", "admin", "delivery", "customer_care"],
     default: "user",
   },
-  subscription: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'Subscription'
+  subscription: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Subscription",
   },
 
   isActive: {

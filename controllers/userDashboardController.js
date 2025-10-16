@@ -1,6 +1,6 @@
 const Order = require('../models/Order');
+const User = require('../models/User');
 const Subscription = require('../models/Subscription');
-const WalletTopup = require('../models/wallet');
 const Wallet = require('../models/wallet');
 const asyncHandler = require('../middleware/async');
 
@@ -42,16 +42,28 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
 
   // --- ORDERS ---
-  const orders = await Order.find({ userId, status: 'paid' }).sort({ createdAt: -1 });
-  const orderTotal = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
-  const orderMonthly = orders
-    .filter(o => o.createdAt >= startOfMonth())
-    .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+  // Fetch all paid orders for the user
+const orders = await Order.find({
+  user: userId,
+  paymentStatus: "completed",
+})
+  .sort({ createdAt: -1 })
+  .lean();
 
-  const activeOrderCount = await Order.countDocuments({
-    userId,
-    status: { $in: ['processing', 'delivering', 'active'] },
-  });
+// Calculate total order spending
+const orderTotal = orders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+// Calculate monthly spending (orders placed this month)
+const orderMonthly = orders
+  .filter(o => o.createdAt >= startOfMonth(new Date()))
+  .reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+
+// Count active (non-delivered/cancelled) orders
+const activeOrderCount = await Order.countDocuments({
+  user: userId,
+  orderStatus: { $in: ["processing", "in-transit"] },
+});
+
 
   // --- SUBSCRIPTIONS ---
   const subscriptions = await Subscription.find({
@@ -83,15 +95,43 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
 
   const recentSubscriptions = subscriptions.slice(0, 3);
 
-  // --- WALLET ---
-  const walletTopups = await WalletTopup.find({ userId, status: 'successful' }).sort({ createdAt: -1 });
-  const topupTotal = walletTopups.reduce((sum, t) => sum + (t.amount || 0), 0);
-  const topupMonthly = walletTopups
-    .filter(t => t.createdAt >= startOfMonth())
+  
+ // --- WALLET ---
+const wallet = await Wallet.findOne({ userId }).lean();
+
+let walletBalance = 0;
+let topupTotal = 0;
+let topupMonthly = 0;
+let topupActivities = [];
+
+if (wallet) {
+  walletBalance = wallet.balance || 0;
+
+  const transactions = wallet.transactions || [];
+  const topups = transactions.filter(t => t.type?.toLowerCase() === 'credit');
+
+  // Total top-up (all time)
+  topupTotal = topups.reduce((sum, t) => sum + (t.amount || 0), 0);
+
+  // Monthly top-up
+  topupMonthly = topups
+    .filter(t => new Date(t.date) >= startOfMonth())
     .reduce((sum, t) => sum + (t.amount || 0), 0);
 
-  const wallet = await Wallet.findOne({ userId });
-  const walletBalance = wallet ? wallet.balance : 0;
+  // 5 most recent transactions
+  topupActivities = transactions
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5)
+    .map(t => ({
+      type: 'wallet_transaction',
+      title: t.description || (t.type === 'Credit' ? 'Wallet Credit' : 'Wallet Debit'),
+      amount: t.amount,
+      status: t.type,
+      createdAt: t.date,
+    }));
+} else {
+  console.warn(`⚠️ No wallet found for user ${userId}`);
+}
 
   // --- COMBINED MONTHLY SPENDING (Orders + Subscriptions) ---
   const orderAgg = await Order.aggregate([
@@ -158,40 +198,50 @@ exports.getDashboardStats = asyncHandler(async (req, res, next) => {
     createdAt: s.createdAt,
   }));
 
-  const topupActivities = walletTopups.slice(0, 5).map(t => ({
-    type: 'wallet_topup',
-    title: 'Wallet Top-up',
-    amount: t.amount,
-    status: t.status,
-    createdAt: t.createdAt,
-  }));
+  // 5 most recent transactions
+// const topupActivities = transactions
+//   .sort((a, b) => new Date(b.date) - new Date(a.date))
+//   .slice(0, 5)
+//   .map(t => ({
+//     type: 'wallet_transaction',
+//     title: t.description || (t.type === 'Credit' ? 'Wallet Credit' : 'Wallet Debit'),
+//     amount: t.amount,
+//     status: t.type,
+//     createdAt: t.date,
+//   }));
 
   const recentActivities = [...orderActivities, ...subActivities, ...topupActivities]
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
     .slice(0, 8);
 
   // --- RESPONSE ---
-  res.status(200).json({
-    success: true,
-    data: {
-      totalSpent,
-      thisMonthSpent,
-      orderTotal,
-      subscriptionTotal,
-      topupTotal,
-      orderMonthly,
-      subscriptionMonthly,
-      topupMonthly,
-      orderCount: orders.length,
-      activeOrderCount,
-      nextDeliveryDate,
-      subscriptionCount: subscriptions.length,
-      activeSubscriptions,
-      walletBalance,
-      recentOrders,
-      recentSubscriptions,
-      spendingByMonth,
-      recentActivities,
-    },
-  });
+ res.status(200).json({
+  success: true,
+  data: {
+    totalSpent,
+    thisMonthSpent,
+    orderTotal,
+    subscriptionTotal,
+    topupTotal,
+    orderMonthly,
+    subscriptionMonthly,
+    topupMonthly,
+    orderCount: orders.length,
+    activeOrderCount,
+    nextDeliveryDate,
+    subscriptionCount: subscriptions.length,
+    activeSubscriptions,
+    walletBalance,
+    recentOrders,
+    recentSubscriptions,
+    spendingByMonth,
+    recentActivities: [
+      ...orderActivities,
+      ...subActivities,
+      ...topupActivities
+    ]
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+      .slice(0, 8),
+  },
+});
 });

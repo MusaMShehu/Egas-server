@@ -1,9 +1,12 @@
 const axios = require('axios');
 const crypto = require('crypto');
-const Transaction = require('../models/Transaction');
 const Subscription = require("../models/Subscription");
 const Order = require("../models/Order");
 const User = require("../models/User");
+const Wallet = require('../models/wallet');
+const Payment = require('../models/Payment');
+const Transaction = require('../models/Transaction');
+
 const SubscriptionPlan = require("../models/SubscriptionPlan");
 const asyncHandler = require('../middleware/async');
 
@@ -748,13 +751,16 @@ exports.initiateTopup = async (req, res) => {
 };
 
 // ✅ Verify Top-up
+// ✅ Verify Top-up (updated to use Wallet collection)
 exports.verifyTopup = async (req, res) => {
   try {
     const { reference } = req.query;
     const userId = req.user._id;
 
     if (!reference) {
-      return res.status(400).json({ success: false, message: "Missing reference" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Missing reference" });
     }
 
     const response = await axios.get(
@@ -768,40 +774,88 @@ exports.verifyTopup = async (req, res) => {
     const transaction = await Transaction.findOne({ reference });
 
     if (!transaction) {
-      return res.status(404).json({ success: false, message: "Transaction not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Transaction not found" });
+    }
+
+    // ✅ Find or create the user's wallet
+    let wallet = await Wallet.findOne({ userId });
+    if (!wallet) {
+      wallet = await Wallet.create({
+        userId,
+        balance: 0,
+        transactions: [],
+      });
     }
 
     if (data.status === "success" && transaction.status !== "success") {
       transaction.status = "success";
       await transaction.save();
 
-      const user = await User.findById(userId);
-      user.walletBalance = (user.walletBalance || 0) + transaction.amount;
-      await user.save();
+      // ✅ Update wallet balance
+      wallet.balance += transaction.amount;
+
+      // ✅ Record the transaction in wallet
+      wallet.transactions.push({
+        amount: transaction.amount,
+        type: "Credit",
+        description: `Wallet top-up via Paystack (Ref: ${reference})`,
+        date: new Date(),
+      });
+
+      await wallet.save();
+
+      // ✅ (Optional) also log it in Payment table for history
+      await Payment.create({
+        user: userId,
+        reference,
+        amount: transaction.amount,
+        type: "credit",
+        status: "completed",
+        provider: "Paystack",
+        metadata: data,
+      });
 
       return res.status(200).json({
         success: true,
         message: "Top-up successful",
-        walletBalance: user.walletBalance,
+        walletBalance: wallet.balance,
       });
-    } else if (data.status !== "success") {
-      transaction.status = "failed";
-      await transaction.save();
-      return res.status(400).json({ success: false, message: "Top-up failed" });
     }
 
-    // Already verified
-    const user = await User.findById(userId);
+    // ❌ If failed
+    else if (data.status !== "success") {
+      transaction.status = "failed";
+      await transaction.save();
+
+      wallet.transactions.push({
+        amount: transaction.amount,
+        type: "Failed",
+        description: `Failed top-up attempt (Ref: ${reference})`,
+        date: new Date(),
+      });
+      await wallet.save();
+
+      return res
+        .status(400)
+        .json({ success: false, message: "Top-up failed" });
+    }
+
+    // ℹ️ Already verified before
     return res.status(200).json({
       success: true,
       message: "Already verified",
-      walletBalance: user.walletBalance,
+      walletBalance: wallet.balance,
     });
   } catch (err) {
     console.error("Verification error:", err.response?.data || err.message);
-    res.status(500).json({ success: false, message: "Verification failed" });
+    res
+      .status(500)
+      .json({ success: false, message: "Verification failed", error: err.message });
   }
 };
+
 
 
 // Wallet Top-Up Webhook
@@ -833,36 +887,47 @@ exports.handleWalletWebhook = async (req, res) => {
     console.log(`📬 Paystack Webhook received: ${event.event}`);
     res.status(200).send("Webhook received"); // respond early
 
-    // ✅ 3. Process in background
+    // ✅ 3. Process asynchronously
     process.nextTick(async () => {
       try {
+        const data = event.data;
+        const reference = data.reference;
+        const email = data.customer.email;
+        const amount = data.amount / 100; // convert from kobo
+
+        // Find user by email
+        const user = await User.findOne({ email });
+        if (!user) {
+          console.warn(`⚠️ No user found for email: ${email}`);
+          return;
+        }
+
+        // Find or create the user's wallet
+        let wallet = await Wallet.findOne({ userId: user._id });
+        if (!wallet) {
+          wallet = await Wallet.create({
+            userId: user._id,
+            balance: 0,
+            transactions: [],
+          });
+          console.log(`🆕 Wallet created for ${email}`);
+        }
+
         if (event.event === "charge.success") {
-          const data = event.data;
+          // ✅ Credit wallet
+          wallet.balance += amount;
 
-          // Extract details
-          const reference = data.reference;
-          const email = data.customer.email;
-          const amount = data.amount / 100; // convert from kobo
+          // ✅ Add a transaction record
+          wallet.transactions.push({
+            amount,
+            type: "Credit",
+            description: `Wallet top-up via Paystack`,
+            date: new Date(),
+          });
 
-          // Find user
-          const user = await User.findOne({ email });
-          if (!user) {
-            console.warn(`⚠️ No user found for email: ${email}`);
-            return;
-          }
+          await wallet.save();
 
-          // Check if this transaction already exists
-          const existingPayment = await Payment.findOne({ reference });
-          if (existingPayment) {
-            console.log(`ℹ️ Payment ${reference} already processed`);
-            return;
-          }
-
-          // ✅ Update wallet balance
-          user.walletBalance += amount;
-          await user.save();
-
-          // ✅ Log transaction
+          // (Optional) Log in Payment collection for audit
           await Payment.create({
             user: user._id,
             reference,
@@ -877,19 +942,24 @@ exports.handleWalletWebhook = async (req, res) => {
         }
 
         else if (event.event === "charge.failed") {
-          const data = event.data;
-          const reference = data.reference;
-          const email = data.customer.email;
-          const amount = data.amount / 100;
-
           await Payment.create({
+            user: user._id,
             reference,
             amount,
-            status: "failed",
             type: "wallet_topup",
+            status: "failed",
             provider: "Paystack",
             metadata: data,
           });
+
+          // Optionally record a failed transaction in wallet history
+          wallet.transactions.push({
+            amount,
+            type: "Failed",
+            description: `Failed wallet top-up attempt`,
+            date: new Date(),
+          });
+          await wallet.save();
 
           console.warn(`❌ Wallet top-up failed for ${email} (₦${amount})`);
         }
@@ -906,7 +976,6 @@ exports.handleWalletWebhook = async (req, res) => {
     res.status(500).send("Webhook processing failed");
   }
 };
-
 
 
 // ✅ Get Wallet Balance

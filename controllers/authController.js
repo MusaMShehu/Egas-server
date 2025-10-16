@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const crypto = require('crypto'); 
 const User = require('../models/User');
 const Order = require('../models/Order'); 
+const Wallet = require('../models/wallet'); 
 const Subscription = require('../models/SubscriptionPlan'); 
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
@@ -17,7 +18,6 @@ const signToken = (id) => {
 // @desc    Register user
 // @route   POST /api/v1/auth/register
 // @access  Public
-
 exports.register = asyncHandler(async (req, res, next) => {
   try {
     const {
@@ -45,7 +45,6 @@ exports.register = asyncHandler(async (req, res, next) => {
     if (gps) {
       try {
         const parsed = JSON.parse(gps);
-
         if (
           parsed.type === "Point" &&
           Array.isArray(parsed.coordinates) &&
@@ -83,21 +82,35 @@ exports.register = asyncHandler(async (req, res, next) => {
       gender,
       state,
       city,
-      gpsCoordinates, // ✅ Correct GeoJSON format
+      gpsCoordinates,
       profilePic,
     });
 
-    // 5️⃣ Remove sensitive fields
+    // 🪙 5️⃣ Create wallet and link to user
+    const wallet = await Wallet.create({
+      userId: user._id,
+      balance: 0,
+      transactions: [],
+    });
+
+    // add wallet reference to user
+    user.wallet = wallet._id;
+    await user.save();
+
+    // 6️⃣ Remove sensitive fields
     user.password = undefined;
 
-    // 6️⃣ Generate JWT token
+    // 7️⃣ Generate JWT token
     const token = signToken(user._id);
 
-    // 7️⃣ Respond to frontend
+    // 8️⃣ Respond to frontend
     res.status(201).json({
       success: true,
       token,
-      user,
+      user: {
+        ...user._doc,
+        wallet,
+      },
     });
   } catch (err) {
     console.error("Error during registration:", err);
