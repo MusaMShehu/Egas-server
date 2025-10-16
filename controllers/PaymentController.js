@@ -730,7 +730,7 @@ exports.initiateTopup = async (req, res) => {
       amount,
       status: "pending",
       type: "topup",
-      callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
+      callback_url: `${process.env.FRONTEND_URL}/payment/wallet-topup/verify`,
       webhook_url: `${process.env.BASE_URL}/api/v1/payments/wallet/webhook`
     });
 
