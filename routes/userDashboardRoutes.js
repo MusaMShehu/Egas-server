@@ -1,19 +1,8 @@
-const express = require("express");
-const {
-  getWallet,
-  refreshWallet,
-  getOrders,
-  getSubscriptions,
-  getCurrentDelivery,
-} = require("../controllers/userDashboardController");
-const { protect } = require("../middleware/auth");
-
+const express = require('express');
 const router = express.Router();
+const { getDashboardStats } = require('../controllers/userDashboardController');
+const { protect } = require('../middleware/auth');
 
-router.get("/wallet", protect, getWallet);
-router.get("/wallet/refresh", protect, refreshWallet);
-router.get("/orders", protect, getOrders);
-router.get("/subscriptions", protect, getSubscriptions);
-router.get("/next-delivery", protect, getCurrentDelivery);
+router.get('/overview', protect, getDashboardStats);
 
 module.exports = router;

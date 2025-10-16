@@ -4,14 +4,19 @@ const router = express.Router();
 const {
   initializeSubscriptionPayment,
   verifySubscriptioTransaction,
-  // handleWebhook,
+  handleWebhook,
   getTransactionHistory,
   getSubscriptionDetails,
+
+// Wallet Topup
   initiateTopup,
   verifyTopup,
-  handleWebhook,
+  handleWalletWebhook,
   getWalletBalance,
   getPaymentHistory,
+
+  // Order Payment 
+  // Not in Use
   payWithWallet,
   initializeOrderPymentPaystack,
   confirmOrderPaymentPaystack,
@@ -22,14 +27,14 @@ const { protect } = require("../middleware/auth");
 // ✅ Subscription Payment
 router.post("/subscription/initialize", protect, initializeSubscriptionPayment);
 router.get("/subscription/verify/:reference", protect, verifySubscriptioTransaction);
-// router.post("/subscription/webhook", express.raw({ type: "application/json" }), handleWebhook);
+router.post("/subscription/webhook", express.raw({ type: "application/json" }), handleWebhook);
 router.get("/subscription/history/:userId", protect, getTransactionHistory);
 router.get("/subscription/details", protect, getSubscriptionDetails);
 
 // ✅ Wallet Top-up
 router.post("/wallet/topup", protect, initiateTopup);
 router.get("/wallet/verify", protect, verifyTopup);
-router.post("/paystack/webhook", bodyParser.raw({ type: "application/json" }), handleWebhook);
+router.post("/wallet/webhook", express.raw({ type: "application/json" }), handleWalletWebhook);
 router.get("/wallet/balance", protect, getWalletBalance);
 router.get("/wallet/history", protect, getPaymentHistory);
 

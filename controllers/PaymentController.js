@@ -727,6 +727,8 @@ exports.initiateTopup = async (req, res) => {
       amount,
       status: "pending",
       type: "topup",
+      callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
+      webhook_url: `${process.env.BASE_URL}/api/v1/payments/wallet/webhook`
     });
 
     return res.status(200).json({
@@ -803,7 +805,7 @@ exports.verifyTopup = async (req, res) => {
 
 
 // Wallet Top-Up Webhook
-exports.handleWebhook = async (req, res) => {
+exports.handleWalletWebhook = async (req, res) => {
   try {
     const rawBody = req.rawBody || JSON.stringify(req.body);
     const signature = req.headers["x-paystack-signature"];
