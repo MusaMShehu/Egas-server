@@ -22,6 +22,7 @@ const {
   optionalAuth,
   refreshSession  
 }  = require('../middleware/auth');
+const upload = require('../middleware/upload');
 
 
 router
@@ -35,9 +36,7 @@ router
   .put(protect, authorize('admin'), updateUser)
   .delete(protect, authorize('admin'), deleteUser);
 
-router
-  .route('/picture/:id')
-  .put(protect, uploadUserPhoto);
+router.put('/picture/:id', protect, upload.single("profilePic"), uploadUserPhoto);
 
 router
   .route('/profile')
