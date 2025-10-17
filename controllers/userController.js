@@ -78,59 +78,46 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
 // @desc    Upload photo for user
 // @route   PUT /api/v1/users/:id/photo
 // @access  Private
-exports.uploadUserPhoto = asyncHandler(async (req, res, next) => {
-  const user = await User.findById(req.params.id);
+exports.uploadUserPhoto = async (req, res) => {
+  try {
+    const userId = req.params.id;
 
-  if (!user) {
-    return next(new ErrorResponse(`No user with the id of ${req.params.id}`, 404));
-  }
-
-  // Make sure user is updating their own photo or admin
-  if (user._id.toString() !== req.user.id && req.user.role !== 'admin') {
-    return next(
-      new ErrorResponse(`User ${req.user.id} is not authorized to update this user`, 401)
-    );
-  }
-
-  if (!req.files) {
-    return next(new ErrorResponse(`Please upload a file`, 400));
-  }
-
-  const file = req.files.file;
-
-  // Check if the file is an image
-  if (!file.mimetype.startsWith('image')) {
-    return next(new ErrorResponse(`Please upload an image file`, 400));
-  }
-
-  // Check file size
-  if (file.size > Number(process.env.MAX_FILE_UPLOAD)) {
-    return next(
-      new ErrorResponse(
-        `Please upload an image less than ${process.env.MAX_FILE_UPLOAD} bytes`,
-        400
-      )
-    );
-  }
-
-  // Create custom filename
-  file.name = `photo_${user._id}${path.parse(file.name).ext}`;
-
-  // Move file
-  file.mv(`${process.env.FILE_UPLOAD_PATH}/users/${file.name}`, async (err) => {
-    if (err) {
-      console.error(err);
-      return next(new ErrorResponse(`Problem with file upload`, 500));
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No image file uploaded.",
+      });
     }
 
-    await User.findByIdAndUpdate(req.params.id, { profilePic: file.name });
+    const imagePath = `/uploads/${req.file.filename}`;
+
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { profilePic: imagePath },
+      { new: true }
+    );
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found.",
+      });
+    }
 
     res.status(200).json({
       success: true,
-      data: file.name,
+      message: "Profile picture uploaded successfully.",
+      data: { profilePic: imagePath },
     });
-  });
-});
+  } catch (error) {
+    console.error("Upload error:", error);
+    res.status(500).json({
+      success: false,
+      message: "Server error during upload.",
+      error: error.message,
+    });
+  }
+};
 
 // @desc Update user password
 // @route PUT /api/users/me/password
