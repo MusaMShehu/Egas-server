@@ -820,6 +820,7 @@ exports.verifyTopup = async (req, res) => {
       return res.status(200).json({
         success: true,
         message: "Top-up successful",
+        amount: transaction.amount,
         walletBalance: wallet.balance,
       });
     }
