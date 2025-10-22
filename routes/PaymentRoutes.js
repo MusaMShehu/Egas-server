@@ -2,12 +2,7 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const router = express.Router();
 const {
-  initializeSubscriptionPayment,
-  verifySubscriptioTransaction,
-  handleWebhook,
-  getTransactionHistory,
-  getSubscriptionDetails,
-
+  
 // Wallet Topup
   initiateTopup,
   verifyTopup,
@@ -15,21 +10,22 @@ const {
   getWalletBalance,
   getPaymentHistory,
 
+  // initializeSubscriptionPayment,
+  // verifySubscriptioTransaction,
+  // handleWebhook,
+  // getTransactionHistory,
+  // getSubscriptionDetails,
+
   // Order Payment 
   // Not in Use
-  payWithWallet,
-  initializeOrderPymentPaystack,
-  confirmOrderPaymentPaystack,
-  handleOrderPaymentPaystackWebhook,
+  // payWithWallet,
+  // initializeOrderPymentPaystack,
+  // confirmOrderPaymentPaystack,
+  // handleOrderPaymentPaystackWebhook,
 } = require("../controllers/PaymentController");
 const { protect } = require("../middleware/auth");
 
-// ✅ Subscription Payment
-router.post("/subscription/initialize", protect, initializeSubscriptionPayment);
-router.get("/subscription/verify/:reference", protect, verifySubscriptioTransaction);
-router.post("/subscription/webhook", express.raw({ type: "application/json" }), handleWebhook);
-router.get("/subscription/history/:userId", protect, getTransactionHistory);
-router.get("/subscription/details", protect, getSubscriptionDetails);
+
 
 // ✅ Wallet Top-up
 router.post("/wallet/topup", protect, initiateTopup);
@@ -38,10 +34,18 @@ router.post("/wallet/webhook", express.raw({ type: "application/json" }), handle
 router.get("/wallet/balance", protect, getWalletBalance);
 router.get("/wallet/history", protect, getPaymentHistory);
 
+
+// ✅ Subscription Payment
+// router.post("/subscription/initialize", protect, initializeSubscriptionPayment);
+// router.get("/subscription/verify/:reference", protect, verifySubscriptioTransaction);
+// router.post("/subscription/webhook", express.raw({ type: "application/json" }), handleWebhook);
+// router.get("/subscription/history/:userId", protect, getTransactionHistory);
+// router.get("/subscription/details", protect, getSubscriptionDetails);
+
 // ✅ Order Payment
-router.put("/order/:id/wallet-pay", protect, payWithWallet);
-router.post("/order/initialize", protect, initializeOrderPymentPaystack);
-router.get("/order/verify/:reference", protect, confirmOrderPaymentPaystack);
-router.post("/order/webhook", express.raw({ type: "application/json" }), handleOrderPaymentPaystackWebhook);
+// router.put("/order/:id/wallet-pay", protect, payWithWallet);
+// router.post("/order/initialize", protect, initializeOrderPymentPaystack);
+// router.get("/order/verify/:reference", protect, confirmOrderPaymentPaystack);
+// router.post("/order/webhook", express.raw({ type: "application/json" }), handleOrderPaymentPaystackWebhook);
 
 module.exports = router;

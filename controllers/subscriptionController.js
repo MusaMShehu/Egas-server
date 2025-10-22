@@ -7,6 +7,9 @@ const asyncHandler = require('../middleware/async');
 const paystack = require('../utils/paystack');
 const crypto = require('crypto');
 
+// ✅ CHANGED: Import delivery helper
+const { generateDeliverySchedules } = require('../utils/deliveryHelper');
+
 // @desc    Get all subscriptions
 // @route   GET /api/v1/subscriptions
 // @route   GET /api/v1/users/:userId/subscriptions
@@ -257,6 +260,7 @@ const getEmergencyPlanPrice = (plan, size) => {
   if (!plan) return 0;
   return calculatePrice(plan, size, "One-Time", 1);
 };
+
 // @desc    Verify subscription payment
 // @route   GET /api/v1/subscriptions/verify
 // @access  Private
@@ -379,7 +383,9 @@ const handleSuccessfulCharge = async (data) => {
   }
 };
 
-// Process successful payment
+// ✅ CHANGED: REMOVED OLD generateDeliverySchedules function
+// The function has been moved to deliveryHelper.js
+
 // Process successful payment
 const processSuccessfulPayment = async (data) => {
   const { reference, metadata, amount } = data;
@@ -415,6 +421,19 @@ const processSuccessfulPayment = async (data) => {
   await subscription.save();
 
   console.log("Subscription activated successfully:", subscription._id);
+
+  // ✅ CHANGED: Use delivery helper instead of inline function
+  try {
+    const deliveryResult = await generateDeliverySchedules(subscription, {
+      logProgress: true,
+      overrideExisting: false // Don't override existing deliveries
+    });
+    
+    console.log(`✅ ${deliveryResult.count} delivery schedules generated for subscription:`, subscription._id);
+  } catch (scheduleError) {
+    console.error("❌ Delivery schedule generation failed:", scheduleError);
+    // Don't fail the whole process if schedule generation fails
+  }
 
   // ✅ Create initial order for the subscription
   try {
@@ -477,39 +496,49 @@ const processRenewalPayment = async (subscriptionId, reference) => {
     subscription.reference = reference;
     await subscription.save();
 
+    // ✅ CHANGED: Use delivery helper for renewal
+    try {
+      const deliveryResult = await generateDeliverySchedules(subscription, {
+        logProgress: true
+      });
+      console.log("✅ Delivery schedules generated for renewal:", deliveryResult);
+    } catch (scheduleError) {
+      console.error("❌ Error generating delivery schedules for renewal:", scheduleError);
+    }
+
     // Create order for renewal
     try {
-  // Fetch user profile to get their delivery address (if applicable)
-  const User = require("../models/User");
-  const user = await User.findById(subscription.userId).lean();
+      // Fetch user profile to get their delivery address (if applicable)
+      const User = require("../models/User");
+      const user = await User.findById(subscription.userId).lean();
 
-  const order = await Order.create({
-    orderId: `ORD-${Date.now()}`, // generate a unique order ID
-    user: subscription.userId,
-    products: [
-      {
-        product: subscription.plan,
-        productName: subscription.planName,
-        quantity: 1,
-        price: subscription.price,
-      },
-    ],
-    totalAmount: subscription.price,
-    deliveryAddress: user?.address || "Not provided", // fallback if address not stored
-    deliveryOption: "standard",
-    paymentMethod: "card",
-    paymentStatus: "completed",
-    orderStatus: "processing",
-    subscription: subscription._id,
-    reference: reference,
-    isRenewalOrder: true,
-    paymentDetails: {
-      gateway: "paystack",
-      amount: subscription.price,
-      currency: "NGN",
-      paidAt: new Date(),
-    },
-  });
+      const order = await Order.create({
+        orderId: `ORD-${Date.now()}`, // generate a unique order ID
+        user: subscription.userId,
+        products: [
+          {
+            product: subscription.plan,
+            productName: subscription.planName,
+            quantity: 1,
+            price: subscription.price,
+          },
+        ],
+        totalAmount: subscription.price,
+        deliveryAddress: user?.address || "Not provided", // fallback if address not stored
+        deliveryOption: "standard",
+        paymentMethod: "card",
+        paymentStatus: "completed",
+        orderStatus: "processing",
+        subscription: subscription._id,
+        reference: reference,
+        isRenewalOrder: true,
+        paymentDetails: {
+          gateway: "paystack",
+          amount: subscription.price,
+          currency: "NGN",
+          paidAt: new Date(),
+        },
+      });
 
       subscription.order = order._id;
       await subscription.save();
@@ -586,7 +615,6 @@ const handleTransferReversed = async (data) => {
     console.error('Error handling transfer reversed:', error);
   }
 };
-
 // Send subscription confirmation (placeholder)
 // const sendSubscriptionConfirmation = async (subscription) => {
 //   try {
@@ -1300,4 +1328,3 @@ exports.getAllSubscriptionDeliveries = asyncHandler(async (req, res, next) => {
     data: deliveries,
   });
 });
-

@@ -55,7 +55,7 @@ const subscriptionSchema = new mongoose.Schema(
     deliveries: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Order",
+        ref: "Delivery",
       },
     ],
 
