@@ -27,6 +27,6 @@ router.get("/:id", protect, getOrderById);
 router.patch("/:id/status", protect, updateOrderStatus);
 router.patch("/:id/payment-status", protect, updatePaymentStatus);
 router.patch("/:id/tracking", protect, updateTracking);
-router.patch("/bulk/status", protect, bulkUpdateOrderStatus);
+router.patch("/bulk-status", protect, bulkUpdateOrderStatus);
 
 module.exports = router;

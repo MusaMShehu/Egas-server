@@ -70,7 +70,10 @@ exports.getDeliveries = asyncHandler(async (req, res, next) => {
 
   const deliveries = await Delivery.find(filter)
     .populate("subscriptionId", "planName size frequency status")
-    .populate("userId", "firstName lastName email")
+    .populate({
+      path: "userId",
+      select: "firstName lastName email phone address city state gpsCoordinates profilePic"
+    })
     .populate("deliveryAgent", "firstName lastName email phone")
     .sort(sort)
     .skip(skip)
@@ -103,7 +106,7 @@ exports.assignDeliveryAgent = asyncHandler(async (req, res, next) => {
 
   // Check if agent exists and has delivery agent role
   const agent = await User.findById(deliveryAgentId);
-  if (!agent || agent.role !== "delivery_agent") {
+  if (!agent || agent.role !== "delivery") {
     return next(new ErrorResponse("Invalid delivery agent", 400));
   }
 
@@ -135,12 +138,17 @@ exports.getAgentDeliveries = asyncHandler(async (req, res, next) => {
   const agentId = req.user.id;
   const { status, date } = req.query;
 
+  // Base filter for the logged-in agent
   let filter = { deliveryAgent: agentId };
 
+  // Handle status filter
   if (status && status !== "all") {
-    filter.status = status;
+    // If multiple statuses (comma-separated) are sent, handle them properly
+    const statuses = status.split(",").map(s => s.trim());
+    filter.status = { $in: statuses };
   }
 
+  // Handle date filter (if provided)
   if (date) {
     const startDate = new Date(date);
     const endDate = new Date(date);
@@ -151,10 +159,11 @@ exports.getAgentDeliveries = asyncHandler(async (req, res, next) => {
     };
   }
 
+  // Fetch and populate deliveries
   const deliveries = await Delivery.find(filter)
     .populate("subscriptionId", "planName size frequency")
-    .populate("userId", "firstName lastName phone address")
-    .sort({ deliveryDate: 1 });
+    .populate("userId", "firstName lastName phone address gpsCoordinates")
+    .sort({ deliveryDate: -1, createdAt: -1 });
 
   res.status(200).json({
     success: true,

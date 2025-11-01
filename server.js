@@ -26,11 +26,15 @@ const userHistoryRoutes = require("./routes/userHistoryRoutes");
 // ===============================
 // ✅ ADMIN SECTION
 // ===============================
+const adminDashboard = require ("./adminPanel/routes/adminDashboardRoutes")
 const adminUserManagement = require ("./adminPanel/routes/userManagementRoutes");
 const adminSubscriptionManagement = require ("./adminPanel/routes/subscriptionManagementRoutes");
 const adminOrderManagement = require ("./adminPanel/routes/orderManagementRoutes");
 const adminReportManagement = require ("./adminPanel/routes/reportManagementRoutes");
 const adminDeliveryManagement = require ("./adminPanel/routes/deliveryManagementRoutes");
+const adminProductManagement = require ("./adminPanel/routes/productManagementRoutes");
+const adminSubscriptionPlanManagement = require ("./adminPanel/routes/subsPlanManagementRoutes");
+const adminSupportManagement = require ("./adminPanel/routes/supportManagementRoutes");
 
 
 
@@ -93,7 +97,6 @@ connectDB();
 app.use("/api/v1/auth", auth);
 app.use("/api/v1/users", users);
 app.use("/api/v1/user/history", userHistoryRoutes);
-// app.use("/api/v1/admin", admin);
 app.use("/api/v1/products", products);
 app.use("/api/v1/orders", orders);
 app.use("/api/v1/cart", cart);
@@ -109,11 +112,15 @@ app.use("/api/v1/upload", uploadRoutes);
 // ===============================
 // ✅ ADMIN API ROUTES
 // ===============================
+app.use("/api/v1/admin/dashboard", adminDashboard)
 app.use("/api/v1/admin/users", adminUserManagement);
 app.use("/api/v1/admin/subscriptions", adminSubscriptionManagement);
 app.use("/api/v1/admin/orders", adminOrderManagement);
+app.use("/api/v1/admin/products", adminProductManagement);
+app.use("/api/v1/admin/subscription-plans", adminSubscriptionPlanManagement);
 app.use("/api/v1/admin/reports", adminReportManagement);
 app.use("/api/v1/admin/delivery", adminDeliveryManagement);
+app.use("/api/v1/admin/supports", adminSupportManagement);
 
 // ===============================
 // ✅ Health Check Route
