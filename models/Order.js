@@ -66,6 +66,17 @@ const orderSchema = new mongoose.Schema({
     enum: ["processing", "in-transit", "delivered", "cancelled"],
     default: "processing",
   },
+
+  paymentResult: {
+    type: Object,
+    default: {},
+  },
+  isPaid: {
+    type: Boolean,
+    default: false,
+  },
+  paidAt: Date,
+
   tracking: {
     status: String,
     location: String,

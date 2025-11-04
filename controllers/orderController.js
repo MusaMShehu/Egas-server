@@ -83,16 +83,18 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     deliveryOption,
     address,
     city,
-    paymentMethod, // "wallet" or "paystack" only
+    paymentMethod, // 'wallet' or 'paystack'
   } = req.body;
 
   if (!items || !Array.isArray(items) || items.length === 0) {
     return next(new ErrorResponse("Please provide at least one product", 400));
   }
 
-  // Validate payment method
-  if (!paymentMethod || !['wallet', 'paystack'].includes(paymentMethod)) {
-    return next(new ErrorResponse("Payment method is required and must be either 'wallet' or 'paystack'", 400));
+  // ✅ Validate payment method
+  if (!paymentMethod || !["wallet", "paystack"].includes(paymentMethod)) {
+    return next(
+      new ErrorResponse("Payment method must be either 'wallet' or 'paystack'", 400)
+    );
   }
 
   let totalAmount = 0;
@@ -121,18 +123,16 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     });
   }
 
-  // ✅ Add delivery fee
+  // ✅ Add delivery fee if express
   let deliveryFee = 0;
   if (deliveryOption === "express") {
     deliveryFee = 1000;
     totalAmount += deliveryFee;
   }
 
-  // ✅ Build order data
   const deliveryAddress = `${address}, ${city}`;
   const orderId = `ORD-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-  
-  // Create order in DB first (with pending status for paystack)
+
   const orderData = {
     user: req.user._id,
     orderId,
@@ -140,37 +140,37 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
     totalAmount,
     deliveryFee,
     deliveryAddress,
-    deliveryOption: deliveryOption || 'standard',
-    paymentMethod: paymentMethod,
+    deliveryOption: deliveryOption || "standard",
+    paymentMethod,
     paymentStatus: "pending",
     orderStatus: "processing",
-    isPaid: false
+    isPaid: false,
   };
 
   const order = await Order.create(orderData);
 
-  // ✅ Handle Paystack payment initialization 
+  // ✅ Handle PAYSTACK
   if (paymentMethod === "paystack") {
     try {
-      const response = await paystack.post('/transaction/initialize', {
+      const response = await paystack.post("/transaction/initialize", {
         email: req.user.email,
-        amount: Math.round(totalAmount * 100), // Convert to kobo
-        metadata: { 
+        amount: Math.round(totalAmount * 100), // convert to kobo
+        metadata: {
           userId: req.user._id,
           orderId: order._id,
-          type: 'order'
+          type: "order",
         },
         callback_url: `${process.env.FRONTEND_URL}/orders/verify`,
-        webhook_url: `${process.env.BASE_URL}/api/v1/orders/order_webhook`
+        webhook_url: `${process.env.BASE_URL}/api/v1/orders/order_webhook`,
       });
 
       const { authorization_url, reference } = response.data.data;
 
-      // Update order with payment reference
+      // Update order with paystack ref
       order.paymentResult = {
-        reference: reference,
+        reference,
         status: "pending",
-        gateway: "paystack"
+        gateway: "paystack",
       };
       order.reference = reference;
       await order.save();
@@ -180,49 +180,76 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
         data: order,
         authorization_url,
         reference,
-        message: "Order created. Redirect to complete payment."
+        message: "Order created. Redirect to complete payment.",
       });
-
     } catch (error) {
-      console.error('Paystack Order Error:', error.response?.data || error.message);
-      // Delete the order if payment initialization fails
+      console.error("Paystack Order Error:", error.response?.data || error.message);
       await Order.findByIdAndDelete(order._id);
-      return next(new ErrorResponse('Payment initialization failed: ' + (error.response?.data?.message || error.message), 500));
+      return next(
+        new ErrorResponse(
+          "Payment initialization failed: " +
+            (error.response?.data?.message || error.message),
+          500
+        )
+      );
     }
   }
 
-  // ✅ Handle Wallet payment
+  // ✅ Handle WALLET payment
   if (paymentMethod === "wallet") {
     try {
-      const user = await User.findById(req.user._id);
-      
+      const user = await User.findById(req.user._id).populate("wallet");
       if (!user) {
         await Order.findByIdAndDelete(order._id);
-        return next(new ErrorResponse('User not found', 404));
+        return next(new ErrorResponse("User not found", 404));
       }
 
-      if (user.walletBalance < totalAmount) {
+      // Ensure wallet exists
+      let wallet = user.wallet
+        ? await Wallet.findById(user.wallet)
+        : await Wallet.findOne({ userId: user._id });
+
+      if (!wallet) {
+        wallet = await Wallet.create({
+          userId: user._id,
+          balance: user.walletBalance,
+        });
+        user.wallet = wallet._id;
+        await user.save();
+      }
+
+      // Check balance
+      if (wallet.balance < totalAmount || user.walletBalance < totalAmount) {
         await Order.findByIdAndDelete(order._id);
-        return next(new ErrorResponse('Insufficient wallet balance', 400));
+        return next(new ErrorResponse("Insufficient wallet balance", 400));
       }
 
       // Deduct from wallet
-      user.walletBalance -= totalAmount;
+      wallet.balance -= totalAmount;
+      wallet.transactions.push({
+        amount: totalAmount,
+        type: "Debit",
+        description: `Payment for order ${orderId}`,
+      });
+      await wallet.save();
+
+      // Sync user wallet balance
+      user.walletBalance = wallet.balance;
       await user.save();
 
-      // Update order status
-      order.paymentStatus = 'completed';
-      order.orderStatus = 'processing';
+      // Update order
+      order.paymentStatus = "completed";
+      order.orderStatus = "processing";
       order.isPaid = true;
       order.paidAt = new Date();
       order.paymentResult = {
         status: "completed",
         gateway: "wallet",
-        paidAt: new Date()
+        paidAt: new Date(),
       };
       await order.save();
 
-      // Reduce stock for wallet payments
+      // Deduct stock
       for (const item of products) {
         await Product.findByIdAndUpdate(item.product, {
           $inc: { stock: -item.quantity },
@@ -232,16 +259,16 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
       return res.status(201).json({
         success: true,
         data: order,
-        message: "Order created and paid with wallet successfully"
+        message: "Order created and paid with wallet successfully",
       });
-
     } catch (error) {
-      console.error('Wallet Payment Error:', error);
+      console.error("Wallet Payment Error:", error);
       await Order.findByIdAndDelete(order._id);
-      return next(new ErrorResponse('Wallet payment failed', 500));
+      return next(new ErrorResponse("Wallet payment failed", 500));
     }
   }
 });
+
 
 // @desc    Verify order payment
 // @route   GET /api/v1/orders/verify

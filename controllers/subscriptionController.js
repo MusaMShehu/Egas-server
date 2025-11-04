@@ -10,11 +10,42 @@ const crypto = require('crypto');
 // ✅ CHANGED: Import delivery helper
 const { generateDeliverySchedules } = require('../utils/deliveryHelper');
 
+
+// ✅ NEW: Middleware to check and update expired subscriptions
+const checkExpiredSubscriptions = asyncHandler(async (req, res, next) => {
+  try {
+    const now = new Date();
+    const result = await Subscription.updateMany(
+      {
+        status: { $in: ['active', 'paused'] },
+        endDate: { $lt: now }
+      },
+      {
+        $set: { 
+          status: 'expired',
+          expiredAt: now
+        }
+      }
+    );
+    
+    if (result.modifiedCount > 0) {
+      console.log(`✅ Auto-expired ${result.modifiedCount} subscriptions`);
+    }
+  } catch (error) {
+    console.error('Error checking expired subscriptions:', error);
+  }
+  next();
+});
+
 // @desc    Get all subscriptions
 // @route   GET /api/v1/subscriptions
 // @route   GET /api/v1/users/:userId/subscriptions
 // @access  Private
 exports.getSubscriptions = asyncHandler(async (req, res, next) => {
+
+   // ✅ CHANGED: Check for expired subscriptions first
+  await checkExpiredSubscriptions(req, res, () => {});
+
   if (req.params.userId) {
     const subscriptions = await Subscription.find({ userId: req.params.userId })
       // .populate('plan')
@@ -34,6 +65,10 @@ exports.getSubscriptions = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/subscriptions/:id
 // @access  Private
 exports.getSubscription = asyncHandler(async (req, res, next) => {
+
+   // ✅ CHANGED: Check for expired subscriptions first
+  await checkExpiredSubscriptions(req, res, () => {});
+
   const subscription = await Subscription.findById(req.params.id)
     // .populate('plan')
     .populate('userId', 'firstName lastName email phone');
@@ -67,17 +102,27 @@ exports.getSubscription = asyncHandler(async (req, res, next) => {
 // @route   POST /api/v1/subscriptions
 // @access  Private
 exports.createSubscription = asyncHandler(async (req, res, next) => {
-
-  if (!req.body || Object.keys(req.body).length === 0) {
-    return next(new ErrorResponse('Request body is required', 400));
-  }
-
-  const { plan: planId, size, frequency, subscriptionPeriod, customPlan } = req.body;
+  if (!req.body) req.body = {};
+  
+  const { 
+    plan: planId, 
+    size, 
+    frequency, 
+    subscriptionPeriod, 
+    customPlan,
+    paymentMethod // "wallet" or "paystack" only
+  } = req.body;
+  
   const userId = req.user.id;
 
   // Validate required fields
   if (!planId || !size || !frequency) {
     return next(new ErrorResponse('Plan, size, and frequency are required', 400));
+  }
+
+  // Validate payment method
+  if (!paymentMethod || !['wallet', 'paystack'].includes(paymentMethod)) {
+    return next(new ErrorResponse("Payment method is required and must be either 'wallet' or 'paystack'", 400));
   }
 
   // Check if plan exists and is active
@@ -123,35 +168,36 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
 
   const startDate = new Date();
   
-  // Calculate end date based on frequency and subscription period
-  const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standard') => {
-    const endDate = new Date(startDate);
-    const periodMonths = subscriptionPeriod || 1;
-    
-    // For one-time and emergency plans, end date is the same as start date
-    if (frequency === "One-Time" || planType === "one-time" || planType === "emergency") {
-      return startDate;
-    }
-    
-    // For all other plans, calculate based on frequency and subscription period
-    switch (frequency) {
-      case "Daily":
-        endDate.setDate(endDate.getDate() + (30 * periodMonths)); // 30 days per month
-        break;
-      case "Weekly":
-        endDate.setDate(endDate.getDate() + (7 * 4 * periodMonths)); // 4 weeks per month
-        break;
-      case "Bi-Weekly":
-        endDate.setDate(endDate.getDate() + (7 * 2 * 4 * periodMonths)); // 2 weeks * 4 weeks per month
-        break;
-      case "Monthly":
-      default:
-        endDate.setMonth(endDate.getMonth() + periodMonths);
-        break;
-    }
-    
-    return endDate;
-  };
+ // ✅ CHANGED: Fixed Bi-weekly end date calculation
+const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standard') => {
+  const endDate = new Date(startDate);
+  const periodMonths = subscriptionPeriod || 1;
+  
+  // For one-time and emergency plans, end date is the same as start date
+  if (frequency === "One-Time" || planType === "one-time" || planType === "emergency") {
+    return startDate;
+  }
+  
+  // CHANGED: Fixed duration calculations
+  switch (frequency) {
+    case "Daily":
+      endDate.setDate(endDate.getDate() + (30 * periodMonths)); // 30 days per month
+      break;
+    case "Weekly":
+      endDate.setDate(endDate.getDate() + (7 * 4 * periodMonths)); // 4 weeks per month
+      break;
+    case "Bi-Weekly":
+      // CHANGED: Bi-weekly should be every 2 weeks, so total duration should reflect this
+      endDate.setDate(endDate.getDate() + (14 * 4 * periodMonths)); // 2 weeks * 4 periods per month
+      break;
+    case "Monthly":
+    default:
+      endDate.setMonth(endDate.getMonth() + periodMonths);
+      break;
+  }
+  
+  return endDate;
+};
 
   // Determine frequency for end date calculation
   let frequencyForEndDate = frequency;
@@ -163,33 +209,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
 
   const endDate = calculateEndDate(frequencyForEndDate, subscriptionPeriod, plan.type);
 
-  // Initialize payment with Paystack
-  let response;
-  try {
-    response = await paystack.post('/transaction/initialize', {
-      email: req.user.email,
-      amount: Math.round(price * 100), // Convert to kobo and ensure integer
-      metadata: { 
-        userId, 
-        planId, 
-        size: size,
-        frequency,
-        subscriptionPeriod: subscriptionPeriod || 1,
-        planType: plan.type,
-        customPlan: plan.type === 'custom' ? customPlan : undefined,
-        type: 'subscription' 
-      },
-      callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
-      webhook_url: `${process.env.BASE_URL}/api/v1/subscriptions/webhook`
-    });
-  } catch (error) {
-    console.error('Paystack Error:', error.response?.data || error.message);
-    return next(new ErrorResponse('Payment initialization failed: ' + (error.response?.data?.message || error.message), 500));
-  }
-
-  const { authorization_url, reference } = response.data.data;
-
-  // Create pending subscription
+  // Build subscription data
   const subscriptionData = {
     userId,
     planName: plan.name,
@@ -199,7 +219,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     frequency,
     subscriptionPeriod: subscriptionPeriod || 1,
     price,
-    reference,
+    paymentMethod: paymentMethod,
     status: 'pending',
     startDate,
     endDate
@@ -210,17 +230,133 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     subscriptionData.customPlanDetails = customPlan;
   }
 
-  const subscription = await Subscription.create(subscriptionData);
+  // ✅ Handle Paystack payment initialization 
+  if (paymentMethod === "paystack") {
+    try {
+      const response = await paystack.post('/transaction/initialize', {
+        email: req.user.email,
+        amount: Math.round(price * 100), // Convert to kobo and ensure integer
+        metadata: { 
+          userId, 
+          planId, 
+          size: size,
+          frequency,
+          subscriptionPeriod: subscriptionPeriod || 1,
+          planType: plan.type,
+          customPlan: plan.type === 'custom' ? customPlan : undefined,
+          type: 'subscription' 
+        },
+        callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
+        webhook_url: `${process.env.BASE_URL}/api/v1/subscriptions/webhook`
+      });
 
-  res.status(200).json({
-    success: true,
-    authorization_url,
-    reference,
-    data: subscription
-  });
+      const { authorization_url, reference } = response.data.data;
+
+      // Update subscription with payment reference
+      subscriptionData.reference = reference;
+      subscriptionData.paymentResult = {
+        reference: reference,
+        status: "pending",
+        gateway: "paystack"
+      };
+
+      const subscription = await Subscription.create(subscriptionData);
+
+      return res.status(200).json({
+        success: true,
+        authorization_url,
+        reference,
+        data: subscription,
+        message: "Subscription created. Redirect to complete payment."
+      });
+
+    } catch (error) {
+      console.error('Paystack Subscription Error:', error.response?.data || error.message);
+      return next(new ErrorResponse('Payment initialization failed: ' + (error.response?.data?.message || error.message), 500));
+    }
+  }
+
+  // ✅ Handle Wallet payment
+  if (paymentMethod === "wallet") {
+    const session = await mongoose.startSession();
+    session.startTransaction();
+
+    try {
+      const user = await User.findById(userId).session(session);
+      
+      if (!user) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorResponse('User not found', 404));
+      }
+
+      // Check wallet balance in User model
+      if (user.walletBalance < price) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorResponse('Insufficient wallet balance', 400));
+      }
+
+      // Deduct from user wallet balance
+      user.walletBalance -= price;
+      await user.save({ session });
+
+      // Update or create Wallet document with transaction
+      const wallet = await Wallet.findOneAndUpdate(
+        { userId: userId },
+        { 
+          $inc: { balance: -price },
+          $push: {
+            transactions: {
+              amount: price,
+              type: 'Debit',
+              description: `Subscription payment for ${plan.name} - ${frequency}`,
+              date: new Date()
+            }
+          }
+        },
+        { 
+          upsert: true, 
+          new: true, 
+          session,
+          setDefaultsOnInsert: true 
+        }
+      );
+
+      // Update subscription status for wallet payment
+      subscriptionData.status = 'active';
+      subscriptionData.paymentStatus = 'completed';
+      subscriptionData.isPaid = true;
+      subscriptionData.paidAt = new Date();
+      subscriptionData.paymentResult = {
+        status: "completed",
+        gateway: "wallet",
+        paidAt: new Date(),
+        walletTransactionId: wallet.transactions[wallet.transactions.length - 1]._id
+      };
+
+      const subscription = await Subscription.create([subscriptionData], { session });
+
+      // Commit transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      return res.status(200).json({
+        success: true,
+        data: subscription,
+        message: "Subscription created and paid with wallet successfully"
+      });
+
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      console.error('Wallet Payment Error for Subscription:', error);
+      return next(new ErrorResponse('Wallet payment failed for subscription', 500));
+    }
+  }
 });
 
-// Exact same pricing logic as frontend
+// CHANGED: Fixed Bi-weekly frequency multiplier
 const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
   if (!plan) return 0;
   
@@ -230,13 +366,15 @@ const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
   // Calculate base price
   let baseAmount = sizeKg * (plan.pricePerKg || 0);
   
-  // Apply frequency multiplier
+  // CHANGED: Fixed frequency multipliers - Bi-weekly should be twice Monthly
   let frequencyMultiplier = 1;
   switch (frequency) {
-    case "Daily": frequencyMultiplier = 30; break;
-    case "Weekly": frequencyMultiplier = 4; break;
-    case "Bi-Weekly": frequencyMultiplier = 2; break;
-    default: frequencyMultiplier = 1; // Monthly or One-Time
+    case "Daily": frequencyMultiplier = 30; break;    // 30x monthly
+    case "Weekly": frequencyMultiplier = 4; break;    // 4x monthly  
+    case "Bi-Weekly": frequencyMultiplier = 2; break; // CHANGED: 2x monthly (was same as Monthly)
+    case "Monthly": frequencyMultiplier = 1; break;   // 1x monthly
+    case "One-Time": frequencyMultiplier = 1; break;  // 1x monthly
+    default: frequencyMultiplier = 1;
   }
   
   // Apply subscription period (months)

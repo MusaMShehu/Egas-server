@@ -20,7 +20,14 @@ const subscriptionSchema = new mongoose.Schema(
     frequency: {
       type: String,
       required: true,
-      enum: ["Daily", "Weekly", "Bi-Weekly", "Monthly", "One-Time", "Emergency"],
+      enum: [
+        "Daily",
+        "Weekly",
+        "Bi-Weekly",
+        "Monthly",
+        "One-Time",
+        "Emergency",
+      ],
     },
     subscriptionPeriod: {
       type: Number,
@@ -47,6 +54,21 @@ const subscriptionSchema = new mongoose.Schema(
       default: "pending",
     },
 
+    paymentStatus: {
+      type: String,
+      enum: ["pending", "completed", "failed"],
+      default: "pending",
+    },
+    isPaid: {
+      type: Boolean,
+      default: false,
+    },
+    paidAt: Date,
+    paymentMethod: {
+      type: String,
+      enum: ["wallet", "paystack"],
+    },
+
     customPlanDetails: {
       size: String,
       frequency: String,
@@ -69,14 +91,14 @@ const subscriptionSchema = new mongoose.Schema(
     },
     cancelledAt: { type: Date },
 
-    pausedAt: { 
-      type: Date, 
-      default: null 
+    pausedAt: {
+      type: Date,
+      default: null,
     },
 
-    remainingDuration: { 
-      type: Number, 
-      default: null 
+    remainingDuration: {
+      type: Number,
+      default: null,
     },
 
     remainingDays: {
