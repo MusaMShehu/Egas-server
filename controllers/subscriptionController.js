@@ -104,6 +104,11 @@ exports.getSubscription = asyncHandler(async (req, res, next) => {
 // @desc    Create subscription
 // @route   POST /api/v1/subscriptions
 // @access  Private
+// In your subscription controller, update the wallet payment section:
+
+// @desc    Create subscription
+// @route   POST /api/v1/subscriptions
+// @access  Private
 exports.createSubscription = asyncHandler(async (req, res, next) => {
   if (!req.body) req.body = {};
   
@@ -149,20 +154,16 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('You already have an active subscription for this plan', 400));
   }
 
-  // Calculate price using the same logic as frontend
+  // Calculate price
   let price;
   try {
     if (plan.type === 'custom' && customPlan) {
-      // For custom plans, use the custom plan data
       price = calculatePrice(plan, customPlan.size, customPlan.frequency, customPlan.subscriptionPeriod);
     } else if (plan.type === 'one-time') {
-      // For one-time plans, use One-Time frequency and 1 month period
       price = calculatePrice(plan, size, "One-Time", 1);
     } else if (plan.type === 'emergency') {
-      // For emergency plans, use One-Time frequency and 1 month period
       price = calculatePrice(plan, size, "One-Time", 1);
     } else {
-      // For standard plans, use the provided parameters
       price = calculatePrice(plan, size, frequency, subscriptionPeriod);
     }
   } catch (error) {
@@ -171,38 +172,34 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
 
   const startDate = new Date();
   
- // ✅ CHANGED: Fixed Bi-weekly end date calculation
-const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standard') => {
-  const endDate = new Date(startDate);
-  const periodMonths = subscriptionPeriod || 1;
-  
-  // For one-time and emergency plans, end date is the same as start date
-  if (frequency === "One-Time" || planType === "one-time" || planType === "emergency") {
-    return startDate;
-  }
-  
-  // CHANGED: Fixed duration calculations
-  switch (frequency) {
-    case "Daily":
-      endDate.setDate(endDate.getDate() + (30 * periodMonths)); // 30 days per month
-      break;
-    case "Weekly":
-      endDate.setDate(endDate.getDate() + (7 * 4 * periodMonths)); // 4 weeks per month
-      break;
-    case "Bi-Weekly":
-      // CHANGED: Bi-weekly should be every 2 weeks, so total duration should reflect this
-      endDate.setDate(endDate.getDate() + (14 * 4 * periodMonths)); // 2 weeks * 4 periods per month
-      break;
-    case "Monthly":
-    default:
-      endDate.setMonth(endDate.getMonth() + periodMonths);
-      break;
-  }
-  
-  return endDate;
-};
+  // Calculate end date
+  const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standard') => {
+    const endDate = new Date(startDate);
+    const periodMonths = subscriptionPeriod || 1;
+    
+    if (frequency === "One-Time" || planType === "one-time" || planType === "emergency") {
+      return startDate;
+    }
+    
+    switch (frequency) {
+      case "Daily":
+        endDate.setDate(endDate.getDate() + (30 * periodMonths));
+        break;
+      case "Weekly":
+        endDate.setDate(endDate.getDate() + (7 * 4 * periodMonths));
+        break;
+      case "Bi-Weekly":
+        endDate.setDate(endDate.getDate() + (14 * 4 * periodMonths));
+        break;
+      case "Monthly":
+      default:
+        endDate.setMonth(endDate.getMonth() + periodMonths);
+        break;
+    }
+    
+    return endDate;
+  };
 
-  // Determine frequency for end date calculation
   let frequencyForEndDate = frequency;
   if (plan.type === 'one-time' || plan.type === 'emergency') {
     frequencyForEndDate = "One-Time";
@@ -238,7 +235,7 @@ const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standar
     try {
       const response = await paystack.post('/transaction/initialize', {
         email: req.user.email,
-        amount: Math.round(price * 100), // Convert to kobo and ensure integer
+        amount: Math.round(price * 100),
         metadata: { 
           userId, 
           planId, 
@@ -255,7 +252,6 @@ const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standar
 
       const { authorization_url, reference } = response.data.data;
 
-      // Update subscription with payment reference
       subscriptionData.reference = reference;
       subscriptionData.paymentResult = {
         reference: reference,
@@ -279,12 +275,13 @@ const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standar
     }
   }
 
-  // ✅ Handle Wallet payment
+  // ✅ FIXED: Handle Wallet payment with proper validation
   if (paymentMethod === "wallet") {
     const session = await mongoose.startSession();
     session.startTransaction();
 
     try {
+      // Get user with wallet balance from User model
       const user = await User.findById(userId).session(session);
       
       if (!user) {
@@ -293,11 +290,11 @@ const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standar
         return next(new ErrorResponse('User not found', 404));
       }
 
-      // Check wallet balance in User model
+      // Validate wallet balance in User model
       if (user.walletBalance < price) {
         await session.abortTransaction();
         session.endSession();
-        return next(new ErrorResponse('Insufficient wallet balance', 400));
+        return next(new ErrorResponse(`Insufficient wallet balance. Your balance: ₦${user.walletBalance}, Required: ₦${price}`, 400));
       }
 
       // Deduct from user wallet balance
@@ -340,6 +337,17 @@ const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standar
 
       const subscription = await Subscription.create([subscriptionData], { session });
 
+      // ✅ CHANGED: Generate delivery schedules for wallet payment
+      try {
+        const deliveryResult = await generateDeliverySchedules(subscription, {
+          logProgress: true,
+          overrideExisting: false
+        });
+        console.log(`✅ ${deliveryResult.count} delivery schedules generated for wallet subscription:`, subscription._id);
+      } catch (scheduleError) {
+        console.error("❌ Delivery schedule generation failed for wallet payment:", scheduleError);
+      }
+
       // Commit transaction
       await session.commitTransaction();
       session.endSession();
@@ -347,14 +355,15 @@ const calculateEndDate = (frequency, subscriptionPeriod = 1, planType = 'standar
       return res.status(200).json({
         success: true,
         data: subscription,
-        message: "Subscription created and paid with wallet successfully"
+        message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
+        walletBalance: user.walletBalance // Return updated balance
       });
 
     } catch (error) {
       await session.abortTransaction();
       session.endSession();
       console.error('Wallet Payment Error for Subscription:', error);
-      return next(new ErrorResponse('Wallet payment failed for subscription', 500));
+      return next(new ErrorResponse('Wallet payment failed for subscription: ' + error.message, 500));
     }
   }
 });
