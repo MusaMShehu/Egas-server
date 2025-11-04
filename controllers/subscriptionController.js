@@ -1,3 +1,4 @@
+const mongoose = require('mongoose'); // Add this line
 const Subscription = require('../models/Subscription');
 const SubscriptionPlan = require('../models/SubscriptionPlan');
 const Product = require('../models/Product');
