@@ -8,6 +8,7 @@ const Subscription = require('../models/SubscriptionPlan');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const sendEmail = require('../utils/email');
+const emailService = require('../services/emailService'); 
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -103,7 +104,19 @@ exports.register = asyncHandler(async (req, res, next) => {
     // 7️⃣ Generate JWT token
     const token = signToken(user._id);
 
-    // 8️⃣ Respond to frontend
+    // 📧 8️⃣ Send welcome email (non-blocking)
+    try {
+      await emailService.sendAccountCreatedEmail({
+        name: `${firstName} ${lastName}`,
+        email: email
+      });
+    } catch (emailError) {
+      // Log email error but don't fail the registration
+      console.error('Failed to send welcome email:', emailError);
+      // You might want to log this to a monitoring service
+    }
+
+    // 9️⃣ Respond to frontend
     res.status(201).json({
       success: true,
       token,
@@ -117,8 +130,6 @@ exports.register = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(err.message || "Registration failed", 500));
   }
 });
-
-
 
 // @desc    Login user
 // @route   POST /api/v1/auth/login
