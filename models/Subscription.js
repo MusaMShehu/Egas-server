@@ -23,7 +23,7 @@ const subscriptionSchema = new mongoose.Schema(
       enum: [
         "Daily",
         "Weekly",
-        "Bi-Weekly",
+        "Bi-weekly",
         "Monthly",
         "One-Time",
         "Emergency",
@@ -34,7 +34,7 @@ const subscriptionSchema = new mongoose.Schema(
       required: true,
       default: 1,
       min: 1,
-      max: 12, // Optional: limit to 12 months maximum
+      max: 12, 
     },
     price: {
       type: Number,
@@ -143,12 +143,15 @@ subscriptionSchema.methods.calculateEndDate = function () {
     case "Daily":
       endDate.setDate(endDate.getDate() + 30 * totalMonths);
       break;
+
     case "Weekly":
       endDate.setDate(endDate.getDate() + 7 * 4 * totalMonths);
       break;
-    case "Bi-Weekly":
-      endDate.setDate(endDate.getDate() + 7 * 2 * 4 * totalMonths);
+
+    case "Bi-weekly":  // <-- MATCH ENUM EXACTLY
+      endDate.setDate(endDate.getDate() + 14 * totalMonths);
       break;
+
     case "Monthly":
     default:
       endDate.setMonth(endDate.getMonth() + totalMonths);
@@ -157,6 +160,7 @@ subscriptionSchema.methods.calculateEndDate = function () {
 
   return endDate;
 };
+
 
 // Pre-save middleware to auto-calculate end date if not provided
 subscriptionSchema.pre("save", function (next) {

@@ -188,8 +188,8 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
       case "Weekly":
         endDate.setDate(endDate.getDate() + (7 * 4 * periodMonths));
         break;
-      case "Bi-Weekly":
-        endDate.setDate(endDate.getDate() + (14 * 4 * periodMonths));
+      case "Bi-weekly":
+        endDate.setDate(endDate.getDate() + (14 * 2 * periodMonths));
         break;
       case "Monthly":
       default:
@@ -383,7 +383,7 @@ const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
   switch (frequency) {
     case "Daily": frequencyMultiplier = 30; break;    // 30x monthly
     case "Weekly": frequencyMultiplier = 4; break;    // 4x monthly  
-    case "Bi-Weekly": frequencyMultiplier = 2; break; // CHANGED: 2x monthly (was same as Monthly)
+    case "Bi-weekly": frequencyMultiplier = 2; break; // CHANGED: 2x monthly (was same as Monthly)
     case "Monthly": frequencyMultiplier = 1; break;   // 1x monthly
     case "One-Time": frequencyMultiplier = 1; break;  // 1x monthly
     default: frequencyMultiplier = 1;
@@ -1275,7 +1275,7 @@ const checkDeliveryDue = async (subscription, today) => {
     case 'weekly':
       frequencyDays = 7;
       break;
-    case 'biweekly':
+    case 'bi-weekly':
       frequencyDays = 14;
       break;
     case 'monthly':

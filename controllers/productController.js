@@ -6,8 +6,15 @@ const asyncHandler = require('../middleware/async');
 // @route   GET /api/v1/products
 // @access  Public
 exports.getProducts = asyncHandler(async (req, res, next) => {
-  res.status(200).json(res.advancedResults);
+  const products = await Product.find();
+
+  res.status(200).json({
+    success: true,
+    count: products.length,
+    data: products,
+  });
 });
+
 
 // @desc    Get single product
 // @route   GET /api/v1/products/:id
