@@ -105,16 +105,16 @@ exports.register = asyncHandler(async (req, res, next) => {
     const token = signToken(user._id);
 
     // 📧 8️⃣ Send welcome email (non-blocking)
-    try {
-      await emailService.sendAccountCreatedEmail({
-        name: `${firstName} ${lastName}`,
-        email: email
-      });
-    } catch (emailError) {
-      // Log email error but don't fail the registration
-      console.error('Failed to send welcome email:', emailError);
-      // You might want to log this to a monitoring service
-    }
+    // try {
+    //   await emailService.sendAccountCreatedEmail({
+    //     name: `${firstName} ${lastName}`,
+    //     email: email
+    //   });
+    // } catch (emailError) {
+    //   // Log email error but don't fail the registration
+    //   console.error('Failed to send welcome email:', emailError);
+    //   // You might want to log this to a monitoring service
+    // }
 
     // 9️⃣ Respond to frontend
     res.status(201).json({

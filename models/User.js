@@ -75,10 +75,10 @@ const userSchema = new mongoose.Schema({
     default: "default.jpg",
   },
 
-  walletBalance: {
-    type: Number,
-    default: 0,
-  },
+  // walletBalance: {
+  //   type: Number,
+  //   default: 0,
+  // },
   wallet: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "Wallet",
