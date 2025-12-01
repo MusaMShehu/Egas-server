@@ -14,32 +14,67 @@ const crypto = require('crypto');
 const { generateDeliverySchedules } = require('../utils/deliveryHelper');
 
 
-// ✅ NEW: Middleware to check and update expired subscriptions
+// ✅ SIMPLIFIED: Middleware to check and update expired subscriptions
 const checkExpiredSubscriptions = asyncHandler(async (req, res, next) => {
   try {
     const now = new Date();
-    const result = await Subscription.updateMany(
-      {
-        status: { $in: ['active', 'paused'] },
-        endDate: { $lt: now }
+    const oneDayAgo = new Date(now);
+    oneDayAgo.setDate(oneDayAgo.getDate() - 1);
+    
+    // Find subscriptions that should be expired
+    const expiredSubscriptions = await Subscription.find({
+      status: { $in: ['active', 'paused'] },
+      endDate: { 
+        $lt: oneDayAgo // Subscriptions whose endDate was more than 1 day ago
       },
-      {
-        $set: { 
-          status: 'expired',
-          expiredAt: now
+      $or: [
+        { lastExpirationCheck: { $exists: false } },
+        { lastExpirationCheck: { $lt: oneDayAgo } }
+      ]
+    });
+
+    let expiredCount = 0;
+    let errorCount = 0;
+
+    // Process each subscription individually
+    for (const subscription of expiredSubscriptions) {
+      try {
+        const shouldExpire = subscription.shouldExpire;
+        
+        if (shouldExpire) {
+          await subscription.expireSubscription();
+          expiredCount++;
+        }
+        
+        // Update last check time even if not expired yet
+        subscription.lastExpirationCheck = now;
+        await subscription.save();
+        
+      } catch (error) {
+        console.error(`❌ Failed to expire subscription ${subscription._id}:`, error);
+        errorCount++;
+        
+        // Still update check time to prevent infinite retry loops
+        try {
+          subscription.lastExpirationCheck = now;
+          await subscription.save();
+        } catch (saveError) {
+          console.error(`❌ Failed to update lastExpirationCheck for ${subscription._id}:`, saveError);
         }
       }
-    );
-    
-    if (result.modifiedCount > 0) {
-      console.log(`✅ Auto-expired ${result.modifiedCount} subscriptions`);
     }
+    
+    if (expiredCount > 0) {
+      console.log(`✅ Marked ${expiredCount} subscriptions as expired (deliveries preserved)`);
+    }
+    
   } catch (error) {
-    console.error('Error checking expired subscriptions:', error);
+    console.error('❌ Error in expiration check middleware:', error);
+    // Don't block the request if expiration check fails
   }
+  
   next();
 });
-
 // @desc    Get all subscriptions
 // @route   GET /api/v1/subscriptions
 // @route   GET /api/v1/users/:userId/subscriptions
@@ -1142,8 +1177,8 @@ exports.processSubscriptions = asyncHandler(async (req, res, next) => {
 
   // Get all active subscriptions still within validity period
   const subscriptions = await Subscription.find({
-    status: { $in: ['active'] },
-    endDate: { $gte: today },
+    status: { $in: ['active'] }, // Only active, not expired
+    endDate: { $gte: today }, // Only those that haven't ended
   })
     .populate('plan')
     .populate('userId');

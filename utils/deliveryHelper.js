@@ -10,7 +10,7 @@ const generateDeliverySchedules = async (subscription, options = {}) => {
   try {
     const {
       overrideExisting = false,
-      maxDeliveries = 100, // Safety limit
+      maxDeliveries = 10000, // Safety limit
       logProgress = true
     } = options;
 

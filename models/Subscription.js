@@ -90,6 +90,12 @@ const subscriptionSchema = new mongoose.Schema(
       required: true,
     },
     cancelledAt: { type: Date },
+    expiredAt: {
+      type: Date
+    },
+    lastExpirationCheck: {
+      type: Date
+    },
 
     pausedAt: {
       type: Date,
@@ -124,10 +130,42 @@ subscriptionSchema.index({ status: 1 });
 subscriptionSchema.index({ endDate: 1 });
 subscriptionSchema.index({ subscriptionPeriod: 1 });
 
-// Virtual for checking if subscription is active
+// Enhanced virtual for checking if subscription is active
 subscriptionSchema.virtual("isActive").get(function () {
-  return this.status === "active" && new Date() < this.endDate;
+  return this.status === 'active' && new Date() < this.endDate;
 });
+
+// Virtual for checking if subscription should expire
+subscriptionSchema.virtual("shouldExpire").get(function () {
+  if (this.status === 'expired') return false;
+  if (['cancelled', 'expired'].includes(this.status)) return false;
+  
+  const now = new Date();
+  const oneDayAfterEndDate = new Date(this.endDate);
+  oneDayAfterEndDate.setDate(oneDayAfterEndDate.getDate() + 1);
+  
+  return now >= oneDayAfterEndDate;
+});
+
+// Simple method to expire subscription (NO delivery cleanup)
+subscriptionSchema.methods.expireSubscription = async function() {
+  if (this.status === 'expired') return;
+  
+  try {
+    // Simply update subscription status
+    this.status = 'expired';
+    this.expiredAt = new Date();
+    this.lastExpirationCheck = new Date();
+    
+    await this.save();
+    
+    console.log(`✅ Subscription ${this._id} marked as expired (deliveries preserved)`);
+    return true;
+  } catch (error) {
+    console.error(`❌ Error expiring subscription ${this._id}:`, error);
+    throw error;
+  }
+};
 
 // Method to calculate end date based on frequency and period
 subscriptionSchema.methods.calculateEndDate = function () {
@@ -160,7 +198,6 @@ subscriptionSchema.methods.calculateEndDate = function () {
 
   return endDate;
 };
-
 
 // Pre-save middleware to auto-calculate end date if not provided
 subscriptionSchema.pre("save", function (next) {
