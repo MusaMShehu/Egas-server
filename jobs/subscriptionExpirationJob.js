@@ -8,7 +8,7 @@ const subscriptionExpirationJob = cron.schedule("0 0 * * *", async () => {
   
   try {
     const result = await SubscriptionExpirationService.checkAndExpireSubscriptions();
-    console.log('✅ Scheduled expiration check completed (deliveries preserved):', result);
+    console.log('✅ Scheduled expiration check completed', result);
   } catch (error) {
     console.error('❌ Scheduled expiration check failed:', error);
   }
@@ -19,6 +19,6 @@ const subscriptionExpirationJob = cron.schedule("0 0 * * *", async () => {
 
 // Start the job
 subscriptionExpirationJob.start();
-console.log('📅 Subscription expiration cron job scheduled (no delivery cleanup)');
+console.log('📅 Subscription expiration cron job scheduled');
 
 module.exports = subscriptionExpirationJob;

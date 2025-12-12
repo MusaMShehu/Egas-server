@@ -18,8 +18,8 @@ const productSchema = new mongoose.Schema({
   },
   
   image: {
-    type: String,
-    default: 'default-product.jpg'
+  type: String,
+  default: "https://res.cloudinary.com/demo/image/upload/v123456789/default-product.jpg"
   },
   category: {
     type: String,

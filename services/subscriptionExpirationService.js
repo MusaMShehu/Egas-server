@@ -13,7 +13,7 @@ class SubscriptionExpirationService {
     
     try {
       const subscriptionsToExpire = await Subscription.find({
-        status: { $in: ['active', 'paused'] },
+        status: { $in: ['active'] },
         endDate: { $lt: oneDayAgo },
         $or: [
           { lastExpirationCheck: { $exists: false } },
@@ -43,7 +43,7 @@ class SubscriptionExpirationService {
         timestamp: now
       };
 
-      console.log(`📊 Expiration check completed (deliveries preserved):`, result);
+      console.log(`📊 Expiration check completed:`, result);
       return result;
 
     } catch (error) {
@@ -70,7 +70,7 @@ class SubscriptionExpirationService {
       await subscription.expireSubscription();
       
       return { 
-        message: 'Subscription marked as expired successfully (deliveries preserved)', 
+        message: 'Subscription marked as expired successfully', 
         subscription: await Subscription.findById(subscriptionId) 
       };
     } catch (error) {
