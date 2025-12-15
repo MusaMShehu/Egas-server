@@ -499,7 +499,7 @@ exports.getDeliveryStats = asyncHandler(async (req, res, next) => {
 // @route   POST /api/v1/deliveries/generate-schedules
 // @access  Private/Admin
 exports.generateDeliverySchedules = asyncHandler(async (req, res, next) => {
-  const { daysAhead = 7 } = req.body;
+  const { daysAhead = 30 } = req.body; // Changed from 7 to 30 to capture monthly schedules
 
   const startDate = new Date();
   const endDate = new Date();
@@ -524,11 +524,17 @@ exports.generateDeliverySchedules = asyncHandler(async (req, res, next) => {
 
       for (const deliveryDate of deliveryDates) {
         // Check if delivery already exists for this date
+        const startOfDay = new Date(deliveryDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        
+        const endOfDay = new Date(deliveryDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
         const existingDelivery = await Delivery.findOne({
           subscriptionId: subscription._id,
           deliveryDate: {
-            $gte: new Date(deliveryDate.setHours(0, 0, 0, 0)),
-            $lt: new Date(deliveryDate.setHours(23, 59, 59, 999)),
+            $gte: startOfDay,
+            $lt: endOfDay,
           },
         });
 
@@ -572,6 +578,17 @@ exports.generateDeliverySchedules = asyncHandler(async (req, res, next) => {
 const calculateDeliveryDates = (subscription, startDate, endDate) => {
   const dates = [];
   let currentDate = new Date(subscription.startDate);
+  
+  // Adjust based on specific plan names if needed
+  const isWeeklyPlan = subscription.planName && subscription.planName.toLowerCase().includes('weekly');
+  const isBiWeeklyPlan = subscription.planName && subscription.planName.toLowerCase().includes('bi-weekly');
+  const isMonthlyPlan = subscription.planName && subscription.planName.toLowerCase().includes('monthly');
+  
+  // If planName doesn't indicate frequency, fall back to frequency field
+  const frequency = isWeeklyPlan ? 'Weekly-Plan' : 
+                    isBiWeeklyPlan ? 'Bi-Weekly-Plan' : 
+                    isMonthlyPlan ? 'Monthly-Plan' : 
+                    subscription.frequency;
 
   while (currentDate <= endDate) {
     if (currentDate >= startDate) {
@@ -579,24 +596,33 @@ const calculateDeliveryDates = (subscription, startDate, endDate) => {
     }
 
     // Calculate next delivery date based on frequency
-    switch (subscription.frequency) {
+    switch (frequency) {
+      case "Weekly-Plan": // 4 deliveries per month
+        currentDate.setDate(currentDate.getDate() + 7); // Weekly
+        break;
+      case "Bi-Weekly-Plan": // 2 deliveries per month
+        currentDate.setDate(currentDate.getDate() + 14); // Every 2 weeks
+        break;
+      case "Monthly-Plan": // 1 delivery per month
+        currentDate.setMonth(currentDate.getMonth() + 1); // Monthly
+        break;
       case "Daily":
         currentDate.setDate(currentDate.getDate() + 1);
         break;
-      case "Weekly":
+      case "Weekly": // Original weekly (if different from Weekly-Plan)
         currentDate.setDate(currentDate.getDate() + 7);
         break;
-      case "Bi-Weekly":
+      case "Bi-Weekly": // Original bi-weekly (if different from Bi-Weekly-Plan)
         currentDate.setDate(currentDate.getDate() + 14);
         break;
-      case "Monthly":
+      case "Monthly": // Original monthly (if different from Monthly-Plan)
         currentDate.setMonth(currentDate.getMonth() + 1);
         break;
       case "One-Time":
         currentDate = new Date(endDate); // Break loop for one-time
         break;
       default:
-        currentDate.setDate(currentDate.getDate() + 30); // Default monthly
+        currentDate.setMonth(currentDate.getMonth() + 1); // Default monthly
     }
   }
 
