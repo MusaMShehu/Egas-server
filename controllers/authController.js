@@ -9,6 +9,8 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const sendEmail = require('../utils/email');
 const emailService = require('../services/emailService'); 
+const cloudinary = require('../config/cloudinary');
+// const signToken = require('../utils/signToken');
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -16,9 +18,8 @@ const signToken = (id) => {
   });
 };
 
-// @desc    Register user
-// @route   POST /api/v1/auth/register
-// @access  Public
+
+
 exports.register = asyncHandler(async (req, res, next) => {
   try {
     const {
@@ -68,10 +69,50 @@ exports.register = asyncHandler(async (req, res, next) => {
       return next(new ErrorResponse("GPS coordinates are required", 400));
     }
 
-    // 3️⃣ Handle profile picture (multer saves req.file)
-    const profilePic = req.file ? req.file.filename : "default.jpg";
+    // 3️⃣ Handle profile picture upload to Cloudinary
+    let profileImage = {
+      public_id: null,
+      url: null,
+      secure_url: 'https://res.cloudinary.com/your-cloud-name/image/upload/v1234567890/default-profile.jpg'
+    };
 
-    // 4️⃣ Create user in MongoDB
+    if (req.file) {
+      try {
+        // Upload to Cloudinary with user-specific folder
+        const uploadResult = await cloudinary.uploader.upload(req.file.path, {
+          folder: `egas/users/${email.replace(/[^a-zA-Z0-9]/g, '_')}/profile`,
+          transformation: [
+            { width: 400, height: 400, crop: 'fill' },
+            { quality: 'auto:good' }
+          ],
+          public_id: `profile_${Date.now()}`,
+          resource_type: 'auto'
+        });
+
+        profileImage = {
+          public_id: uploadResult.public_id,
+          url: uploadResult.secure_url,
+          secure_url: uploadResult.secure_url
+        };
+
+        // Delete temporary file if you're using disk storage first
+        if (req.file.path && !req.file.path.includes('cloudinary')) {
+          const fs = require('fs');
+          fs.unlinkSync(req.file.path);
+        }
+      } catch (uploadError) {
+        console.error('Cloudinary upload failed:', uploadError);
+        // Continue with default image if upload fails
+      }
+    }
+
+    // 4️⃣ Check if user already exists
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return next(new ErrorResponse("Email already registered", 400));
+    }
+
+    // 5️⃣ Create user in MongoDB
     const user = await User.create({
       firstName,
       lastName,
@@ -79,32 +120,35 @@ exports.register = asyncHandler(async (req, res, next) => {
       password,
       phone,
       address,
-      dob,
+      dob: new Date(dob),
       gender,
       state,
       city,
       gpsCoordinates,
-      profilePic,
+      profileImage, // Using the new Cloudinary structure
+      role: 'user'
     });
 
-    // 🪙 5️⃣ Create wallet and link to user
+    // 🪙 6️⃣ Create wallet and link to user
     const wallet = await Wallet.create({
       userId: user._id,
       balance: 0,
       transactions: [],
+      currency: 'NGN' // or your default currency
     });
 
-    // add wallet reference to user
+    // Add wallet reference to user
     user.wallet = wallet._id;
     await user.save();
 
-    // 6️⃣ Remove sensitive fields
+    // 7️⃣ Remove sensitive fields
     user.password = undefined;
+    user.__v = undefined;
 
-    // 7️⃣ Generate JWT token
+    // 8️⃣ Generate JWT token
     const token = signToken(user._id);
 
-    // 📧 8️⃣ Send welcome email (non-blocking)
+    // 📧 9️⃣ Send welcome email (non-blocking)
     // try {
     //   await emailService.sendAccountCreatedEmail({
     //     name: `${firstName} ${lastName}`,
@@ -113,24 +157,44 @@ exports.register = asyncHandler(async (req, res, next) => {
     // } catch (emailError) {
     //   // Log email error but don't fail the registration
     //   console.error('Failed to send welcome email:', emailError);
-    //   // You might want to log this to a monitoring service
     // }
 
-    // 9️⃣ Respond to frontend
+    // 🔟 Respond to frontend
     res.status(201).json({
       success: true,
       token,
+      message: "Registration successful",
       user: {
-        ...user._doc,
-        wallet,
+        _id: user._id,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        email: user.email,
+        phone: user.phone,
+        profileImage: user.profileImage,
+        role: user.role,
+        wallet: {
+          _id: wallet._id,
+          balance: wallet.balance,
+          currency: wallet.currency
+        }
       },
     });
   } catch (err) {
     console.error("Error during registration:", err);
-    return next(new ErrorResponse(err.message || "Registration failed", 500));
+    
+    // Handle specific MongoDB errors
+    if (err.code === 11000) {
+      return next(new ErrorResponse("Email already exists", 400));
+    }
+    
+    if (err.name === 'ValidationError') {
+      const messages = Object.values(err.errors).map(val => val.message);
+      return next(new ErrorResponse(messages.join(', '), 400));
+    }
+    
+    return next(new ErrorResponse("Registration failed. Please try again.", 500));
   }
 });
-
 // @desc    Login user
 // @route   POST /api/v1/auth/login
 // @access  Public

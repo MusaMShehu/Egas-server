@@ -70,10 +70,20 @@ const userSchema = new mongoose.Schema({
     },
   },
 
-  profilePic: {
-    type: String,
-    default: "default.jpg",
-  },
+   profileImage: {
+        public_id: {
+            type: String,
+            default: null
+        },
+        url: {
+            type: String,
+            default: null
+        },
+        secure_url: {
+            type: String,
+            default: 'https://res.cloudinary.com/your-cloud-name/image/upload/v1234567890/default-profile.jpg'
+        }
+    },
 
   // walletBalance: {
   //   type: Number,

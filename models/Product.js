@@ -17,10 +17,12 @@ const productSchema = new mongoose.Schema({
     min: [0, 'Price must be at least 0']
   },
   
-  image: {
-  type: String,
-  default: "https://res.cloudinary.com/demo/image/upload/v123456789/default-product.jpg"
-  },
+ images: [{
+        public_id: String,
+        url: String,
+        secure_url: String
+    }],
+    
   category: {
     type: String,
     enum: ['gas', 'accessory'],

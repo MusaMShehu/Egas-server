@@ -1,50 +1,38 @@
-const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
+const multer = require('multer');
+const { CloudinaryStorage } = require('multer-storage-cloudinary');
+const cloudinary = require('../config/cloudinary');
 
-// allowed types
-const allowedImages = ["image/jpeg", "image/png", "image/jpg", "image/webp"];
-
-// dynamic storage engine
-const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
-
-    // ✅ fallback if no folder is specified
-    let folder = "others";
-
-    // middleware injects req.uploadFolder
-    if (req.uploadFolder) {
-      folder = req.uploadFolder;
-    }
-
-    const uploadPath = path.join(__dirname, `../uploads/${folder}`);
-
-    // ✅ ensure directory exists
-    if (!fs.existsSync(uploadPath)) {
-      fs.mkdirSync(uploadPath, { recursive: true });
-    }
-
-    cb(null, uploadPath);
-  },
-
-  filename: function (req, file, cb) {
-    const ext = path.extname(file.originalname);
-    const uniqueName = `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`;
-    cb(null, uniqueName);
-  },
-});
-
-// ********** File Filter **********
-const fileFilter = (req, file, cb) => {
-  if (allowedImages.includes(file.mimetype)) {
-    cb(null, true);
-  } else {
-    cb(new Error("Invalid file type. Only JPG, PNG, WEBP allowed."), false);
-  }
+// Storage configuration for different folders
+const storageOptions = (folder) => {
+    return new CloudinaryStorage({
+        cloudinary: cloudinary,
+        params: {
+            folder: `egas/${folder}`,
+            allowed_formats: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+            transformation: [{ width: 800, height: 800, crop: 'limit' }],
+            quality: 'auto:good'
+        }
+    });
 };
 
-module.exports = multer({
-  storage,
-  fileFilter,
-  limits: { fileSize: 2 * 1024 * 1024 }, // 2MB
+// Middleware for different upload types
+const profileUpload = multer({ 
+    storage: storageOptions('profiles'),
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
 });
+
+const productUpload = multer({ 
+    storage: storageOptions('products'),
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
+
+const supportUpload = multer({ 
+    storage: storageOptions('support'),
+    limits: { fileSize: 5 * 1024 * 1024 } // 5MB limit
+});
+
+module.exports = {
+    profileUpload,
+    productUpload,
+    supportUpload
+};

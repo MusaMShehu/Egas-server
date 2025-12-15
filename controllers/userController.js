@@ -1,7 +1,10 @@
+const express = require('express');
 const path = require('path');
 const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
+const cloudinary = require('../config/cloudinary');
+
 
 // @desc    Get all users
 // @route   GET /api/v1/users
@@ -78,46 +81,46 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
 // @desc    Upload photo for user
 // @route   PUT /api/v1/users/:id/photo
 // @access  Private
-exports.uploadUserPhoto = async (req, res) => {
-  try {
-    const userId = req.params.id;
+// exports.uploadUserPhoto = async (req, res) => {
+//   try {
+//     const userId = req.params.id;
 
-    if (!req.file) {
-      return res.status(400).json({
-        success: false,
-        message: "No image file uploaded.",
-      });
-    }
+//     if (!req.file) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "No image file uploaded.",
+//       });
+//     }
 
-    const imagePath = `/uploads/${req.file.filename}`;
+//     const imagePath = `/uploads/${req.file.filename}`;
 
-    const user = await User.findByIdAndUpdate(
-      userId,
-      { profilePic: imagePath },
-      { new: true }
-    );
+//     const user = await User.findByIdAndUpdate(
+//       userId,
+//       { profilePic: imagePath },
+//       { new: true }
+//     );
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: "User not found.",
-      });
-    }
+//     if (!user) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "User not found.",
+//       });
+//     }
 
-    res.status(200).json({
-      success: true,
-      message: "Profile picture uploaded successfully.",
-      data: { profilePic: imagePath },
-    });
-  } catch (error) {
-    console.error("Upload error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Server error during upload.",
-      error: error.message,
-    });
-  }
-};
+//     res.status(200).json({
+//       success: true,
+//       message: "Profile picture uploaded successfully.",
+//       data: { profilePic: imagePath },
+//     });
+//   } catch (error) {
+//     console.error("Upload error:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Server error during upload.",
+//       error: error.message,
+//     });
+//   }
+// };
 
 // @desc Update user password
 // @route PUT /api/users/me/password
@@ -184,3 +187,47 @@ exports.getUserDashboardStats = asyncHandler(async (req, res, next) => {
     data: stats,
   });
 });
+
+
+
+
+
+// Upload profile image
+exports.uploadUserPhoto = async (req, res) => {
+    try {
+        const user = await User.findById(req.userId);
+        
+        // Delete old image if exists
+        if (user.profileImage?.public_id) {
+            await cloudinary.uploader.destroy(user.profileImage.public_id);
+        }
+        
+        // Update user with new image
+        user.profileImage = {
+            public_id: req.file.public_id,
+            url: req.file.path,
+            secure_url: req.file.path.replace('http://', 'https://')
+        };
+        
+        await user.save();
+        
+        res.json({
+            success: true,
+            imageUrl: user.profileImage.secure_url
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+// Get user profile
+// router.get('/profile', auth, 
+  
+//   exports.getUserProfile = async (req, res) => {
+//     try {
+//         const user = await User.findById(req.userId).select('-password');
+//         res.json(user);
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// });

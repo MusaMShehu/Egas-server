@@ -1,6 +1,7 @@
 const Product = require('../../models/Product');
 const ErrorResponse = require('../../utils/errorResponse');
 const asyncHandler = require('../../middleware/async');
+const cloudinary = require('../../config/cloudinary');
 const path = require('path');
 const fs = require('fs');
 
@@ -230,54 +231,120 @@ exports.updateProductStock = asyncHandler(async (req, res, next) => {
 // @desc    Upload photo for product
 // @route   PUT /api/v1/admin/products/:id/photo
 // @access  Private/Admin
-exports.uploadProductPhoto = asyncHandler(async (req, res, next) => {
-  const product = await Product.findById(req.params.id);
+// exports.uploadProductPhoto = asyncHandler(async (req, res, next) => {
+//   const product = await Product.findById(req.params.id);
 
-  if (!product) {
-    return next(
-      new ErrorResponse(`No product found with id ${req.params.id}`, 404)
-    );
-  }
+//   if (!product) {
+//     return next(
+//       new ErrorResponse(`No product found with id ${req.params.id}`, 404)
+//     );
+//   }
 
-  // ✅ multer stores file in req.file
-  if (!req.file) {
-    return next(new ErrorResponse("Please upload an image file", 400));
-  }
+//   // ✅ multer stores file in req.file
+//   if (!req.file) {
+//     return next(new ErrorResponse("Please upload an image file", 400));
+//   }
 
-  const uploadDir = path.join(__dirname, "../../uploads/products");
+//   const uploadDir = path.join(__dirname, "../../uploads/products");
 
-  // ✅ Create upload directory if missing
-  if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-  }
+//   // ✅ Create upload directory if missing
+//   if (!fs.existsSync(uploadDir)) {
+//     fs.mkdirSync(uploadDir, { recursive: true });
+//   }
 
-  // ✅ old image cleanup
-  if (product.image && product.image !== "default-product.jpg") {
-    const oldPath = path.join(uploadDir, product.image);
+//   // ✅ old image cleanup
+//   if (product.image && product.image !== "default-product.jpg") {
+//     const oldPath = path.join(uploadDir, product.image);
 
-    if (fs.existsSync(oldPath)) {
-      fs.unlinkSync(oldPath);
+//     if (fs.existsSync(oldPath)) {
+//       fs.unlinkSync(oldPath);
+//     }
+//   }
+
+//   // ✅ rename file to custom name
+//   const extension = path.extname(req.file.originalname);
+//   const fileName = `product_${product._id}${extension}`;
+//   const finalPath = path.join(uploadDir, fileName);
+
+//   // ✅ move multer temporary file
+//   fs.renameSync(req.file.path, finalPath);
+
+//   // ✅ update product
+//   product.image = fileName;
+//   await product.save();
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Photo uploaded successfully",
+//     data: fileName,
+//   });
+// });
+
+
+
+// Upload product images (admin only)
+exports.uploadProductPhoto = asyncHandler(async (req, res) => {
+    try {
+        const images = req.files.map(file => ({
+            public_id: file.public_id,
+            url: file.path,
+            secure_url: file.path.replace('http://', 'https://')
+        }));
+        
+        res.json({
+            success: true,
+            images: images
+        });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-  }
-
-  // ✅ rename file to custom name
-  const extension = path.extname(req.file.originalname);
-  const fileName = `product_${product._id}${extension}`;
-  const finalPath = path.join(uploadDir, fileName);
-
-  // ✅ move multer temporary file
-  fs.renameSync(req.file.path, finalPath);
-
-  // ✅ update product
-  product.image = fileName;
-  await product.save();
-
-  res.status(200).json({
-    success: true,
-    message: "Photo uploaded successfully",
-    data: fileName,
-  });
 });
+
+
+
+// Create product with images
+exports.createProductWithImagge = asyncHandler(async (req, res) => {
+    try {
+        const product = new Product({
+            ...req.body,
+            createdBy: req.userId,
+            images: req.body.images || []
+        });
+        
+        await product.save();
+        res.status(201).json(product);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
+
+// Delete product image  
+exports.deleteProductImage = asyncHandler(async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.productId);
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        // Remove from Cloudinary
+        await cloudinary.uploader.destroy(req.params.publicId);
+        
+        // Remove from product images
+        product.images = product.images.filter(
+            img => img.public_id !== req.params.publicId
+        );
+        
+        await product.save();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+});
+
+
 
 // @desc    Get product analytics
 // @route   GET /api/v1/admin/products/analytics/overview

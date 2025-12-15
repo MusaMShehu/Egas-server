@@ -30,6 +30,13 @@ const supportTicketSchema = new mongoose.Schema({
     enum: ['open', 'in-progress', 'resolved', 'closed'],
     default: 'open'
   },
+
+  images: [{
+        public_id: String,
+        url: String,
+        secure_url: String
+    }],
+    
   attachments: [String],
   responses: [{
     user: {

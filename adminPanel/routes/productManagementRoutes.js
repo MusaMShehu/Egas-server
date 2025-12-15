@@ -7,6 +7,7 @@ const {
   createProduct,
   updateProduct,
   deleteProduct,
+  deleteProductImage,
   uploadProductPhoto,
   bulkDeleteProducts,
   toggleProductStatus,
@@ -17,7 +18,7 @@ const {
 
 const { protect, authorize } = require("../../middleware/auth");
 const advancedResults = require("../../middleware/advancedResults");
-const upload = require("../../middleware/upload")
+const { productUpload } = require('../../middleware/upload');
 
 const router = express.Router();
 
@@ -43,8 +44,13 @@ router.route("/delete-product/:id")
 router.route("/products/bulk-delete")
   .delete(bulkDeleteProducts);
 
-router.route("/:id/photo")
-.put(upload.single("photo"), uploadProductPhoto);
+// Uploads
+router.post('/upload', authorize, productUpload.array('images', 5), uploadProductPhoto)
+// router.put('/upload', authorize, productUpload.array('images', 5), uploadProductPhoto)
+router.delete('/:productId/image/:publicId', authorize, deleteProductImage)
+
+// create product with image
+// router.post('/', authorize, )
 
 router.route("/products/:id/toggle-status")
   .patch(toggleProductStatus);

@@ -12,15 +12,14 @@ const {
   getTicketsByUser
 } = require('../controllers/supportManagementController');
 const { protect, authorize } = require('../../middleware/auth');
-const upload = require('../../middleware/upload');
-
+const { supportUpload } = require('../../middleware/upload');
 // Apply authentication and authorization to all routes
 router.use(protect);
 router.use(authorize('admin'));
 
 router.route('/')
   .get(getSupportTickets)
-  .post(upload.array('attachments', 5), createSupportTicket);
+  // .post(upload.array('attachments', 5), createSupportTicket);
 
 router.route('/stats/overview')
   .get(getTicketStats);
@@ -39,6 +38,6 @@ router.route('/:id/status')
   .patch(updateTicketStatus);
 
 router.route('/:id/respond')
-  .post(upload.array('attachments', 5), addResponse);
+  // .post(upload.array('attachments', 5), addResponse);
 
 module.exports = router;

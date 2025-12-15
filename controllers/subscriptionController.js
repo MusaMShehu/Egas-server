@@ -968,9 +968,29 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
   const now = new Date();
   const pausedDurationMs = now - subscription.pausedAt;
 
-  // Extend endDate by the remaining duration
-  const newEndDate = new Date(now.getTime() + subscription.remainingDuration);
+  // Calculate the total time the subscription was paused since its start
+  let totalPausedDurationMs = pausedDurationMs;
+  
+  // Add any previous pause durations from pauseHistory
+  if (subscription.pauseHistory && subscription.pauseHistory.length > 0) {
+    subscription.pauseHistory.forEach(pause => {
+      if (pause.durationMs) {
+        totalPausedDurationMs += pause.durationMs;
+      }
+    });
+  }
 
+  // Preserve the original startDate
+  const originalStartDate = subscription.originalStartDate || subscription.startDate;
+  
+  // Calculate new endDate by:
+  // 1. Starting from original startDate
+  // 2. Adding the total subscription duration (including remaining duration)
+  // 3. Adding the total time the subscription was paused
+  const totalSubscriptionDurationMs = subscription.remainingDuration + totalPausedDurationMs;
+  const newEndDate = new Date(originalStartDate.getTime() + totalSubscriptionDurationMs);
+
+  // Record this pause/resume cycle in history
   if (!subscription.pauseHistory) subscription.pauseHistory = [];
   subscription.pauseHistory.push({
     pausedAt: subscription.pausedAt,
@@ -978,12 +998,20 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
     durationMs: pausedDurationMs
   });
 
+  // Update subscription status and dates
   subscription.status = 'active';
   subscription.pausedAt = null;
   subscription.remainingDuration = null;
   subscription.remainingDays = null;
-  subscription.startDate = now;
+  
+  // Preserve the original startDate - do NOT reset it
+  subscription.startDate = originalStartDate;
   subscription.endDate = newEndDate;
+  
+  // Store original startDate if not already stored
+  if (!subscription.originalStartDate) {
+    subscription.originalStartDate = originalStartDate;
+  }
 
   // ✅ Ensure planType is set before saving
   if (!subscription.planType && subscription.plan?.type) {
@@ -992,9 +1020,15 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
 
   await subscription.save({ validateBeforeSave: false });
 
+  // Calculate remaining days from NOW (not from original start)
   const daysRemaining = Math.max(
-    Math.floor((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
+    Math.ceil((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
     0
+  );
+
+  // Also calculate the total subscription duration in days for context
+  const totalSubscriptionDays = Math.ceil(
+    (subscription.endDate - subscription.startDate) / (1000 * 60 * 60 * 24)
   );
 
   res.status(200).json({
@@ -1003,13 +1037,15 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
     data: {
       id: subscription._id,
       status: subscription.status,
+      originalStartDate: subscription.originalStartDate,
       startDate: subscription.startDate,
       endDate: subscription.endDate,
-      remainingDays: daysRemaining
+      totalSubscriptionDays: totalSubscriptionDays,
+      remainingDays: daysRemaining,
+      pausedDurationDays: Math.floor(totalPausedDurationMs / (1000 * 60 * 60 * 24))
     }
   });
 });
-
 
 // @desc    Cancel subscription (Admin only)
 // @route   PUT /api/v1/subscriptions/:id/cancel
