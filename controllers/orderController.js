@@ -7,6 +7,7 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const paystack = require('../utils/paystack');
 const crypto = require('crypto');
+const NotificationService = require('../services/notificationService');
 
 // const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 // const PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize";
@@ -175,6 +176,17 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
       order.reference = reference;
       await order.save();
 
+      // ✅ SMS NOTIFICATION: Send order created notification for pending Paystack
+try {
+  const user = await User.findById(req.user._id);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendOrderCreated(order, user);
+  // }
+} catch (smsError) {
+  console.error("SMS notification failed:", smsError);
+  // Continue with order creation
+}
+
       return res.status(201).json({
         success: true,
         data: order,
@@ -248,7 +260,20 @@ exports.createOrder = asyncHandler(async (req, res, next) => {
         paidAt: new Date(),
       };
       await order.save();
+      
+      // Send SMS Notification
+    try {
+      const user = await User.findById(req.user._id);
+      // if (user && user.phone && user.phoneVerified) {
+     await NotificationService.sendOrderCreated(order, user);
+     }
+    // } 
+    catch (smsError) {
+   console.error("SMS notification failed:", smsError);
 
+
+  // Don't fail the order if SMS fails
+}
       // Deduct stock
       for (const item of products) {
         await Product.findByIdAndUpdate(item.product, {
@@ -312,6 +337,17 @@ exports.verifyOrderPayment = asyncHandler(async (req, res, next) => {
     paidAt: new Date(),
   };
   await order.save();
+
+  // ✅ SMS NOTIFICATION: Send order confirmation
+try {
+  const user = await User.findById(order.user);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendOrderConfirmed(order, user);
+  }
+// } 
+catch (smsError) {
+  console.error("Order confirmation SMS failed:", smsError);
+}
 
   // ✅ Reduce stock for each product
   for (const item of order.products) {
@@ -429,6 +465,15 @@ if (!order && data.metadata?.orderId) {
   
   await order.save();
 
+  // ✅ SMS NOTIFICATION: Send order confirmation via webhook
+try {
+  const user = await User.findById(order.user);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendOrderConfirmed(order, user);
+  // }
+} catch (smsError) {
+  console.error("Webhook order confirmation SMS failed:", smsError);
+}
   // Reduce stock for successful payments
   for (const item of order.products) {
     await Product.findByIdAndUpdate(item.product, {

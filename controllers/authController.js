@@ -10,7 +10,7 @@ const asyncHandler = require('../middleware/async');
 const sendEmail = require('../utils/email');
 const emailService = require('../services/emailService'); 
 const cloudinary = require('../config/cloudinary');
-// const signToken = require('../utils/signToken');
+const NotificationService = require('../services/notificationService');
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
@@ -140,6 +140,9 @@ exports.register = asyncHandler(async (req, res, next) => {
     // Add wallet reference to user
     user.wallet = wallet._id;
     await user.save();
+
+    // After user registration
+    await NotificationService.sendAccountCreated(user);
 
     // 7️⃣ Remove sensitive fields
     user.password = undefined;

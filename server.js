@@ -7,6 +7,7 @@ const http = require("http");
 const errorHandler = require("./middleware/error");
 const connectDB = require("./config/db");
 require("./jobs/subscriptionExpirationJob");
+require('./jobs/subscriptionReminders');
 
 // Route files
 const auth = require("./routes/authRoutes");

@@ -2,6 +2,7 @@ const SupportTicket = require('../models/SupportTicket');
 const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
+const NotificationService = require('../services/notificationService');
 
 // @desc    Get all support tickets
 // @route   GET /api/v1/support
@@ -83,6 +84,56 @@ exports.createTicket = asyncHandler(async (req, res, next) => {
 
   const ticket = await SupportTicket.create(ticketData);
 
+
+
+
+   // ✅ SMS NOTIFICATION: Send ticket created notification to user
+  try {
+    const user = await User.findById(req.user._id);
+    if (user && user.phone && user.phoneVerified) {
+      await NotificationService.sendNotification(
+        user.phone,
+        `Support ticket #${ticket.ticketNumber || ticket._id} created successfully. Subject: "${subject}". We'll get back to you soon.`,
+        'support_ticket_created',
+        {
+          userId: user._id,
+          ticketId: ticket._id,
+          ticketNumber: ticket.ticketNumber || `TKT-${ticket._id.toString().slice(-6)}`,
+          subject: subject,
+          category: category
+        }
+      );
+    }
+  } catch (smsError) {
+    console.error("Ticket creation SMS failed:", smsError);
+    // Don't fail ticket creation if SMS fails
+  }
+
+
+
+  // ✅ SMS NOTIFICATION: Send alert to admins about new ticket (optional)
+  try {
+    if (process.env.SEND_ADMIN_ALERTS === 'true') {
+      const admins = await User.find({ role: 'admin', phoneVerified: true }).select('phone');
+      const adminPhones = admins.filter(admin => admin.phone).map(admin => admin.phone);
+      
+      if (adminPhones.length > 0) {
+        const user = await User.findById(req.user._id).select('firstName lastName');
+        const userName = user ? `${user.firstName} ${user.lastName}` : 'A user';
+        
+        await NotificationService.sendBulkPromotionalSMS(
+          adminPhones,
+          `📢 New Support Ticket! ${userName} created ticket #${ticket.ticketNumber || ticket._id}: "${subject}" (${category})`
+        );
+      }
+    }
+  } catch (adminSmsError) {
+    console.error("Admin alert SMS failed:", adminSmsError);
+  }
+
+
+
+
   res.status(201).json({
     success: true,
     data: ticket
@@ -147,6 +198,20 @@ exports.updateTicketStatus = asyncHandler(async (req, res, next) => {
 
   ticket.status = req.body.status;
   await ticket.save();
+
+
+  // ✅ SMS NOTIFICATION: Send ticket resolved notification to user
+  if (req.body.status === 'resolved' && oldStatus !== 'resolved') {
+    try {
+      const user = ticket.user;
+      // if (user && user.phone && user.phoneVerified) {
+        await NotificationService.sendSupportResolved(ticket, user);
+      // }
+    } catch (smsError) {
+      console.error("Ticket resolution SMS failed:", smsError);
+    }
+  }
+
 
   res.status(200).json({ success: true, data: ticket });
 });

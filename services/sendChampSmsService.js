@@ -1,6 +1,6 @@
 // server/services/sendchampSmsService.js
 const axios = require('axios');
-const SMSLog = require('../models/SMSLog');
+const SMSLog = require('../models/SMSLogs');
 const SMSPreferences = require('../models/SMSPreferences');
 
 class SendchampSMSService {
@@ -190,7 +190,7 @@ class SendchampSMSService {
 
   // Account Related Notifications
   async sendAccountCreated(userId, userName) {
-    const message = `Welcome ${userName}! Your account has been successfully created. Thank you for joining us!`;
+    const message = `Welcome ${userName}! Your account has been successfully created. Thank you for joining e-Gas!`;
     return this.sendSMS(userId, 'account', message);
   }
 
@@ -219,28 +219,28 @@ class SendchampSMSService {
   }
 
   // Subscription Related Notifications
-  async sendSubscriptionCreated(userId, subscriptionId, productName, nextDelivery) {
-    const message = `Subscription created! You'll receive ${productName} regularly. First delivery: ${nextDelivery}. Manage your sub: ${process.env.APP_URL}/subscriptions`;
+  async sendSubscriptionCreated(userId, subscriptionId, planName, nextDelivery) {
+    const message = `Subscription created! You'll receive ${planName} regularly. First delivery: ${nextDelivery}. Manage your sub: ${process.env.APP_URL}/subscriptions`;
     return this.sendSMS(userId, 'subscription', message);
   }
 
-  async sendSubscriptionDeliveryReminder(userId, subscriptionId, productName, deliveryDate) {
-    const message = `Reminder: Your ${productName} subscription delivery is scheduled for tomorrow (${deliveryDate}). Please ensure someone is available to receive it.`;
+  async sendSubscriptionDeliveryReminder(userId, subscriptionId, planName, deliveryDate) {
+    const message = `Reminder: Your ${planName} subscription delivery is scheduled for tomorrow (${deliveryDate}). Please ensure someone is available to receive it.`;
     return this.sendSMS(userId, 'subscription_reminder', message);
   }
 
-  async sendSubscriptionDelivered(userId, subscriptionId, productName) {
-    const message = `Your ${productName} subscription has been delivered! We hope you enjoy it. Your next delivery is being prepared.`;
+  async sendSubscriptionDelivered(userId, subscriptionId, planName) {
+    const message = `Your ${planName} subscription has been delivered! We hope you enjoy it. Your next delivery is being prepared.`;
     return this.sendSMS(userId, 'subscription', message);
   }
 
-  async sendSubscriptionEndingAlert(userId, subscriptionId, productName, daysLeft) {
-    const message = `Heads up! Your ${productName} subscription ends in ${daysLeft} days. Renew now to continue uninterrupted service: ${process.env.APP_URL}/subscriptions/${subscriptionId}/renew`;
+  async sendSubscriptionEndingAlert(userId, subscriptionId, planName, daysLeft) {
+    const message = `Heads up! Your ${planName} subscription ends in ${daysLeft} days. Renew now to continue uninterrupted gas refill delivery: ${process.env.APP_URL}/subscriptions/${subscriptionId}/renew`;
     return this.sendSMS(userId, 'subscription', message);
   }
 
-  async sendSubscriptionPaused(userId, subscriptionId, productName, resumeDate = null) {
-    let message = `Your ${productName} subscription has been paused.`;
+  async sendSubscriptionPaused(userId, subscriptionId, planName, resumeDate = null) {
+    let message = `Your ${planName} subscription has been paused, there will be no delivery during this period until resumed.`;
     if (resumeDate) {
       message += ` It will automatically resume on ${resumeDate}.`;
     }
@@ -249,7 +249,7 @@ class SendchampSMSService {
   }
 
   async sendSubscriptionResumed(userId, subscriptionId, productName, nextDelivery) {
-    const message = `Your ${productName} subscription has been resumed! Next delivery: ${nextDelivery}.`;
+    const message = `Your ${productName} subscription has been successfully resumed! Next delivery: ${nextDelivery}.`;
     return this.sendSMS(userId, 'subscription', message);
   }
 

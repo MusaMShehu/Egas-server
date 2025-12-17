@@ -6,9 +6,9 @@ const User = require("../models/User");
 const Wallet = require('../models/wallet');
 const Payment = require('../models/Payment');
 const Transaction = require('../models/Transaction');
-
 const SubscriptionPlan = require("../models/SubscriptionPlan");
 const asyncHandler = require('../middleware/async');
+const NotificationService = require('../services/notificationService');
 
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
@@ -821,6 +821,25 @@ exports.verifyTopup = async (req, res) => {
         provider: "Paystack",
         metadata: data,
       });
+      
+
+
+       // ✅ SMS NOTIFICATION: Send wallet topup success notification
+      try {
+        const user = await User.findById(userId);
+        // if (user && user.phone && user.phoneVerified) {
+          await NotificationService.sendWalletTopup({
+            amount: transaction.amount,
+            newBalance: newBalance,
+            transactionId: transaction._id.toString(),
+            reference: reference
+          }, user);
+        // }
+      } catch (smsError) {
+        console.error("Wallet topup SMS failed:", smsError);
+      };
+
+
 
       return res.status(200).json({
         success: true,
@@ -945,7 +964,24 @@ exports.handleWalletWebhook = async (req, res) => {
           });
 
           console.log(`✅ Wallet top-up successful for ${email} (+₦${amount})`);
+
+
+
+         // ✅ SMS NOTIFICATION: Send wallet topup success notification via webhook
+          try {
+            // if (user && user.phone && user.phoneVerified) {
+              await NotificationService.sendWalletTopup({
+                amount: amount,
+                newBalance: newBalance,
+                transactionId: reference,
+                reference: reference
+              }, user);
+            // }
+          } catch (smsError) {
+            console.error("Webhook wallet topup SMS failed:", smsError);
+          }
         }
+
 
         else if (event.event === "charge.failed") {
           await Payment.create({
@@ -968,7 +1004,27 @@ exports.handleWalletWebhook = async (req, res) => {
           await wallet.save();
 
           console.warn(`❌ Wallet top-up failed for ${email} (₦${amount})`);
+      
+          
+
+        // ✅ SMS NOTIFICATION: Send wallet topup failed notification
+  try {
+    if (user && user.phone && user.phoneVerified) {
+      await NotificationService.sendNotification(
+        user.phone,
+        `Wallet top-up of ₦${amount} failed. Please try again or contact support.`,
+        'wallet_topup_failed',
+        {
+          userId: user._id,
+          amount: amount,
+          reference: reference
         }
+      );
+    }
+  } catch (smsError) {
+    console.error("Wallet topup failed SMS failed:", smsError);
+  }
+}
 
         else {
           console.log(`ℹ️ Unhandled event type: ${event.event}`);

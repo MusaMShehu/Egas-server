@@ -9,6 +9,7 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const paystack = require('../utils/paystack');
 const crypto = require('crypto');
+const NotificationService = require('../services/notificationService');
 
 // ✅ CHANGED: Import delivery helper
 const { generateDeliverySchedules } = require('../utils/deliveryHelper');
@@ -395,6 +396,17 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
+
+    // ✅ SMS NOTIFICATION: Send subscription created notification
+try {
+  const user = await User.findById(userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionCreated(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription creation SMS failed:", smsError);
+}
+
     return res.status(200).json({
       success: true,
       data: subscription,
@@ -488,6 +500,18 @@ exports.verifySubscriptionPayment = asyncHandler(async (req, res, next) => {
   if (!subscription) {
     return next(new ErrorResponse('Subscription not found after verification', 404));
   }
+
+  
+// ✅ SMS NOTIFICATION: Send subscription confirmation
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionCreated(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription confirmation SMS failed:", smsError);
+};
+
 
   // ✅ Always respond with JSON to avoid CORS redirect issues
   return res.status(200).json({
@@ -614,6 +638,18 @@ const processSuccessfulPayment = async (data) => {
   await subscription.save();
 
   console.log("Subscription activated successfully:", subscription._id);
+
+
+  // ✅ SMS NOTIFICATION: Send subscription confirmation via webhook
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionCreated(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Webhook subscription confirmation SMS failed:", smsError);
+};
+
 
   // ✅ CHANGED: Use delivery helper instead of inline function
   try {
@@ -930,6 +966,18 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
 
   await subscription.save({ validateBeforeSave: false }); // skip validation for missing fields
 
+
+  // ✅ SMS NOTIFICATION: Send subscription paused notification
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionPaused(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription paused SMS failed:", smsError);
+};
+
+
   res.status(200).json({
     success: true,
     message: `Subscription paused successfully with ${remainingDays} day(s) remaining.`,
@@ -1020,6 +1068,19 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
 
   await subscription.save({ validateBeforeSave: false });
 
+
+
+  // ✅ SMS NOTIFICATION: Send subscription resumed notification
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionResumed(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription resumed SMS failed:", smsError);
+};
+
+
   // Calculate remaining days from NOW (not from original start)
   const daysRemaining = Math.max(
     Math.ceil((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
@@ -1067,8 +1128,16 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
   subscription.cancelledAt = new Date();
   await subscription.save();
   
-  // await subscription.populate('plan');
-  // await subscription.populate('userId', 'firstName lastName email phone');
+  
+  // ✅ SMS NOTIFICATION: Send subscription cancelled notification
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionCancelled(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription cancelled SMS failed:", smsError);
+}
 
   res.status(200).json({
     success: true,
@@ -1117,6 +1186,20 @@ exports.cancelMySubscription = asyncHandler(async (req, res, next) => {
   subscription.status = 'cancelled';
   subscription.cancelledAt = new Date();
   await subscription.save();
+
+
+
+  // ✅ SMS NOTIFICATION: Send subscription cancelled notification
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionCancelled(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription cancelled SMS failed:", smsError);
+};
+
+
 
   res.status(200).json({
     success: true,
@@ -1195,6 +1278,18 @@ exports.renewSubscription = asyncHandler(async (req, res, next) => {
   // Update subscription with payment reference
   newSubscription.reference = reference;
   await newSubscription.save();
+
+
+  // ✅ SMS NOTIFICATION: Send subscription renewed notification
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionCreated(subscription, user); // Use same as creation
+  // }
+} catch (smsError) {
+  console.error("Subscription renewal SMS failed:", smsError);
+};
+
 
   res.status(200).json({
     success: true,
@@ -1303,6 +1398,18 @@ const createOrderForSubscription = async (subscription) => {
   await subscription.save();
 
   console.log(`✅ Created order ${order._id} for subscription ${subscription._id}`);
+
+
+  // ✅ SMS NOTIFICATION: Send subscription delivery fulfilled notification
+  try {
+    const user = await User.findById(subscription.userId._id);
+    // if (user && user.phone && user.phoneVerified) {
+      await NotificationService.sendSubscriptionFulfilled(subscription, user, order._id);
+    // }
+  } catch (smsError) {
+    console.error("Subscription delivery SMS failed:", smsError);
+  };
+
 
   return order;
 };

@@ -171,7 +171,48 @@ exports.updateOrderStatus = async (req, res) => {
     if (orderStatus === 'delivered' && !order.deliveryDate) {
       order.deliveryDate = new Date();
       await order.save();
+
+
+      // ✅ Send SMS notifications based on status change
+      try {
+    const user = order.user;
+    
+    // if (user && user.phone && user.phoneVerified) {
+      switch (orderStatus) {
+        case 'confirmed':
+          // Already sent during payment verification, but send again if needed
+          await NotificationService.sendOrderConfirmed(order, user);
+          break;
+          
+        case 'out_for_delivery':
+          await NotificationService.sendOrderOutForDelivery(
+            order, 
+            user,
+            deliveryContact || order.deliveryContact || 'Our delivery partner'
+          );
+          break;
+          
+        case 'delivered':
+          await NotificationService.sendOrderDelivered(order, user);
+          break;
+          
+        case 'cancelled':
+          // You might want to add a cancellation SMS template
+          await NotificationService.sendNotification(
+            user.phone,
+            `Your order #${order.orderId} has been cancelled.`,
+            'order_cancelled',
+            { orderId: order._id, userId: user._id }
+          );
+          break;
+      }
+    // }
+  } catch (smsError) {
+    console.error(`SMS notification failed for status ${orderStatus}:`, smsError);
+  }
     }
+
+
 
     res.status(200).json({
       success: true,

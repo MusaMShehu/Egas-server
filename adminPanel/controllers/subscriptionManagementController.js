@@ -5,6 +5,7 @@ const Order = require('../../models/Order');
 const ErrorResponse = require('../../utils/errorResponse');
 const asyncHandler = require('../../middleware/async');
 const mongoose = require('mongoose');
+const NotificationService = require('../../services/notificationService');
 
 // @desc    Get all subscriptions (Admin)
 // @route   GET /api/v1/admin/subscriptions
@@ -191,6 +192,20 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
   // Populate the created subscription
   await subscription.populate('userId', 'firstName lastName email phone');
   await subscription.populate('createdBy', 'name email');
+
+
+
+  // ✅ SMS NOTIFICATION: Send subscription created notification
+try {
+  const user = await User.findById(userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionCreated(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription creation SMS failed:", smsError);
+  // Don't fail the subscription creation if SMS fails
+};
+
 
   res.status(201).json({
     success: true,
@@ -403,6 +418,18 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
   await subscription.populate('userId', 'firstName lastName email phone');
   await subscription.populate('updatedBy', 'name email');
 
+
+  // ✅ SMS NOTIFICATION: Send subscription paused notification
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionPaused(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription paused SMS failed:", smsError);
+};
+
+
   res.status(200).json({
     success: true,
     message: `Subscription paused successfully with ${remainingDays} day(s) remaining.`,
@@ -460,6 +487,18 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
     0
   );
 
+
+
+  // ✅ SMS NOTIFICATION: Send subscription resumed notification
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionResumed(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription resumed SMS failed:", smsError);
+}
+
   res.status(200).json({
     success: true,
     message: `Subscription resumed successfully. ${daysRemaining} day(s) remaining.`,
@@ -492,6 +531,18 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
 
   await subscription.populate('userId', 'firstName lastName email phone');
   await subscription.populate('updatedBy', 'name email');
+
+
+  // ✅ SMS NOTIFICATION: Send subscription cancelled notification
+try {
+  const user = await User.findById(subscription.userId);
+  // if (user && user.phone && user.phoneVerified) {
+    await NotificationService.sendSubscriptionCancelled(subscription, user);
+  // }
+} catch (smsError) {
+  console.error("Subscription cancelled SMS failed:", smsError);
+};
+
 
   res.status(200).json({
     success: true,
