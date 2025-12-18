@@ -9,10 +9,9 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const paystack = require('../utils/paystack');
 const crypto = require('crypto');
-const NotificationService = require('../services/notificationService');
-
-// ✅ CHANGED: Import delivery helper
 const { generateDeliverySchedules } = require('../utils/deliveryHelper');
+const NotificationService = require('../services/notificationService');
+const emailService = require('../services/emailService');
 
 
 // ✅ SIMPLIFIED: Middleware to check and update expired subscriptions
@@ -392,6 +391,18 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
       console.error("❌ Delivery schedule generation failed for wallet payment:", scheduleError);
     }
 
+
+    // ✅ Send subscription created email for wallet payment
+      setTimeout(async () => {
+        try {
+          await emailService.sendSubscriptionCreatedEmail(subscription, user);
+        } catch (emailError) {
+          console.error('Failed to send subscription created email:', emailError);
+        }
+      }, 0);
+
+
+
     // 9️⃣ Commit transaction
     await session.commitTransaction();
     session.endSession();
@@ -600,8 +611,6 @@ const handleSuccessfulCharge = async (data) => {
   }
 };
 
-// ✅ CHANGED: REMOVED OLD generateDeliverySchedules function
-// The function has been moved to deliveryHelper.js
 
 // Process successful payment
 const processSuccessfulPayment = async (data) => {
@@ -705,8 +714,17 @@ try {
     console.error("Order creation error:", orderError);
   }
 
-  // Send confirmation email or notification here
-  // await sendSubscriptionConfirmation(subscription);
+   // ✅ ADDED: Send subscription confirmation email
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(userId);
+      if (user) {
+        await emailService.sendSubscriptionCreatedEmail(subscription, user);
+      }
+    } catch (emailError) {
+      console.error('Failed to send subscription confirmation email:', emailError);
+    }
+  }, 0);
 };
 
 // Process renewal payment
@@ -978,6 +996,20 @@ try {
 };
 
 
+// ✅ ADDED: Send subscription paused email
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(subscription.userId);
+      if (user) {
+        await emailService.sendSubscriptionPausedEmail(subscription, user);
+      }
+    } catch (emailError) {
+      console.error('Failed to send subscription paused email:', emailError);
+    }
+  }, 0);
+
+
+
   res.status(200).json({
     success: true,
     message: `Subscription paused successfully with ${remainingDays} day(s) remaining.`,
@@ -1092,6 +1124,22 @@ try {
     (subscription.endDate - subscription.startDate) / (1000 * 60 * 60 * 24)
   );
 
+
+
+  // ✅ EMAIL NOTIFICATION: Send subscription resumed email
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(subscription.userId);
+      if (user) {
+        await emailService.sendSubscriptionResumedEmail(subscription, user);
+      }
+    } catch (emailError) {
+      console.error('Failed to send subscription resumed email:', emailError);
+    }
+  }, 0);
+
+
+
   res.status(200).json({
     success: true,
     message: `Subscription resumed successfully. ${daysRemaining} day(s) remaining.`,
@@ -1138,6 +1186,20 @@ try {
 } catch (smsError) {
   console.error("Subscription cancelled SMS failed:", smsError);
 }
+
+
+// ✅ ADDED: Send subscription cancelled email
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(subscription.userId);
+      if (user) {
+        await emailService.sendSubscriptionCancelledEmail(subscription, user);
+      }
+    } catch (emailError) {
+      console.error('Failed to send subscription cancelled email:', emailError);
+    }
+  }, 0);
+
 
   res.status(200).json({
     success: true,
@@ -1198,6 +1260,20 @@ try {
 } catch (smsError) {
   console.error("Subscription cancelled SMS failed:", smsError);
 };
+
+
+
+ // ✅ ADDED: Send subscription cancelled email
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(subscription.userId);
+      if (user) {
+        await emailService.sendSubscriptionCancelledEmail(subscription, user);
+      }
+    } catch (emailError) {
+      console.error('Failed to send subscription cancelled email:', emailError);
+    }
+  }, 0);
 
 
 
@@ -1354,6 +1430,23 @@ exports.processSubscriptions = asyncHandler(async (req, res, next) => {
     }
   }
 
+
+
+
+   // ✅ ADDED: Send delivery reminder email (day before delivery)
+      setTimeout(async () => {
+        try {
+          const user = await User.findById(subscription.userId);
+          if (user) {
+            await emailService.sendSubscriptionDeliveryReminder(subscription, user);
+          }
+        } catch (emailError) {
+          console.error('Failed to send delivery reminder email:', emailError);
+        }
+      }, 0);
+
+
+      
   res.status(200).json({
     success: true,
     processed: results.length,

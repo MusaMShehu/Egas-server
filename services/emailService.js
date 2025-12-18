@@ -50,7 +50,7 @@ class EmailService {
             <h1>Welcome to ${this.companyName}!</h1>
           </div>
           <div class="content">
-            <h2>Hello ${user.name},</h2>
+            <h2>Hello ${user.firstName},</h2>
             <p>Your account has been successfully created. Welcome to our family of satisfied customers!</p>
             <p>With your account, you can:</p>
             <ul>
@@ -75,19 +75,19 @@ class EmailService {
 
   // Order Created
   async sendOrderCreatedEmail(order, user) {
-    const subject = `Order Confirmed - #${order.orderNumber}`;
+    const subject = `Order Confirmed - #${order.orderId}`;
     const html = `
       <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
         <div style="background: #2E8B57; color: white; padding: 20px; text-align: center;">
           <h1>Order Confirmed!</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your order has been received and is being processed.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Order Details:</h3>
-            <p><strong>Order Number:</strong> ${order.orderNumber}</p>
-            <p><strong>Gas Type:</strong> ${order.gasType}</p>
+            <p><strong>Order Number:</strong> ${order.orderId}</p>
+            <p><strong>Gas Type:</strong> ${order.productName}</p>
             <p><strong>Quantity:</strong> ${order.quantity}</p>
             <p><strong>Total Amount:</strong> $${order.totalAmount}</p>
             <p><strong>Delivery Address:</strong> ${order.deliveryAddress}</p>
@@ -102,18 +102,18 @@ class EmailService {
 
   // Order Confirmation
   async sendOrderConfirmationEmail(order, user) {
-    const subject = `Order Processing - #${order.orderNumber}`;
+    const subject = `Order Processing - #${order.orderId}`;
     const html = `
       <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
         <div style="background: #FFA500; color: white; padding: 20px; text-align: center;">
           <h1>Order Processing</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your order is being prepared for delivery.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Order Summary:</h3>
-            <p><strong>Order Number:</strong> ${order.orderNumber}</p>
+            <p><strong>Order Number:</strong> ${order.orderId}</p>
             <p><strong>Estimated Delivery:</strong> ${order.estimatedDelivery}</p>
             <p><strong>Total Amount:</strong> $${order.totalAmount}</p>
           </div>
@@ -126,20 +126,19 @@ class EmailService {
 
   // Order Out for Delivery
   async sendOrderOutForDeliveryEmail(order, user) {
-    const subject = `🚚 Your Order is Out for Delivery - #${order.orderNumber}`;
+    const subject = `🚚 Your Order is Out for Delivery - #${order.orderId}`;
     const html = `
       <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
         <div style="background: #4169E1; color: white; padding: 20px; text-align: center;">
           <h1>Out for Delivery!</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Great news! Your gas cylinder is on its way to you.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Delivery Information:</h3>
-            <p><strong>Order Number:</strong> ${order.orderNumber}</p>
-            <p><strong>Driver Name:</strong> ${order.driverName}</p>
-            <p><strong>Vehicle Number:</strong> ${order.vehicleNumber}</p>
+            <p><strong>Order Number:</strong> ${order.orderId}</p>
+            <p><strong>Driver Name:</strong> ${order.deliveryAgent}</p>
             <p><strong>Estimated Arrival:</strong> ${order.estimatedArrival}</p>
           </div>
           <p>Please ensure someone is available to receive the delivery.</p>
@@ -152,18 +151,18 @@ class EmailService {
 
   // Order Delivered Success
   async sendOrderDeliveredEmail(order, user) {
-    const subject = `✅ Delivery Successful - #${order.orderNumber}`;
+    const subject = `✅ Delivery Successful - #${order.orderId}`;
     const html = `
       <div style="max-width: 600px; margin: 0 auto; padding: 20px; font-family: Arial, sans-serif;">
         <div style="background: #32CD32; color: white; padding: 20px; text-align: center;">
           <h1>Delivery Successful!</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your order has been successfully delivered. Thank you for your business!</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Delivery Details:</h3>
-            <p><strong>Order Number:</strong> ${order.orderNumber}</p>
+            <p><strong>Order Number:</strong> ${order.orderId}</p>
             <p><strong>Delivered At:</strong> ${order.deliveredAt}</p>
             <p><strong>Delivered To:</strong> ${order.deliveryAddress}</p>
           </div>
@@ -184,7 +183,7 @@ class EmailService {
           <h1>Subscription Activated!</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your gas subscription has been successfully activated.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Subscription Details:</h3>
@@ -211,7 +210,7 @@ class EmailService {
           <h1>Delivery Tomorrow!</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>This is a friendly reminder that your scheduled gas delivery is tomorrow.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Delivery Schedule:</h3>
@@ -237,7 +236,7 @@ class EmailService {
           <h1>Delivery Completed!</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your scheduled gas delivery has been successfully completed.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Delivery Details:</h3>
@@ -262,7 +261,7 @@ class EmailService {
           <h1>Top-up Successful!</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your wallet has been successfully topped up.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Transaction Details:</h3>
@@ -288,7 +287,7 @@ class EmailService {
           <h1>Subscription Ending Soon</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your gas subscription will end in ${daysLeft} days.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Subscription Details:</h3>
@@ -314,7 +313,7 @@ class EmailService {
           <h1>Subscription Paused</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your gas subscription has been paused as requested.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Subscription Status:</h3>
@@ -339,7 +338,7 @@ class EmailService {
           <h1>Subscription Resumed!</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your gas subscription has been successfully resumed.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Subscription Details:</h3>
@@ -364,7 +363,7 @@ class EmailService {
           <h1>Subscription Cancelled</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your gas subscription has been cancelled as requested.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Cancellation Details:</h3>
@@ -390,7 +389,7 @@ class EmailService {
           <h1>Support Ticket Resolved</h1>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           <p>Your support ticket has been resolved by our team.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Ticket Details:</h3>
@@ -421,7 +420,7 @@ class EmailService {
           <p style="font-size: 18px; margin-top: 10px;">${promotion.subtitle}</p>
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
-          <h2>Hello ${user.name},</h2>
+          <h2>Hello ${user.firstName},</h2>
           ${promotion.content}
           <div style="text-align: center; margin: 25px 0;">
             <a href="${promotion.ctaLink}" style="background: #FF6B6B; color: white; padding: 12px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block;">${promotion.ctaText}</a>

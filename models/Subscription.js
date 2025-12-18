@@ -102,6 +102,11 @@ const subscriptionSchema = new mongoose.Schema(
       default: null,
     },
 
+    resumedAt: {
+      type: Date,
+      default: null,
+    },
+
     remainingDuration: {
       type: Number,
       default: null,

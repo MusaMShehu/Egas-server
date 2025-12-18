@@ -6,11 +6,11 @@ class SMSTemplates {
 
     // Order Related
     static orderCreated(order) {
-        return `Hi ${order.userName || 'Customer'}, your order #${order.orderId || order.orderNumber} has been received. We'll notify you once it's confirmed.`;
+        return `Hi ${user.firstName || 'Customer'}, your order #${order.orderId} has been received. We'll notify you once it's confirmed.`;
     }
 
     static orderConfirmed(order) {
-        return `Great news! Your order #${order.orderId || order.orderNumber} has been confirmed and is being processed.${order.estimatedDelivery ? ` Estimated delivery: ${order.estimatedDelivery}.` : ''}`;
+        return `Great news! Your order #${order.orderId} has been confirmed and is being processed.${order.estimatedDelivery ? ` Estimated delivery: ${order.estimatedDelivery}.` : ''}`;
     }
 
     static orderOutForDelivery(order) {
@@ -27,7 +27,7 @@ class SMSTemplates {
 
     // Subscription Related
     static subscriptionCreated(subscription) {
-        const planName = subscription.planName || subscription.plan?.name || 'your subscription';
+        const planName = subscription.planName || 'your subscription';
         const nextDeliveryDate = subscription.nextDeliveryDate 
             ? new Date(subscription.nextDeliveryDate).toLocaleDateString() 
             : 'soon';
@@ -36,7 +36,7 @@ class SMSTemplates {
     }
 
     static subscriptionReminder(subscription) {
-        const planName = subscription.planName || subscription.plan?.name || 'your subscription';
+        const planName = subscription.planName || 'your subscription';
         const deliveryDate = subscription.deliveryDate 
             ? new Date(subscription.deliveryDate).toLocaleDateString()
             : subscription.nextDeliveryDate 
@@ -47,14 +47,14 @@ class SMSTemplates {
     }
 
     static subscriptionFulfilled(subscription) {
-        const planName = subscription.planName || subscription.plan?.name || 'your subscription';
+        const planName = subscription.planName || 'your subscription';
         const deliveryId = subscription.deliveryId || 'this delivery';
         
         return `Your ${planName} subscription delivery #${deliveryId} has been completed successfully.`;
     }
 
     static subscriptionEnding(subscription) {
-        const planName = subscription.planName || subscription.plan?.name || 'your subscription';
+        const planName = subscription.planName || 'your subscription';
         const daysRemaining = subscription.daysRemaining 
             || (subscription.endDate 
                 ? Math.ceil((new Date(subscription.endDate) - new Date()) / (1000 * 60 * 60 * 24))
@@ -64,12 +64,12 @@ class SMSTemplates {
     }
 
     static subscriptionPaused(subscription) {
-        const planName = subscription.planName || subscription.plan?.name || 'your subscription';
+        const planName = subscription.planName || 'your subscription';
         return `Your ${planName} subscription has been paused. No charges will apply during this period.`;
     }
 
     static subscriptionResumed(subscription) {
-        const planName = subscription.planName || subscription.plan?.name || 'your subscription';
+        const planName = subscription.planName || 'your subscription';
         const nextDeliveryDate = subscription.nextDeliveryDate 
             ? new Date(subscription.nextDeliveryDate).toLocaleDateString()
             : 'soon';
