@@ -3,22 +3,33 @@ const sgMail = require('@sendgrid/mail');
 
 class EmailService {
   constructor() {
-    this.fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@egas-ng.onrender.com';
     this.companyName = 'E-Gas Nigeria Limited';
-    this.sendgridApiKey = process.env.SENDGRID_API_KEY;
+    this.fromEmail = process.env.SENDGRID_FROM_EMAIL || 'musamohammedshehu@gmail.com';
     
-    if (!this.sendgridApiKey) {
-      console.warn('SendGrid API key not found. Emails will not be sent.');
+    // Initialize SendGrid
+    if (process.env.SENDGRID_API_KEY) {
+      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+      this.isEnabled = true;
+      console.log('✅ SendGrid email service initialized');
     } else {
-      sgMail.setApiKey(this.sendgridApiKey);
+      console.warn('⚠️ SENDGRID_API_KEY not found. Emails will be logged but not sent.');
+      this.isEnabled = false;
     }
   }
 
-  async sendEmail(to, subject, html, text = null, attachments = []) {
+  /**
+   * Core email sending method
+   */
+  async sendEmail({ to, subject, html, text = null }) {
     try {
-      if (!this.sendgridApiKey) {
-        console.warn('SendGrid not configured. Email not sent.');
-        return { success: false, message: 'SendGrid not configured' };
+      // If SendGrid is not configured, log and return mock response
+      if (!this.isEnabled) {
+        console.log('📧 [MOCK] Email would be sent:', { to, subject });
+        return {
+          success: true,
+          messageId: `mock-${Date.now()}`,
+          status: 'logged_only'
+        };
       }
 
       const msg = {
@@ -29,47 +40,33 @@ class EmailService {
         },
         subject,
         html,
-        text: text || this.htmlToText(html),
-        attachments,
-        mail_settings: {
-          sandbox_mode: {
-            enable: process.env.NODE_ENV === 'test' || false
-          }
-        },
-        tracking_settings: {
-          click_tracking: {
-            enable: true,
-            enable_text: true
-          },
-          open_tracking: {
-            enable: true
-          },
-          subscription_tracking: {
-            enable: true
-          }
-        }
+        text: text || this.htmlToText(html)
       };
 
       const response = await sgMail.send(msg);
-      console.log('Email sent successfully:', response[0].headers['x-message-id']);
+      console.log('✅ Email sent successfully to:', to);
       
       return {
         success: true,
         messageId: response[0].headers['x-message-id'],
         response: response[0]
       };
+
     } catch (error) {
-      console.error('Error sending email:', error.response?.body || error.message);
-      
-      // Log detailed error information if available
-      if (error.response) {
-        console.error('SendGrid Error Details:', {
-          statusCode: error.code,
-          body: error.response.body,
-          headers: error.response.headers
-        });
+      console.error('❌ Error sending email:', {
+        to,
+        subject,
+        error: error.message,
+        response: error.response?.body
+      });
+
+      // Don't throw in production to avoid breaking the main flow
+      if (process.env.NODE_ENV === 'production') {
+        return {
+          success: false,
+          error: error.message
+        };
       }
-      
       throw error;
     }
   }
@@ -78,47 +75,10 @@ class EmailService {
     return html.replace(/<[^>]*>/g, '');
   }
 
-  // Send transactional email with template
-  async sendTransactionalEmail(templateId, to, dynamicTemplateData, attachments = []) {
-    try {
-      if (!this.sendgridApiKey) {
-        console.warn('SendGrid not configured. Email not sent.');
-        return { success: false, message: 'SendGrid not configured' };
-      }
-
-      const msg = {
-        to,
-        from: {
-          email: this.fromEmail,
-          name: this.companyName
-        },
-        templateId,
-        dynamicTemplateData,
-        attachments,
-        mail_settings: {
-          sandbox_mode: {
-            enable: process.env.NODE_ENV === 'test' || false
-          }
-        }
-      };
-
-      const response = await sgMail.send(msg);
-      console.log('Transactional email sent successfully:', response[0].headers['x-message-id']);
-      
-      return {
-        success: true,
-        messageId: response[0].headers['x-message-id'],
-        response: response[0]
-      };
-    } catch (error) {
-      console.error('Error sending transactional email:', error.response?.body || error.message);
-      throw error;
-    }
-  }
+  // ==================== EMAIL TEMPLATES ====================
 
   // Account Created
   async sendAccountCreatedEmail(user) {
-    // Method 1: Using HTML template (keep your existing HTML)
     const subject = `Welcome to ${this.companyName}! Your Account is Ready`;
     const html = `
       <!DOCTYPE html>
@@ -157,20 +117,11 @@ class EmailService {
       </html>
     `;
 
-    return this.sendEmail(user.email, subject, html);
-    
-    // Alternative Method 2: Using SendGrid Dynamic Template
-    // Uncomment and configure if you have SendGrid templates set up
-    /*
-    const templateId = 'd-your-template-id-here';
-    const dynamicTemplateData = {
-      firstName: user.firstName,
-      companyName: this.companyName,
-      year: new Date().getFullYear()
-    };
-    
-    return this.sendTransactionalEmail(templateId, user.email, dynamicTemplateData);
-    */
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Order Created
@@ -189,7 +140,7 @@ class EmailService {
             <p><strong>Order Number:</strong> ${order.orderId}</p>
             <p><strong>Gas Type:</strong> ${order.productName}</p>
             <p><strong>Quantity:</strong> ${order.quantity}</p>
-            <p><strong>Total Amount:</strong> $${order.totalAmount}</p>
+            <p><strong>Total Amount:</strong> ₦${order.totalAmount}</p>
             <p><strong>Delivery Address:</strong> ${order.deliveryAddress}</p>
           </div>
           <p>We'll notify you when your order is out for delivery.</p>
@@ -197,7 +148,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Order Confirmation
@@ -215,13 +170,17 @@ class EmailService {
             <h3>Order Summary:</h3>
             <p><strong>Order Number:</strong> ${order.orderId}</p>
             <p><strong>Estimated Delivery:</strong> ${order.estimatedDelivery}</p>
-            <p><strong>Total Amount:</strong> $${order.totalAmount}</p>
+            <p><strong>Total Amount:</strong> ₦${order.totalAmount}</p>
           </div>
         </div>
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Order Out for Delivery
@@ -246,7 +205,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Order Delivered Success
@@ -271,7 +234,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Subscription Created
@@ -298,7 +265,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Subscription Delivery Reminder (1 day before)
@@ -324,7 +295,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Subscription Delivery Fulfilled
@@ -349,7 +324,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Wallet Top-up Success
@@ -365,17 +344,21 @@ class EmailService {
           <p>Your wallet has been successfully topped up.</p>
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Transaction Details:</h3>
-            <p><strong>Amount Added:</strong> $${transaction.amount}</p>
+            <p><strong>Amount Added:</strong> ₦${transaction.amount}</p>
             <p><strong>Transaction ID:</strong> ${transaction.id}</p>
             <p><strong>Payment Method:</strong> ${transaction.paymentMethod}</p>
-            <p><strong>New Balance:</strong> $${transaction.newBalance}</p>
+            <p><strong>New Balance:</strong> ₦${transaction.newBalance}</p>
             <p><strong>Date:</strong> ${transaction.date}</p>
           </div>
         </div>
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Subscription Ending Alert
@@ -396,12 +379,16 @@ class EmailService {
             <p><strong>Days Remaining:</strong> ${daysLeft}</p>
           </div>
           <p>Renew your subscription to continue enjoying uninterrupted gas delivery service.</p>
-          <a href="${process.env.APP_URL}/subscriptions/renew" style="background: #2E8B57; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Renew Subscription</a>
+          <a href="${process.env.APP_URL || 'https://egas.com'}/subscriptions/renew" style="background: #2E8B57; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Renew Subscription</a>
         </div>
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Subscription Paused
@@ -426,7 +413,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Subscription Resumed
@@ -451,7 +442,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Subscription Cancelled
@@ -469,7 +464,7 @@ class EmailService {
             <h3>Cancellation Details:</h3>
             <p><strong>Plan:</strong> ${subscription.planName}</p>
             <p><strong>Cancellation Date:</strong> ${subscription.cancellationDate}</p>
-            <p><strong>Refund Amount (if applicable):</strong> $${subscription.refundAmount || 0}</p>
+            <p><strong>Refund Amount (if applicable):</strong> ₦${subscription.refundAmount || 0}</p>
           </div>
           <p>We're sorry to see you go. If you change your mind, you can always create a new subscription anytime.</p>
           <p>Thank you for being our valued customer.</p>
@@ -477,7 +472,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Support Resolved
@@ -507,7 +506,11 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 
   // Promotional Email
@@ -530,44 +533,14 @@ class EmailService {
       </div>
     `;
 
-    return this.sendEmail(user.email, subject, html);
-  }
-
-  // Batch sending for multiple recipients
-  async sendBatchEmails(personalizations, templateId, dynamicTemplateData = {}) {
-    try {
-      if (!this.sendgridApiKey) {
-        console.warn('SendGrid not configured. Batch email not sent.');
-        return { success: false, message: 'SendGrid not configured' };
-      }
-
-      const msg = {
-        from: {
-          email: this.fromEmail,
-          name: this.companyName
-        },
-        templateId,
-        personalizations,
-        mail_settings: {
-          sandbox_mode: {
-            enable: process.env.NODE_ENV === 'test' || false
-          }
-        }
-      };
-
-      const response = await sgMail.sendMultiple(msg);
-      console.log(`Batch email sent to ${personalizations.length} recipients`);
-      
-      return {
-        success: true,
-        batchId: response[0].headers['x-message-id'],
-        response: response[0]
-      };
-    } catch (error) {
-      console.error('Error sending batch emails:', error.response?.body || error.message);
-      throw error;
-    }
+    return this.sendEmail({
+      to: user.email,
+      subject,
+      html
+    });
   }
 }
 
-module.exports = new EmailService();
+// Create and export singleton instance
+const emailService = new EmailService();
+module.exports = emailService;
