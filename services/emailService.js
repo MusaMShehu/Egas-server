@@ -1,27 +1,75 @@
 // services/emailService.js
-const transporter = require('../config/emailConfig');
+const sgMail = require('@sendgrid/mail');
 
 class EmailService {
   constructor() {
-    this.fromEmail = process.env.FROM_EMAIL || 'noreply@egas.com';
-    this.companyName = 'E-Gas Nigeria Limited ';
+    this.fromEmail = process.env.SENDGRID_FROM_EMAIL || 'noreply@egas-ng.onrender.com';
+    this.companyName = 'E-Gas Nigeria Limited';
+    this.sendgridApiKey = process.env.SENDGRID_API_KEY;
+    
+    if (!this.sendgridApiKey) {
+      console.warn('SendGrid API key not found. Emails will not be sent.');
+    } else {
+      sgMail.setApiKey(this.sendgridApiKey);
+    }
   }
 
-  async sendEmail(to, subject, html, text = null) {
+  async sendEmail(to, subject, html, text = null, attachments = []) {
     try {
-      const mailOptions = {
-        from: `"${this.companyName}" <${this.fromEmail}>`,
+      if (!this.sendgridApiKey) {
+        console.warn('SendGrid not configured. Email not sent.');
+        return { success: false, message: 'SendGrid not configured' };
+      }
+
+      const msg = {
         to,
+        from: {
+          email: this.fromEmail,
+          name: this.companyName
+        },
         subject,
         html,
         text: text || this.htmlToText(html),
+        attachments,
+        mail_settings: {
+          sandbox_mode: {
+            enable: process.env.NODE_ENV === 'test' || false
+          }
+        },
+        tracking_settings: {
+          click_tracking: {
+            enable: true,
+            enable_text: true
+          },
+          open_tracking: {
+            enable: true
+          },
+          subscription_tracking: {
+            enable: true
+          }
+        }
       };
 
-      const result = await transporter.sendMail(mailOptions);
-      console.log('Email sent successfully:', result.messageId);
-      return result;
+      const response = await sgMail.send(msg);
+      console.log('Email sent successfully:', response[0].headers['x-message-id']);
+      
+      return {
+        success: true,
+        messageId: response[0].headers['x-message-id'],
+        response: response[0]
+      };
     } catch (error) {
-      console.error('Error sending email:', error);
+      console.error('Error sending email:', error.response?.body || error.message);
+      
+      // Log detailed error information if available
+      if (error.response) {
+        console.error('SendGrid Error Details:', {
+          statusCode: error.code,
+          body: error.response.body,
+          headers: error.response.headers
+        });
+      }
+      
       throw error;
     }
   }
@@ -30,8 +78,47 @@ class EmailService {
     return html.replace(/<[^>]*>/g, '');
   }
 
+  // Send transactional email with template
+  async sendTransactionalEmail(templateId, to, dynamicTemplateData, attachments = []) {
+    try {
+      if (!this.sendgridApiKey) {
+        console.warn('SendGrid not configured. Email not sent.');
+        return { success: false, message: 'SendGrid not configured' };
+      }
+
+      const msg = {
+        to,
+        from: {
+          email: this.fromEmail,
+          name: this.companyName
+        },
+        templateId,
+        dynamicTemplateData,
+        attachments,
+        mail_settings: {
+          sandbox_mode: {
+            enable: process.env.NODE_ENV === 'test' || false
+          }
+        }
+      };
+
+      const response = await sgMail.send(msg);
+      console.log('Transactional email sent successfully:', response[0].headers['x-message-id']);
+      
+      return {
+        success: true,
+        messageId: response[0].headers['x-message-id'],
+        response: response[0]
+      };
+    } catch (error) {
+      console.error('Error sending transactional email:', error.response?.body || error.message);
+      throw error;
+    }
+  }
+
   // Account Created
   async sendAccountCreatedEmail(user) {
+    // Method 1: Using HTML template (keep your existing HTML)
     const subject = `Welcome to ${this.companyName}! Your Account is Ready`;
     const html = `
       <!DOCTYPE html>
@@ -71,6 +158,19 @@ class EmailService {
     `;
 
     return this.sendEmail(user.email, subject, html);
+    
+    // Alternative Method 2: Using SendGrid Dynamic Template
+    // Uncomment and configure if you have SendGrid templates set up
+    /*
+    const templateId = 'd-your-template-id-here';
+    const dynamicTemplateData = {
+      firstName: user.firstName,
+      companyName: this.companyName,
+      year: new Date().getFullYear()
+    };
+    
+    return this.sendTransactionalEmail(templateId, user.email, dynamicTemplateData);
+    */
   }
 
   // Order Created
@@ -431,6 +531,42 @@ class EmailService {
     `;
 
     return this.sendEmail(user.email, subject, html);
+  }
+
+  // Batch sending for multiple recipients
+  async sendBatchEmails(personalizations, templateId, dynamicTemplateData = {}) {
+    try {
+      if (!this.sendgridApiKey) {
+        console.warn('SendGrid not configured. Batch email not sent.');
+        return { success: false, message: 'SendGrid not configured' };
+      }
+
+      const msg = {
+        from: {
+          email: this.fromEmail,
+          name: this.companyName
+        },
+        templateId,
+        personalizations,
+        mail_settings: {
+          sandbox_mode: {
+            enable: process.env.NODE_ENV === 'test' || false
+          }
+        }
+      };
+
+      const response = await sgMail.sendMultiple(msg);
+      console.log(`Batch email sent to ${personalizations.length} recipients`);
+      
+      return {
+        success: true,
+        batchId: response[0].headers['x-message-id'],
+        response: response[0]
+      };
+    } catch (error) {
+      console.error('Error sending batch emails:', error.response?.body || error.message);
+      throw error;
+    }
   }
 }
 

@@ -1,25 +1,25 @@
-// config/emailConfig.js
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail');
 
-const emailConfig = {
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: process.env.SMTP_PORT || 587,
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-};
+sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
-const transporter = nodemailer.createTransport(emailConfig);
-
-// Verify connection configuration
-transporter.verify((error, success) => {
-  if (error) {
-    console.log('Error with email configuration:', error);
+const sendEmail = async ({ to, subject, text, html }) => {
+  try {
+    await sgMail.send({
+      to,
+      from: {
+        email: process.env.SENDGRID_FROM_EMAIL,
+        name: 'e-GAS',
+      },
+      subject,
+      text,
+      html,
+    });
+  } catch (error) {
+    console.error('SendGrid error:', error.response?.body || error);
+    throw error;
   } else {
     console.log('Email server is ready to take messages');
   }
-});
+};
 
-module.exports = transporter;
+module.exports = { sendEmail };
