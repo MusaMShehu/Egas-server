@@ -1,24 +1,22 @@
-const jwt = require('jsonwebtoken');
-const bcrypt = require('bcryptjs');
-const crypto = require('crypto'); 
-const User = require('../models/User');
-const Order = require('../models/Order'); 
-const Wallet = require('../models/wallet'); 
-const Subscription = require('../models/SubscriptionPlan'); 
-const ErrorResponse = require('../utils/errorResponse');
-const asyncHandler = require('../middleware/async');
-const sendEmail = require('../utils/email');
-const emailService = require('../services/emailService'); 
-const cloudinary = require('../config/cloudinary');
-const NotificationService = require('../services/notificationService');
+const jwt = require("jsonwebtoken");
+const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
+const User = require("../models/User");
+const Order = require("../models/Order");
+const Wallet = require("../models/wallet");
+const Subscription = require("../models/SubscriptionPlan");
+const ErrorResponse = require("../utils/errorResponse");
+const asyncHandler = require("../middleware/async");
+const sendEmail = require("../utils/email");
+const cloudinary = require("../config/cloudinary");
+const NotificationService = require("../services/notificationService");
+const emailService = require("../services/emailService");
 
 const signToken = (id) => {
   return jwt.sign({ id }, process.env.JWT_SECRET, {
     expiresIn: process.env.JWT_EXPIRES_IN,
   });
 };
-
-
 
 exports.register = asyncHandler(async (req, res, next) => {
   try {
@@ -73,35 +71,36 @@ exports.register = asyncHandler(async (req, res, next) => {
     let profileImage = {
       public_id: null,
       url: null,
-      secure_url: 'https://res.cloudinary.com/your-cloud-name/image/upload/v1234567890/default-profile.jpg'
+      secure_url:
+        "https://res.cloudinary.com/your-cloud-name/image/upload/v1234567890/default-profile.jpg",
     };
 
     if (req.file) {
       try {
         // Upload to Cloudinary with user-specific folder
         const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-          folder: `egas/users/${email.replace(/[^a-zA-Z0-9]/g, '_')}/profile`,
+          folder: `egas/users/${email.replace(/[^a-zA-Z0-9]/g, "_")}/profile`,
           transformation: [
-            { width: 400, height: 400, crop: 'fill' },
-            { quality: 'auto:good' }
+            { width: 400, height: 400, crop: "fill" },
+            { quality: "auto:good" },
           ],
           public_id: `profile_${Date.now()}`,
-          resource_type: 'auto'
+          resource_type: "auto",
         });
 
         profileImage = {
           public_id: uploadResult.public_id,
           url: uploadResult.secure_url,
-          secure_url: uploadResult.secure_url
+          secure_url: uploadResult.secure_url,
         };
 
         // Delete temporary file if you're using disk storage first
-        if (req.file.path && !req.file.path.includes('cloudinary')) {
-          const fs = require('fs');
+        if (req.file.path && !req.file.path.includes("cloudinary")) {
+          const fs = require("fs");
           fs.unlinkSync(req.file.path);
         }
       } catch (uploadError) {
-        console.error('Cloudinary upload failed:', uploadError);
+        console.error("Cloudinary upload failed:", uploadError);
         // Continue with default image if upload fails
       }
     }
@@ -126,7 +125,7 @@ exports.register = asyncHandler(async (req, res, next) => {
       city,
       gpsCoordinates,
       profileImage, // Using the new Cloudinary structure
-      role: 'user'
+      role: "user",
     });
 
     // 🪙 6️⃣ Create wallet and link to user
@@ -134,7 +133,7 @@ exports.register = asyncHandler(async (req, res, next) => {
       userId: user._id,
       balance: 0,
       transactions: [],
-      currency: 'NGN' // or your default currency
+      currency: "NGN",
     });
 
     // Add wallet reference to user
@@ -155,11 +154,10 @@ exports.register = asyncHandler(async (req, res, next) => {
     // try {
     //   await emailService.sendAccountCreatedEmail({
     //     name: `${firstName} ${lastName}`,
-    //     email: email
+    //     email: email,
     //   });
     // } catch (emailError) {
-    //   // Log email error but don't fail the registration
-    //   console.error('Failed to send welcome email:', emailError);
+    //   console.error("Failed to send welcome email:", emailError);
     // }
 
     // 🔟 Respond to frontend
@@ -178,24 +176,26 @@ exports.register = asyncHandler(async (req, res, next) => {
         wallet: {
           _id: wallet._id,
           balance: wallet.balance,
-          currency: wallet.currency
-        }
+          currency: wallet.currency,
+        },
       },
     });
   } catch (err) {
     console.error("Error during registration:", err);
-    
+
     // Handle specific MongoDB errors
     if (err.code === 11000) {
       return next(new ErrorResponse("Email already exists", 400));
     }
-    
-    if (err.name === 'ValidationError') {
-      const messages = Object.values(err.errors).map(val => val.message);
-      return next(new ErrorResponse(messages.join(', '), 400));
+
+    if (err.name === "ValidationError") {
+      const messages = Object.values(err.errors).map((val) => val.message);
+      return next(new ErrorResponse(messages.join(", "), 400));
     }
-    
-    return next(new ErrorResponse("Registration failed. Please try again.", 500));
+
+    return next(
+      new ErrorResponse("Registration failed. Please try again.", 500)
+    );
   }
 });
 // @desc    Login user
@@ -206,31 +206,36 @@ exports.login = asyncHandler(async (req, res, next) => {
 
   // Validate email & password
   if (!email || !password) {
-    return next(new ErrorResponse('Please provide an email and password', 400));
+    return next(new ErrorResponse("Please provide an email and password", 400));
   }
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    return next(new ErrorResponse('Please provide a valid email address', 400));
+    return next(new ErrorResponse("Please provide a valid email address", 400));
   }
 
   // Check for user with case-insensitive email
-  const user = await User.findOne({ 
-    email: { $regex: new RegExp(`^${email}$`, 'i') }
-  }).select('+password +loginAttempts +lockUntil');
+  const user = await User.findOne({
+    email: { $regex: new RegExp(`^${email}$`, "i") },
+  }).select("+password +loginAttempts +lockUntil");
 
   if (!user) {
     // Simulate password comparison to prevent user enumeration timing attacks
-    await bcrypt.compare(password, '$2a$10$fakeHashForTimingAttackPrevention');
-    return next(new ErrorResponse('Invalid credentials', 401));
+    await bcrypt.compare(password, "$2a$10$fakeHashForTimingAttackPrevention");
+    return next(new ErrorResponse("Invalid credentials", 401));
   }
 
   // Check if account is locked
   if (user.lockUntil && user.lockUntil > Date.now()) {
     const retryAfter = Math.ceil((user.lockUntil - Date.now()) / 1000);
-    res.set('Retry-After', retryAfter);
-    return next(new ErrorResponse('Account locked due to too many failed attempts. Please try again later.', 423));
+    res.set("Retry-After", retryAfter);
+    return next(
+      new ErrorResponse(
+        "Account locked due to too many failed attempts. Please try again later.",
+        423
+      )
+    );
   }
 
   // Check if password matches - FIXED: Use bcrypt directly since matchPassword might not exist
@@ -239,41 +244,53 @@ exports.login = asyncHandler(async (req, res, next) => {
   if (!isMatch) {
     // Increment failed login attempts
     user.loginAttempts += 1;
-    
+
     // Lock account after 5 failed attempts for 30 minutes
     if (user.loginAttempts >= 5) {
       user.lockUntil = Date.now() + 30 * 60 * 1000; // 30 minutes
       user.loginAttempts = 0;
-      
+
       await user.save({ validateBeforeSave: false });
-      
+
       // Log failed login attempt
       await LoginHistory.create({
         userId: user._id,
         email: req.body.email,
         ipAddress: req.ip,
-        userAgent: req.get('User-Agent'),
-        status: 'failed',
-        reason: 'Account locked due to too many failed attempts'
+        userAgent: req.get("User-Agent"),
+        status: "failed",
+        reason: "Account locked due to too many failed attempts",
       });
-      
-      return next(new ErrorResponse('Account locked due to too many failed attempts. Please try again in 30 minutes.', 423));
+
+      return next(
+        new ErrorResponse(
+          "Account locked due to too many failed attempts. Please try again in 30 minutes.",
+          423
+        )
+      );
     }
-    
+
     await user.save({ validateBeforeSave: false });
-    
+
     // Log failed login attempt
     await LoginHistory.create({
       userId: user._id,
       email: req.body.email,
       ipAddress: req.ip,
-      userAgent: req.get('User-Agent'),
-      status: 'failed',
-      reason: 'Invalid password'
+      userAgent: req.get("User-Agent"),
+      status: "failed",
+      reason: "Invalid password",
     });
-    
+
     const attemptsLeft = 5 - user.loginAttempts;
-    return next(new ErrorResponse(`Invalid credentials. ${attemptsLeft} attempt${attemptsLeft !== 1 ? 's' : ''} remaining.`, 401));
+    return next(
+      new ErrorResponse(
+        `Invalid credentials. ${attemptsLeft} attempt${
+          attemptsLeft !== 1 ? "s" : ""
+        } remaining.`,
+        401
+      )
+    );
   }
 
   // Reset login attempts on successful login
@@ -294,7 +311,7 @@ exports.login = asyncHandler(async (req, res, next) => {
 
   // FIXED: Use signToken instead of sendTokenResponse which expects getSignedJwtToken
   const token = signToken(user._id);
-  
+
   // Remove password from output
   user.password = undefined;
 
@@ -317,8 +334,8 @@ exports.login = asyncHandler(async (req, res, next) => {
         ? `${req.protocol}://${req.get("host")}/uploads/${user.profilePic}`
         : `${req.protocol}://${req.get("host")}/uploads/default.jpg`,
       memberSince: user.createdAt.toISOString().split("T")[0],
-      role: user.role
-    }
+      role: user.role,
+    },
   });
 });
 
@@ -326,14 +343,14 @@ exports.login = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/auth/logout
 // @access  Private
 exports.logout = asyncHandler(async (req, res, next) => {
-  res.cookie('token', 'none', {
+  res.cookie("token", "none", {
     expires: new Date(Date.now() + 10 * 1000),
-    httpOnly: true
+    httpOnly: true,
   });
 
   res.status(200).json({
     success: true,
-    data: {}
+    data: {},
   });
 });
 
@@ -342,7 +359,7 @@ exports.logout = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.getProfile = asyncHandler(async (req, res) => {
   try {
-    const user = req.user;  // 👈 already fetched by protect middleware
+    const user = req.user; // 👈 already fetched by protect middleware
 
     const profileData = {
       id: user._id,
@@ -360,22 +377,21 @@ exports.getProfile = asyncHandler(async (req, res) => {
         ? `${req.protocol}://${req.get("host")}/uploads/${user.profilePic}`
         : `${req.protocol}://${req.get("host")}/uploads/default.jpg`,
       memberSince: user.createdAt.toISOString().split("T")[0],
-      role: user.role
+      role: user.role,
     };
 
     res.status(200).json({
       success: true,
-      user: profileData
+      user: profileData,
     });
   } catch (error) {
-    console.error('Error fetching profile:', error);
+    console.error("Error fetching profile:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error while fetching profile'
+      message: "Server error while fetching profile",
     });
   }
 });
-
 
 // @desc    Update user profile
 // @route   PUT /api/v1/auth/profile
@@ -391,7 +407,7 @@ exports.updateProfile = asyncHandler(async (req, res) => {
       address,
       city,
       state,
-      gpsCoordinates
+      gpsCoordinates,
     } = req.body;
 
     const updatedUser = await User.findByIdAndUpdate(
@@ -406,21 +422,21 @@ exports.updateProfile = asyncHandler(async (req, res) => {
         city,
         state,
         gpsCoordinates,
-        updatedAt: Date.now()
+        updatedAt: Date.now(),
       },
       { new: true, runValidators: true }
-    ).select('-password');
+    ).select("-password");
 
     res.status(200).json({
       success: true,
-      message: 'Profile updated successfully',
-      data: updatedUser
+      message: "Profile updated successfully",
+      data: updatedUser,
     });
   } catch (error) {
-    console.error('Error updating profile:', error);
+    console.error("Error updating profile:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error while updating profile'
+      message: "Server error while updating profile",
     });
   }
 });
@@ -430,7 +446,12 @@ exports.updateProfile = asyncHandler(async (req, res) => {
 // @access  Private
 exports.updatePreferences = asyncHandler(async (req, res) => {
   try {
-    const { orderUpdates, deliveryNotifications, promotionalOffers, newsletter } = req.body;
+    const {
+      orderUpdates,
+      deliveryNotifications,
+      promotionalOffers,
+      newsletter,
+    } = req.body;
 
     const updatedUser = await User.findByIdAndUpdate(
       req.user.id,
@@ -439,22 +460,22 @@ exports.updatePreferences = asyncHandler(async (req, res) => {
           orderUpdates,
           deliveryNotifications,
           promotionalOffers,
-          newsletter
-        }
+          newsletter,
+        },
       },
       { new: true }
-    ).select('-password');
+    ).select("-password");
 
     res.status(200).json({
       success: true,
-      message: 'Preferences updated successfully',
-      data: updatedUser.notificationPreferences
+      message: "Preferences updated successfully",
+      data: updatedUser.notificationPreferences,
     });
   } catch (error) {
-    console.error('Error updating preferences:', error);
+    console.error("Error updating preferences:", error);
     res.status(500).json({
       success: false,
-      message: 'Server error while updating preferences'
+      message: "Server error while updating preferences",
     });
   }
 });
@@ -465,16 +486,16 @@ exports.updatePreferences = asyncHandler(async (req, res) => {
 exports.updatePassword = asyncHandler(async (req, res, next) => {
   // FIXED: Add safety check for req.user
   if (!req.user || !req.user.id) {
-    return next(new ErrorResponse('User not authenticated', 401));
+    return next(new ErrorResponse("User not authenticated", 401));
   }
 
-  const user = await User.findById(req.user.id).select('+password');
+  const user = await User.findById(req.user.id).select("+password");
 
   // Check current password using bcrypt directly
   const isMatch = await bcrypt.compare(req.body.currentPassword, user.password);
-  
+
   if (!isMatch) {
-    return next(new ErrorResponse('Current password is incorrect', 401));
+    return next(new ErrorResponse("Current password is incorrect", 401));
   }
 
   user.password = req.body.newPassword;
@@ -492,8 +513,8 @@ exports.updatePassword = asyncHandler(async (req, res, next) => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      role: user.role
-    }
+      role: user.role,
+    },
   });
 });
 
@@ -504,35 +525,38 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
   const user = await User.findOne({ email: req.body.email });
 
   if (!user) {
-    return next(new ErrorResponse('There is no user with that email', 404));
+    return next(new ErrorResponse("There is no user with that email", 404));
   }
 
   // Get reset token - FIXED: Check if getResetPasswordToken method exists
   let resetToken;
-  if (typeof user.getResetPasswordToken === 'function') {
+  if (typeof user.getResetPasswordToken === "function") {
     resetToken = user.getResetPasswordToken();
   } else {
     // Fallback: generate random token
-    resetToken = crypto.randomBytes(20).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    resetToken = crypto.randomBytes(20).toString("hex");
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
   }
 
   await user.save({ validateBeforeSave: false });
 
   // Create reset URL
-  const resetUrl = `${req.protocol}://${req.get('host')}/api/v1/auth/resetpassword/${resetToken}`;
-
-  const message = `You are receiving this email because you (or someone else) has requested the reset of a password. Please make a PUT request to: \n\n ${resetUrl}`;
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
   try {
-    await sendEmail({
+    // Use your email service for password reset
+    await emailService.sendPasswordResetEmail({
+      name: `${user.firstName} ${user.lastName}`,
       email: user.email,
-      subject: 'Password reset token',
-      message
+      resetUrl: resetUrl,
+      expiryTime: "10 minutes",
     });
 
-    res.status(200).json({ success: true, data: 'Email sent' });
+    res.status(200).json({ success: true, data: "Email sent" });
   } catch (err) {
     console.log(err);
     user.resetPasswordToken = undefined;
@@ -540,7 +564,7 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 
     await user.save({ validateBeforeSave: false });
 
-    return next(new ErrorResponse('Email could not be sent', 500));
+    return next(new ErrorResponse("Email could not be sent", 500));
   }
 });
 
@@ -550,17 +574,17 @@ exports.forgotPassword = asyncHandler(async (req, res, next) => {
 exports.resetPassword = asyncHandler(async (req, res, next) => {
   // Get hashed token
   const resetPasswordToken = crypto
-    .createHash('sha256')
+    .createHash("sha256")
     .update(req.params.resettoken)
-    .digest('hex');
+    .digest("hex");
 
   const user = await User.findOne({
     resetPasswordToken,
-    resetPasswordExpire: { $gt: Date.now() }
+    resetPasswordExpire: { $gt: Date.now() },
   });
 
   if (!user) {
-    return next(new ErrorResponse('Invalid token', 400));
+    return next(new ErrorResponse("Invalid token", 400));
   }
 
   // Set new password
@@ -568,6 +592,20 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
   user.resetPasswordToken = undefined;
   user.resetPasswordExpire = undefined;
   await user.save();
+
+  // Send password reset success email
+  setTimeout(async () => {
+    try {
+      await emailService.sendPasswordResetSuccessEmail({
+        name: `${user.firstName} ${user.lastName}`,
+        email: user.email,
+        resetDate: new Date().toLocaleDateString(),
+        resetTime: new Date().toLocaleTimeString(),
+      });
+    } catch (emailError) {
+      console.error("Failed to send password reset success email:", emailError);
+    }
+  }, 0);
 
   // Generate new token
   const token = signToken(user._id);
@@ -581,8 +619,65 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email,
-      role: user.role
-    }
+      role: user.role,
+    },
   });
 });
 
+// @desc    Forgot password
+// @route   POST /api/v1/auth/forgotpassword
+// @access  Public
+exports.forgotPassword = asyncHandler(async (req, res, next) => {
+  const user = await User.findOne({ email: req.body.email });
+
+  if (!user) {
+    // For security, don't reveal that email doesn't exist
+    return res.status(200).json({
+      success: true,
+      message:
+        "If an account exists with this email, you will receive password reset instructions.",
+    });
+  }
+
+  // Get reset token
+  let resetToken;
+  if (typeof user.getResetPasswordToken === "function") {
+    resetToken = user.getResetPasswordToken();
+  } else {
+    // Fallback: generate random token
+    resetToken = crypto.randomBytes(20).toString("hex");
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
+    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+  }
+
+  await user.save({ validateBeforeSave: false });
+
+  // Create reset URL
+  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+
+  try {
+    // Use your email service for password reset
+    await emailService.sendPasswordResetEmail({
+      name: `${user.firstName} ${user.lastName}`,
+      email: user.email,
+      resetUrl: resetUrl,
+      expiryTime: "10 minutes",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Password reset email sent successfully",
+    });
+  } catch (err) {
+    console.log("Email sending error:", err);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+
+    await user.save({ validateBeforeSave: false });
+
+    return next(new ErrorResponse("Email could not be sent", 500));
+  }
+});

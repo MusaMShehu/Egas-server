@@ -188,6 +188,20 @@ try {
   // Continue with order creation
 }
 
+
+// ✅ EMAIL NOTIFICATION: Send Order Created Email
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(req.user._id);
+      if (user) {
+        await emailService.sendOrderCreatedEmail(order, user);
+      }
+    } catch (emailError) {
+      console.error('Failed to send order created email:', emailError);
+    }
+  }, 0);
+
+  
       return res.status(201).json({
         success: true,
         data: order,
@@ -271,10 +285,21 @@ try {
     // } 
     catch (smsError) {
    console.error("SMS notification failed:", smsError);
-
-
-  // Don't fail the order if SMS fails
 }
+
+
+// ✅ EMAIL NOTIFICATION: Send Order Created Email
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(req.user._id);
+      if (user) {
+        await emailService.sendOrderCreatedEmail(order, user);
+      }
+    } catch (emailError) {
+      console.error('Failed to send order created email:', emailError);
+    }
+  }, 0);
+
       // Deduct stock
       for (const item of products) {
         await Product.findByIdAndUpdate(item.product, {
@@ -349,6 +374,20 @@ try {
 catch (smsError) {
   console.error("Order confirmation SMS failed:", smsError);
 }
+
+ 
+  // ✅ EMAIL NOTIFICATIONS: Send Order Confirmation Email for Paystack Payment
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(order.user);
+      if (user) {
+        await emailService.sendOrderConfirmationEmail(order, user);
+      }
+    } catch (emailError) {
+      console.error('Failed to send order confirmation email:', emailError);
+    }
+  }, 0);
+
 
   // ✅ Reduce stock for each product
   for (const item of order.products) {

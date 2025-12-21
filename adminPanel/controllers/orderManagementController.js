@@ -2,6 +2,8 @@
 const Order = require('../../models/Order');
 const User = require('../../models/User');
 const Product = require('../../models/Product');
+const emailService = require('../../services/emailService');
+
 
 // Get all orders with filtering and pagination
 exports.getAllOrders = async (req, res) => {
@@ -212,7 +214,27 @@ exports.updateOrderStatus = async (req, res) => {
   }
     }
 
+  
 
+  // Send email notifications based on status
+  setTimeout(async () => {
+    try {
+      const user = await User.findById(order.user);
+      if (user) {
+        switch (orderStatus) {
+          case 'in-transit':
+          case 'out_for_delivery':
+            await emailService.sendOrderOutForDeliveryEmail(order, user);
+            break;
+          case 'delivered':
+            await emailService.sendOrderDeliveredEmail(order, user);
+            break;
+        }
+      }
+    } catch (emailError) {
+      console.error('Failed to send status update email:', emailError);
+    }
+  }, 0);
 
     res.status(200).json({
       success: true,

@@ -3,6 +3,7 @@ const User = require('../models/User');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const NotificationService = require('../services/notificationService');
+const emailService = require('../services/emailService');
 
 // @desc    Get all support tickets
 // @route   GET /api/v1/support
@@ -211,6 +212,23 @@ exports.updateTicketStatus = asyncHandler(async (req, res, next) => {
       console.error("Ticket resolution SMS failed:", smsError);
     }
   }
+
+
+
+  // ✅ EMAIL NOTIFICATION: Send support resolved email
+  if (req.body.status === 'resolved' && previousStatus !== 'resolved') {
+    setTimeout(async () => {
+      try {
+        const user = await User.findById(ticket.user._id);
+        if (user) {
+          await emailService.sendSupportResolvedEmail(ticket, user);
+        }
+      } catch (emailError) {
+        console.error('Failed to send support resolved email:', emailError);
+      }
+    }, 0);
+  }
+
 
 
   res.status(200).json({ success: true, data: ticket });

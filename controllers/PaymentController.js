@@ -9,6 +9,7 @@ const Transaction = require('../models/Transaction');
 const SubscriptionPlan = require("../models/SubscriptionPlan");
 const asyncHandler = require('../middleware/async');
 const NotificationService = require('../services/notificationService');
+const emailService = require('../services/emailService');
 
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
@@ -839,7 +840,24 @@ exports.verifyTopup = async (req, res) => {
         console.error("Wallet topup SMS failed:", smsError);
       };
 
-
+      
+       // ✅ EMAIL NOTIFICATION: Send wallet top-up success email
+      setTimeout(async () => {
+        try {
+          const user = await User.findById(userId);
+          if (user) {
+            await emailService.sendWalletTopupSuccess(user, {
+              id: reference,
+              amount: transaction.amount,
+              paymentMethod: 'Paystack',
+              newBalance: wallet.balance,
+              date: new Date()
+            });
+          }
+        } catch (emailError) {
+          console.error('Failed to send wallet top-up email:', emailError);
+        }
+      }, 0);
 
       return res.status(200).json({
         success: true,
@@ -965,7 +983,22 @@ exports.handleWalletWebhook = async (req, res) => {
 
           console.log(`✅ Wallet top-up successful for ${email} (+₦${amount})`);
 
+        
 
+          // ✅ EMAIL NOTIFICATION: Send wallet top-up success email via webhook
+          setTimeout(async () => {
+            try {
+              await emailService.sendWalletTopupSuccess(user, {
+                id: reference,
+                amount: amount,
+                paymentMethod: 'Paystack',
+                newBalance: wallet.balance,
+                date: new Date()
+              });
+            } catch (emailError) {
+              console.error('Failed to send wallet top-up email:', emailError);
+            }
+          }, 0);
 
          // ✅ SMS NOTIFICATION: Send wallet topup success notification via webhook
           try {
@@ -981,6 +1014,7 @@ exports.handleWalletWebhook = async (req, res) => {
             console.error("Webhook wallet topup SMS failed:", smsError);
           }
         }
+        
 
 
         else if (event.event === "charge.failed") {
