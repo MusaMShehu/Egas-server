@@ -17,7 +17,7 @@ const { profileUpload } = require('../middleware/upload');
 
 
 
-router.post('/register', profileUpload.single('image'), register);
+router.post('/register', profileUpload.single('profileImage'), register);
 router.post('/login', login);
 router.get('/logout', logout);
 router.get('/me', protect, getProfile);
