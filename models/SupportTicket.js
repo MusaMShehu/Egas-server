@@ -31,25 +31,73 @@ const supportTicketSchema = new mongoose.Schema({
     default: 'open'
   },
 
-  images: [{
+
+  // Updated images structure for Cloudinary
+    images: [{
         public_id: String,
         url: String,
-        secure_url: String
+        secure_url: String,
+        original_filename: String,
+        format: String,
+        bytes: Number,
+        created_at: String
     }],
-    
-  attachments: [String],
-  responses: [{
-    user: {
-      type: mongoose.Schema.ObjectId,
-      ref: 'User'
+   
+    assignedTo: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
     },
-    message: String,
-    attachments: [String],
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
+    // Updated responses structure
+    responses: [{
+        user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User',
+            required: true
+        },
+        message: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        attachments: [{
+            public_id: String,
+            url: String,
+            secure_url: String,
+            original_filename: String,
+            format: String,
+            bytes: Number,
+            created_at: String
+        }],
+        isAdminResponse: {
+            type: Boolean,
+            default: false
+        },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
+    }],
+
+  // images: [{
+  //       public_id: String,
+  //       url: String,
+  //       secure_url: String
+  //   }],
+    
+  // attachments: [String],
+  // responses: [{
+  //   user: {
+  //     type: mongoose.Schema.ObjectId,
+  //     ref: 'User'
+  //   },
+  //   message: String,
+  //   attachments: [String],
+  //   createdAt: {
+  //     type: Date,
+  //     default: Date.now
+  //   }
+  // }],
+
   createdAt: {
     type: Date,
     default: Date.now
@@ -69,5 +117,12 @@ supportTicketSchema.pre('save', function(next) {
   this.updatedAt = new Date();
   next();
 });
+
+
+//  Index for better query performance
+supportTicketSchema.index({ user: 1, createdAt: -1 });
+supportTicketSchema.index({ status: 1, priority: -1 });
+supportTicketSchema.index({ assignedTo: 1, status: 1 });
+
 
 module.exports = mongoose.model('SupportTicket', supportTicketSchema);

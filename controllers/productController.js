@@ -37,13 +37,29 @@ exports.getProduct = asyncHandler(async (req, res, next) => {
 // @desc    Create product
 // @route   POST /api/v1/products
 // @access  Private/Admin
-exports.createProduct = asyncHandler(async (req, res, next) => {
-  const product = await Product.create(req.body);
+// exports.createProduct = asyncHandler(async (req, res, next) => {
+//   const product = await Product.create(req.body);
 
-  res.status(201).json({
-    success: true,
-    data: product
-  });
+//   res.status(201).json({
+//     success: true,
+//     data: product
+//   });
+// });
+
+
+ exports.createProduct = asyncHandler(async (req, res) => {
+    try {
+        const product = new Product({
+            ...req.body,
+            createdBy: req.userId,
+            images: req.body.images || []
+        });
+        
+        await product.save();
+        res.status(201).json(product);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // @desc    Update product
@@ -72,21 +88,48 @@ exports.updateProduct = asyncHandler(async (req, res, next) => {
 // @desc    Delete product
 // @route   DELETE /api/v1/products/:id
 // @access  Private/Admin
-exports.deleteProduct = asyncHandler(async (req, res, next) => {
-  const product = await Product.findById(req.params.id);
 
-  if (!product) {
-    return next(
-      new ErrorResponse(`No product with the id of ${req.params.id}`, 404)
-    );
-  }
+// exports.deleteProduct = asyncHandler(async (req, res, next) => {
+//   const product = await Product.findById(req.params.id);
 
-  await product.remove();
+//   if (!product) {
+//     return next(
+//       new ErrorResponse(`No product with the id of ${req.params.id}`, 404)
+//     );
+//   }
 
-  res.status(200).json({
-    success: true,
-    data: {}
-  });
+//   await product.remove();
+
+//   res.status(200).json({
+//     success: true,
+//     data: {}
+//   });
+// });
+
+
+
+
+exports.deleteProduct = asyncHandler(async (req, res) => {
+    try {
+        const product = await Product.findById(req.params.productId);
+        
+        if (!product) {
+            return res.status(404).json({ error: 'Product not found' });
+        }
+        
+        // Remove from Cloudinary
+        await cloudinary.uploader.destroy(req.params.publicId);
+        
+        // Remove from product images
+        product.images = product.images.filter(
+            img => img.public_id !== req.params.publicId
+        );
+        
+        await product.save();
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // @desc    Upload photo for product

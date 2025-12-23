@@ -17,9 +17,8 @@ const sendEmail = async ({ to, subject, text, html }) => {
   } catch (error) {
     console.error('SendGrid error:', error.response?.body || error);
     throw error;
-  } else {
-    console.log('Email server is ready to take messages');
   }
+    console.log('Email server is ready to take messages');
 };
 
 module.exports = { sendEmail };
