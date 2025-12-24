@@ -38,8 +38,8 @@ router
 
 // router.put('/picture/:id', protect, upload.single("profilePic"), uploadUserPhoto);
 
-router.post('/upload-profile', protect, profileUpload.single('image'),uploadUserPhoto,);
-router.put('/upload-profile/:id', protect, profileUpload.single('image'),uploadUserPhoto,);
+router.post('/upload-profile', protect, profileUpload.single('profileImage'),uploadUserPhoto,);
+// router.put('/upload-profile/:id', protect, profileUpload.single('profileImage'),uploadUserPhoto,);
 
 router
   .route('/profile')
