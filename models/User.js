@@ -81,7 +81,7 @@ const userSchema = new mongoose.Schema({
         },
         secure_url: {
             type: String,
-            default: 'https://res.cloudinary.com/your-cloud-name/image/upload/v1234567890/default-profile.jpg'
+            default: null
         }
     },
 

@@ -2,9 +2,9 @@ const SupportTicket = require("../../models/SupportTicket");
 const User = require("../../models/User");
 const asyncHandler = require("../../middleware/async");
 const ErrorResponse = require("../../utils/errorResponse");
-// const { uploadToCloudinary } = require('../utils/cloudinary');
 const NotificationService = require("../../services/notificationService");
 const emailService = require("../../services/emailService");
+const cloudinary = require('../../config/cloudinary');
 
 // @desc    Get all support tickets with filtering, sorting, and pagination
 // @route   GET /api/v1/admin/support-tickets
@@ -97,6 +97,82 @@ exports.getSupportTicket = asyncHandler(async (req, res, next) => {
   });
 });
 
+
+// Get Support Ticket with Responses
+// Get Support Ticket with Responses
+// Get Support Ticket with Responses
+// Get Support Ticket with Responses
+exports.getTicketWithResponses = asyncHandler(async (req, res, next) => {
+  try {
+    const ticketId = req.params._id || req.params.id;
+    const ticket = await SupportTicket.findById(ticketId)
+      .populate({
+        path: 'user',
+        select: 'firstName lastName email phone profileImage'
+      })
+      .populate({
+        path: 'responses.user',
+        select: 'firstName lastName email profileImage role'
+      })
+      .populate({
+        path: 'assignedTo',
+        select: 'firstName lastName email'
+      });
+
+    if (!ticket) {
+      return next(
+        new ErrorResponse(`No ticket with the id of ${ticketId}`, 404)
+      );
+    }
+
+    // Check authorization
+    if (ticket.user._id.toString() !== req.user._id && req.user.role !== "admin") {
+      return next(
+        new ErrorResponse(`Not authorized to view this ticket`, 401)
+      );
+    }
+
+    // Format images and attachments for frontend
+    const formattedTicket = {
+      ...ticket.toObject(),
+      images: ticket.images.map(img => ({
+        public_id: img.public_id,
+        url: img.secure_url || img.url,
+        thumbnail: img.secure_url ? cloudinary.url(img.public_id, {
+          width: 200,
+          height: 200,
+          crop: 'fill',
+          quality: 'auto'
+        }) : img.url
+      })),
+      responses: ticket.responses.map(response => ({
+        ...response.toObject(),
+        attachments: response.attachments.map(att => ({
+          public_id: att.public_id,
+          url: att.secure_url || att.url,
+          thumbnail: att.secure_url ? cloudinary.url(att.public_id, {
+            width: 200,
+            height: 200,
+            crop: 'fill',
+            quality: 'auto'
+          }) : att.url
+        }))
+      }))
+    };
+
+    res.status(200).json({
+      success: true,
+      data: formattedTicket
+    });
+
+  } catch (error) {
+    console.error('Error fetching ticket:', error);
+    next(error);
+  }
+});
+
+
+
 // @desc    Update ticket status
 // @route   PATCH /api/v1/admin/support-tickets/:id/status
 // @access  Private/Admin
@@ -162,59 +238,141 @@ exports.updateTicketStatus = asyncHandler(async (req, res, next) => {
 // @desc    Add response to ticket
 // @route   POST /api/v1/admin/support-tickets/:id/respond
 // @access  Private/Admin
+// exports.addResponse = asyncHandler(async (req, res, next) => {
+//   const { message } = req.body;
+//   const adminUser = req.user;
+
+//   if (!message || !message.trim()) {
+//     return next(new ErrorResponse("Response message is required", 400));
+//   }
+
+//   // Handle file uploads
+//   let attachmentUrls = [];
+//   if (req.files && req.files.length > 0) {
+//     for (let file of req.files) {
+//       const uploadResult = await uploadToCloudinary(file);
+//       attachmentUrls.push(uploadResult.secure_url);
+//     }
+//   }
+
+//   const responseData = {
+//     message: message.trim(),
+//     user: adminUser._id,
+//     attachments: attachmentUrls,
+//     createdAt: new Date(),
+//   };
+
+//   const ticket = await SupportTicket.findByIdAndUpdate(
+//     req.params.id,
+//     {
+//       $push: { responses: responseData },
+//       $set: {
+//         updatedAt: new Date(),
+//         // If ticket was closed and admin responds, reopen it
+//         status: "in-progress",
+//       },
+//     },
+//     { new: true, runValidators: true }
+//   )
+//     .populate("user", "firstName lastName email phone")
+//     .populate("responses.user", "firstName lastName email");
+
+//   if (!ticket) {
+//     return next(new ErrorResponse("Support ticket not found", 404));
+//   }
+
+//   // TODO: Send email notification to user about new response
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Response added successfully",
+//     data: {
+//       ticket,
+//     },
+//   });
+// });
+
+
+
+
 exports.addResponse = asyncHandler(async (req, res, next) => {
-  const { message } = req.body;
-  const adminUser = req.user;
+  try {
+    const ticket = await SupportTicket.findById(req.params._id || req.params.id);
 
-  if (!message || !message.trim()) {
-    return next(new ErrorResponse("Response message is required", 400));
-  }
-
-  // Handle file uploads
-  let attachmentUrls = [];
-  if (req.files && req.files.length > 0) {
-    for (let file of req.files) {
-      const uploadResult = await uploadToCloudinary(file);
-      attachmentUrls.push(uploadResult.secure_url);
+    if (!ticket) {
+      return next(
+        new ErrorResponse(`No ticket with the id of ${req.params._id || req.params.id}`, 404)
+      );
     }
+
+    // Only ticket owner or admin can reply
+    if (ticket.user.toString() !== req.user._id && req.user.role !== "admin") {
+      return next(
+        new ErrorResponse(`User ${req.user._id} not authorized to respond`, 401)
+      );
+    }
+
+    // Handle uploaded attachments
+    const attachments = req.files ? req.files.map((file) => ({
+      public_id: file.filename || file.public_id,
+      url: file.path,
+      secure_url: file.path,
+      original_filename: file.originalname,
+      format: file.format,
+      bytes: file.size,
+      created_at: new Date().toISOString()
+    })) : [];
+
+    // Create response object
+    const response = {
+      user: req.user._id,
+      message: req.body.message || '',
+      attachments: attachments,
+      isAdminResponse: req.user.role === "admin",
+      createdAt: Date.now()
+    };
+
+    // If admin replies and ticket is "open", move it to "in-progress"
+    if (req.user.role === "admin" && ticket.status === "open") {
+      ticket.status = "in-progress";
+      ticket.assignedTo = req.user._id;
+    }
+
+    // Push response to ticket
+    ticket.responses.push(response);
+    ticket.updatedAt = Date.now();
+
+    await ticket.save();
+
+    // Populate user details for response
+    await ticket.populate({
+      path: 'responses.user',
+      select: 'firstName lastName email profileImage role'
+    });
+
+    // Get the newly added response
+    const newResponse = ticket.responses[ticket.responses.length - 1];
+
+    res.status(200).json({
+      success: true,
+      message: 'Response added successfully',
+      data: {
+        response: newResponse,
+        ticket: {
+          _id: ticket._id,
+          status: ticket.status,
+          updatedAt: ticket.updatedAt
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Error adding response:', error);
+    next(error);
   }
-
-  const responseData = {
-    message: message.trim(),
-    user: adminUser._id,
-    attachments: attachmentUrls,
-    createdAt: new Date(),
-  };
-
-  const ticket = await SupportTicket.findByIdAndUpdate(
-    req.params.id,
-    {
-      $push: { responses: responseData },
-      $set: {
-        updatedAt: new Date(),
-        // If ticket was closed and admin responds, reopen it
-        status: "in-progress",
-      },
-    },
-    { new: true, runValidators: true }
-  )
-    .populate("user", "firstName lastName email phone")
-    .populate("responses.user", "firstName lastName email");
-
-  if (!ticket) {
-    return next(new ErrorResponse("Support ticket not found", 404));
-  }
-
-  // TODO: Send email notification to user about new response
-
-  res.status(200).json({
-    success: true,
-    message: "Response added successfully",
-    data: {
-      ticket,
-    },
-  });
 });
+
+
 
 // @desc    Get ticket statistics
 // @route   GET /api/v1/admin/support-tickets/stats/overview
@@ -325,113 +483,211 @@ exports.getTicketStats = asyncHandler(async (req, res, next) => {
 // @desc    Create new support ticket (Admin can create on behalf of user)
 // @route   POST /api/v1/admin/support-tickets
 // @access  Private/Admin
+// exports.createSupportTicket = asyncHandler(async (req, res, next) => {
+//   const {
+//     userId,
+//     subject,
+//     description,
+//     category = "other",
+//     priority = "medium",
+//   } = req.body;
+
+//   // Validate required fields
+//   if (!userId || !subject || !description) {
+//     return next(
+//       new ErrorResponse("User ID, subject, and description are required", 400)
+//     );
+//   }
+
+//   // Check if user exists
+//   const user = await User.findById(userId);
+//   if (!user) {
+//     return next(new ErrorResponse("User not found", 404));
+//   }
+
+//   // Handle file uploads for initial ticket
+//   let attachmentUrls = [];
+//   if (req.files && req.files.length > 0) {
+//     for (let file of req.files) {
+//       const uploadResult = await uploadToCloudinary(file);
+//       attachmentUrls.push(uploadResult.secure_url);
+//     }
+//   }
+
+//   // Create ticket
+//   const ticket = await SupportTicket.create({
+//     user: userId,
+//     subject,
+//     description,
+//     category,
+//     priority,
+//     attachments: attachmentUrls,
+//   });
+
+//   const populatedTicket = await SupportTicket.findById(ticket._id)
+//     .populate("user", "firstName lastName email phone")
+//     .populate("responses.user", "firstName lastName email");
+
+//   // ✅ SMS NOTIFICATION: Send ticket created notification to user
+//   try {
+//     const user = await User.findById(req.user._id);
+//     if (user && user.phone && user.phoneVerified) {
+//       await NotificationService.sendNotification(
+//         user.phone,
+//         `Support ticket #${
+//           ticket.ticketNumber || ticket._id
+//         } created successfully. Subject: "${subject}". We'll get back to you soon.`,
+//         "support_ticket_created",
+//         {
+//           userId: user._id,
+//           ticketId: ticket._id,
+//           ticketNumber:
+//             ticket.ticketNumber || `TKT-${ticket._id.toString().slice(-6)}`,
+//           subject: subject,
+//           category: category,
+//         }
+//       );
+//     }
+//   } catch (smsError) {
+//     console.error("Ticket creation SMS failed:", smsError);
+//     // Don't fail ticket creation if SMS fails
+//   }
+
+//   // ✅ SMS NOTIFICATION: Send alert to admins about new ticket (optional)
+//   try {
+//     if (process.env.SEND_ADMIN_ALERTS === "true") {
+//       const admins = await User.find({
+//         role: "admin",
+//         phoneVerified: true,
+//       }).select("phone");
+//       const adminPhones = admins
+//         .filter((admin) => admin.phone)
+//         .map((admin) => admin.phone);
+
+//       if (adminPhones.length > 0) {
+//         const user = await User.findById(req.user._id).select(
+//           "firstName lastName"
+//         );
+//         const userName = user ? `${user.firstName} ${user.lastName}` : "A user";
+
+//         await NotificationService.sendBulkPromotionalSMS(
+//           adminPhones,
+//           `📢 New Support Ticket! ${userName} created ticket #${
+//             ticket.ticketNumber || ticket._id
+//           }: "${subject}" (${category})`
+//         );
+//       }
+//     }
+//   } catch (adminSmsError) {
+//     console.error("Admin alert SMS failed:", adminSmsError);
+//   }
+
+//   res.status(201).json({
+//     success: true,
+//     message: "Support ticket created successfully",
+//     data: {
+//       ticket: populatedTicket,
+//     },
+//   });
+// });
+
+
+
+
 exports.createSupportTicket = asyncHandler(async (req, res, next) => {
-  const {
-    userId,
-    subject,
-    description,
-    category = "other",
-    priority = "medium",
-  } = req.body;
-
-  // Validate required fields
-  if (!userId || !subject || !description) {
-    return next(
-      new ErrorResponse("User ID, subject, and description are required", 400)
-    );
-  }
-
-  // Check if user exists
-  const user = await User.findById(userId);
-  if (!user) {
-    return next(new ErrorResponse("User not found", 404));
-  }
-
-  // Handle file uploads for initial ticket
-  let attachmentUrls = [];
-  if (req.files && req.files.length > 0) {
-    for (let file of req.files) {
-      const uploadResult = await uploadToCloudinary(file);
-      attachmentUrls.push(uploadResult.secure_url);
-    }
-  }
-
-  // Create ticket
-  const ticket = await SupportTicket.create({
-    user: userId,
-    subject,
-    description,
-    category,
-    priority,
-    attachments: attachmentUrls,
-  });
-
-  const populatedTicket = await SupportTicket.findById(ticket._id)
-    .populate("user", "firstName lastName email phone")
-    .populate("responses.user", "firstName lastName email");
-
-  // ✅ SMS NOTIFICATION: Send ticket created notification to user
   try {
-    const user = await User.findById(req.user._id);
-    if (user && user.phone && user.phoneVerified) {
-      await NotificationService.sendNotification(
-        user.phone,
-        `Support ticket #${
-          ticket.ticketNumber || ticket._id
-        } created successfully. Subject: "${subject}". We'll get back to you soon.`,
-        "support_ticket_created",
-        {
-          userId: user._id,
-          ticketId: ticket._id,
-          ticketNumber:
-            ticket.ticketNumber || `TKT-${ticket._id.toString().slice(-6)}`,
-          subject: subject,
-          category: category,
-        }
-      );
+    const { subject, description, category } = req.body;
+    
+    if (!req.user || !req.user._id) {
+      return next(new ErrorResponse("Not authorized to create a ticket", 401));
     }
-  } catch (smsError) {
-    console.error("Ticket creation SMS failed:", smsError);
-    // Don't fail ticket creation if SMS fails
-  }
 
-  // ✅ SMS NOTIFICATION: Send alert to admins about new ticket (optional)
-  try {
-    if (process.env.SEND_ADMIN_ALERTS === "true") {
-      const admins = await User.find({
-        role: "admin",
-        phoneVerified: true,
-      }).select("phone");
-      const adminPhones = admins
-        .filter((admin) => admin.phone)
-        .map((admin) => admin.phone);
+    // Validate required fields
+    if (!subject || !description || !category) {
+      return next(new ErrorResponse("Subject, description and category are required", 400));
+    }
 
-      if (adminPhones.length > 0) {
-        const user = await User.findById(req.user._id).select(
-          "firstName lastName"
-        );
-        const userName = user ? `${user.firstName} ${user.lastName}` : "A user";
+    // Handle uploaded images
+    const images = req.files ? req.files.map((file) => ({
+      public_id: file.filename || file.public_id,
+      url: file.path,
+      secure_url: file.path,
+      original_filename: file.originalname,
+      format: file.format,
+      bytes: file.size,
+      created_at: new Date().toISOString()
+    })) : [];
 
-        await NotificationService.sendBulkPromotionalSMS(
-          adminPhones,
-          `📢 New Support Ticket! ${userName} created ticket #${
-            ticket.ticketNumber || ticket._id
-          }: "${subject}" (${category})`
+    // Create ticket data
+    const ticketData = {
+      user: req.user._id,
+      subject,
+      description,
+      category,
+      images
+    };
+
+    const ticket = await SupportTicket.create(ticketData);
+
+    // Populate user info
+    await ticket.populate('user', 'firstName lastName email phone');
+
+    // ✅ SMS NOTIFICATION: Send ticket created notification to user
+    try {
+      const user = await User.findById(req.user._id);
+      if (user && user.phone && user.phoneVerified) {
+        await NotificationService.sendNotification(
+          user.phone,
+          `Support ticket #${ticket.ticketId} created successfully. Subject: "${subject}". We'll get back to you soon.`,
+          "support_ticket_created",
+          {
+            userId: user._id,
+            ticketId: ticket._id,
+            ticketNumber: ticket.ticketId,
+            subject: subject,
+            category: category,
+          }
         );
       }
+    } catch (smsError) {
+      console.error("Ticket creation SMS failed:", smsError);
     }
-  } catch (adminSmsError) {
-    console.error("Admin alert SMS failed:", adminSmsError);
-  }
 
-  res.status(201).json({
-    success: true,
-    message: "Support ticket created successfully",
-    data: {
-      ticket: populatedTicket,
-    },
-  });
+    // ✅ SMS NOTIFICATION: Send alert to admins about new ticket
+    try {
+      if (process.env.SEND_ADMIN_ALERTS === "true") {
+        const admins = await User.find({
+          role: "admin",
+          phoneVerified: true,
+        }).select("phone");
+        const adminPhones = admins
+          .filter((admin) => admin.phone)
+          .map((admin) => admin.phone);
+
+        if (adminPhones.length > 0) {
+          const userName = user ? `${user.firstName} ${user.lastName}` : "A user";
+          await NotificationService.sendBulkPromotionalSMS(
+            adminPhones,
+            `📢 New Support Ticket! ${userName} created ticket #${ticket.ticketId}: "${subject}" (${category})`
+          );
+        }
+      }
+    } catch (adminSmsError) {
+      console.error("Admin alert SMS failed:", adminSmsError);
+    }
+
+    res.status(201).json({
+      success: true,
+      data: ticket
+    });
+
+  } catch (error) {
+    console.error('Error creating ticket:', error);
+    next(error);
+  }
 });
+
+
 
 // @desc    Delete support ticket
 // @route   DELETE /api/v1/admin/support-tickets/:id
