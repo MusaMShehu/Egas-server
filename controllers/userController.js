@@ -192,33 +192,104 @@ exports.getUserDashboardStats = asyncHandler(async (req, res, next) => {
 
 
 
-// Upload profile image
+
+
+
+
+
+
 exports.uploadUserPhoto = async (req, res) => {
-    try {
-        const user = await User.findById(req.userId);
-        
-        // Delete old image if exists
-        if (user.profileImage?.public_id) {
-            await cloudinary.uploader.destroy(user.profileImage.public_id);
-        }
-        
-        // Update user with new image
-        user.profileImage = {
-            public_id: req.file.public_id,
-            url: req.file.path,
-            secure_url: req.file.path.replace('http://', 'https://')
-        };
-        
-        await user.save();
-        
-        res.json({
-            success: true,
-            imageUrl: user.profileImage.secure_url
-        });
-    } catch (error) {
-        res.status(500).json({ error: error.message });
+  try {
+    // ✅ FIX 1: correct user lookup
+    const user = await User.findById(req.user.id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'Authenticated user not found'
+      });
     }
+
+    // 🗑 DELETE profile image (when no file is sent)
+    if (!req.file) {
+      if (user.profileImage?.public_id) {
+        await cloudinary.uploader.destroy(user.profileImage.public_id);
+      }
+
+      user.profileImage = {
+        public_id: '',
+        url: '',
+        secure_url: ''
+      };
+
+      await user.save();
+
+      return res.json({
+        success: true,
+        message: 'Profile image removed'
+      });
+    }
+
+    // 🔁 Delete old image if exists
+    if (user.profileImage?.public_id) {
+      await cloudinary.uploader.destroy(user.profileImage.public_id);
+    }
+
+    // 📸 Save new image
+    user.profileImage = {
+      public_id: req.file.filename || req.file.public_id,
+      url: req.file.path,
+      secure_url: req.file.path.startsWith('https')
+        ? req.file.path
+        : req.file.path.replace('http://', 'https://')
+    };
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      imageUrl: user.profileImage.secure_url,
+      public_id: user.profileImage.public_id
+    });
+
+  } catch (error) {
+    console.error('uploadUserPhoto error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
 };
+
+
+
+// Upload profile image
+// exports.uploadUserPhoto = async (req, res) => {
+//     try {
+//         const user = await User.findById(req.userId);
+        
+//         // Delete old image if exists
+//         if (user.profileImage?.public_id) {
+//             await cloudinary.uploader.destroy(user.profileImage.public_id);
+//         }
+        
+//         // Update user with new image
+//         user.profileImage = {
+//             public_id: req.file.public_id,
+//             url: req.file.path,
+//             secure_url: req.file.path.replace('http://', 'https://')
+//         };
+        
+//         await user.save();
+        
+//         res.json({
+//             success: true,
+//             imageUrl: user.profileImage.secure_url
+//         });
+//     } catch (error) {
+//         res.status(500).json({ error: error.message });
+//     }
+// };
 
 // Get user profile
 // router.get('/profile', auth, 
