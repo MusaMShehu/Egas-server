@@ -47,35 +47,37 @@ app.use(cors({origin:"*"}));
 // ===============================
 // ✅ Enhanced and Safe CORS Setup
 // ===============================
-// const allowedOrigins = [
-//   "http://localhost:3000",
-//   "https://egas-nigeria.netlify.app",
-//   "https://egas-ng.onrender.com"
-// ];
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "https://egas-nigeria.netlify.app",
+  "https://egas-ng.onrender.com",
+  "https://www.egas.com.ng"
+];
 
-// app.use((req, res, next) => {
-//   const origin = req.headers.origin;
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
 
-//   if (allowedOrigins.includes(origin)) {
-//     res.setHeader("Access-Control-Allow-Origin", origin);
-//   }
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+  }
 
-//   res.setHeader(
-//     "Access-Control-Allow-Methods",
-//     "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-//   );
-//   res.setHeader(
-//     "Access-Control-Allow-Headers",
-//     "Content-Type, Authorization, x-requested-with"
-//   );
-//   res.setHeader("Access-Control-Allow-Credentials", "true");
+  res.setHeader(
+    "Access-Control-Allow-Methods",
+    "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+  );
+  res.setHeader(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, x-requested-with"
+  );
+  res.setHeader("Access-Control-Allow-Credentials", "true");
 
-//   if (req.method === "OPTIONS") {
-//     return res.sendStatus(200);
-//   }
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
 
-//   next();
-// });
+  next();
+});
 
 // ===============================
 // ✅ Body Parsing Middleware
