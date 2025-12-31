@@ -781,7 +781,7 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
 // @desc    Request delivery of accumulated remnant
 // @route   POST /api/v1/deliveries/remnant/request-delivery
 // @access  Private
-eexports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
+exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
   const { requestedKg, deliveryDate, address, notes } = req.body;
 
