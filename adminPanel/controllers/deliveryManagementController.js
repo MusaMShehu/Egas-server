@@ -269,14 +269,14 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
     }
   );
 
-  // If this is a one-time remnant delivery, mark subscription as completed
+  // If this is a one-time remnant delivery, mark subscription as expired
   if (delivery.isOneTimeRemnantDelivery && delivery.subscriptionId) {
     await Subscription.findByIdAndUpdate(
       delivery.subscriptionId,
       {
-        status: "completed",
-        endDate: new Date(),
-        completedAt: new Date()
+        status: "expired",
+        expiredAt: new Date(),
+        endDate: new Date() // Set end date to now
       }
     );
   }
@@ -319,7 +319,41 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
   delivery.agentNotes = notes;
   await delivery.save();
 
-  // Create new delivery order for next day
+  // Handle remnant deliveries differently
+  if (delivery.isOneTimeRemnantDelivery) {
+    // Return the remnant kg to the user's balance
+    const remnant = await Remnant.findOne({ _id: delivery.remnantId });
+    if (remnant) {
+      remnant.accumulatedKg += delivery.requestedKg;
+      if (remnant.status === "completed") {
+        remnant.status = "active";
+      }
+      await remnant.save();
+    }
+
+    // Mark the one-time subscription as cancelled
+    if (delivery.subscriptionId) {
+      await Subscription.findByIdAndUpdate(
+        delivery.subscriptionId,
+        {
+          status: "cancelled",
+          cancelledAt: new Date()
+        }
+      );
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Remnant delivery marked as failed. Remnant balance restored.",
+      data: {
+        failedOrder: delivery,
+        remnantBalanceRestored: delivery.requestedKg,
+        note: "Customer needs to request a new remnant delivery"
+      },
+    });
+  }
+
+  // Original logic for regular deliveries
   const newDeliveryDate = new Date();
   newDeliveryDate.setDate(newDeliveryDate.getDate() + 1);
 
@@ -747,7 +781,7 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
 // @desc    Request delivery of accumulated remnant
 // @route   POST /api/v1/deliveries/remnant/request-delivery
 // @access  Private
-exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
+eexports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
   const { requestedKg, deliveryDate, address, notes } = req.body;
 
@@ -768,19 +802,46 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Cannot request more than ${remnant.accumulatedKg}kg available`, 400));
   }
 
-  // Create a one-time subscription for this remnant delivery
+  // Get user details for subscription
+  const user = await User.findById(userId);
+  if (!user) {
+    return next(new ErrorResponse("User not found", 404));
+  }
+
+  // Generate unique reference
+  const reference = `REMNANT-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  // Create a one-time subscription for this remnant delivery with ALL required fields
   const oneTimeSubscription = await Subscription.create({
     userId: userId,
     planName: `Remnant Gas Delivery - ${requestedKg}kg`,
+    planType: "one-time",
     size: `${requestedKg}kg`,
     frequency: "One-Time",
+    subscriptionPeriod: 1, 
     price: 0,
+    reference: reference,
+    order: null, 
     status: "active",
+    paymentStatus: "completed",
+    isPaid: true,
+    paidAt: new Date(),
+    paymentMethod: "wallet",
     startDate: new Date(),
-    endDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Expires in 24 hours
+    endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Required - expires in 30 days
+    // Optional fields with defaults
+    deliveries: [],
+    customPlanDetails: {
+      size: `${requestedKg}kg`,
+      frequency: "One-Time",
+      subscriptionPeriod: 1
+    },
     isRemnantSubscription: true,
     remnantId: remnant._id,
-    // Add any other required fields from your Subscription model
+    // Other fields that might need values
+    remainingDuration: 1,
+    remainingDays: 1,
+    pauseHistory: []
   });
 
   // Create remnant delivery order
@@ -790,9 +851,9 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     deliveryDate: deliveryDate || new Date(),
     scheduledDate: new Date(),
     status: "pending",
-    address: address || req.user.address,
-    customerPhone: req.user.phone,
-    customerName: `${req.user.firstName} ${req.user.lastName}`,
+    address: address || user.address,
+    customerPhone: user.phone,
+    customerName: `${user.firstName} ${user.lastName}`,
     planDetails: {
       planName: "Remnant Gas Delivery",
       size: `${requestedKg}kg`,
@@ -804,8 +865,16 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     remnantId: remnant._id,
     requestedKg: requestedKg,
     customerNotes: notes || "",
-    isOneTimeRemnantDelivery: true // Add this flag
+    isOneTimeRemnantDelivery: true
   });
+
+  // Add delivery to subscription's deliveries array
+  await Subscription.findByIdAndUpdate(
+    oneTimeSubscription._id,
+    {
+      $push: { deliveries: delivery._id }
+    }
+  );
 
   // Deduct from remnant
   remnant.accumulatedKg -= requestedKg;
@@ -816,7 +885,8 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
   remnant.deliveredFromRemnant += requestedKg;
   
   // If remnant reaches 0, mark as completed
-  if (remnant.accumulatedKg === 0) {
+  if (remnant.accumulatedKg <= 0) {
+    remnant.accumulatedKg = 0;
     remnant.status = "completed";
   }
   
@@ -834,7 +904,11 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     message: "Remnant delivery requested successfully",
     data: {
       delivery,
-      subscription: oneTimeSubscription,
+      subscription: {
+        _id: oneTimeSubscription._id,
+        reference: oneTimeSubscription.reference,
+        planName: oneTimeSubscription.planName
+      },
       remainingAccumulated: remnant.accumulatedKg
     }
   });
