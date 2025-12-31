@@ -1,148 +1,294 @@
 // controllers/adminSubscriptionController.js
-const Subscription = require('../../models/Subscription');
-const User = require('../../models/User');
-const Order = require('../../models/Order');
-const ErrorResponse = require('../../utils/errorResponse');
-const asyncHandler = require('../../middleware/async');
-const mongoose = require('mongoose');
-const NotificationService = require('../../services/notificationService');
+const Subscription = require("../../models/Subscription");
+const User = require("../../models/User");
+const Order = require("../../models/Order");
+const ErrorResponse = require("../../utils/errorResponse");
+const asyncHandler = require("../../middleware/async");
+const mongoose = require("mongoose");
+const NotificationService = require("../../services/notificationService");
 
 // @desc    Get all subscriptions (Admin)
 // @route   GET /api/v1/admin/subscriptions
 // @access  Private/Admin
-exports.getSubscriptions = asyncHandler(async (req, res, next) => {
-  // Build query
-  let query;
-  let queryStr = JSON.stringify({ ...req.query });
-  queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
-  
-  query = Subscription.find(JSON.parse(queryStr))
-    .populate('userId', 'firstName lastName email phone address')
-    .populate('order', 'orderId orderStatus totalAmount')
-    .populate('deliveries', 'orderId orderStatus createdAt');
+// exports.getSubscriptions = asyncHandler(async (req, res, next) => {
+//   // Build query
+//   let query;
+//   let queryStr = JSON.stringify({ ...req.query });
+//   queryStr = queryStr.replace(/\b(gt|gte|lt|lte|in)\b/g, match => `$${match}`);
 
-  // Select fields
+//   query = Subscription.find(JSON.parse(queryStr))
+//     .populate('userId', 'firstName lastName email phone address')
+//     .populate('order', 'orderId orderStatus totalAmount')
+//     .populate('deliveries', 'orderId orderStatus createdAt');
+
+//   // Select fields
+//   if (req.query.select) {
+//     const fields = req.query.select.split(',').join(' ');
+//     query = query.select(fields);
+//   }
+
+//   // Sort
+//   if (req.query.sort) {
+//     const sortBy = req.query.sort.split(',').join(' ');
+//     query = query.sort(sortBy);
+//   } else {
+//     query = query.sort('-createdAt');
+//   }
+
+//   // Pagination
+//   const page = parseInt(req.query.page, 10) || 1;
+//   const limit = parseInt(req.query.limit, 10) || 25;
+//   const startIndex = (page - 1) * limit;
+//   const endIndex = page * limit;
+//   const total = await Subscription.countDocuments(JSON.parse(queryStr));
+
+//   query = query.skip(startIndex).limit(limit);
+
+//   // Execute query
+//   const subscriptions = await query;
+
+//   // Pagination result
+//   const pagination = {};
+//   if (endIndex < total) {
+//     pagination.next = {
+//       page: page + 1,
+//       limit
+//     };
+//   }
+//   if (startIndex > 0) {
+//     pagination.prev = {
+//       page: page - 1,
+//       limit
+//     };
+//   }
+
+//   // Advanced filtering for search
+//   let filteredSubscriptions = subscriptions;
+
+//   // Search functionality
+//   if (req.query.search) {
+//     const searchRegex = new RegExp(req.query.search, 'i');
+//     filteredSubscriptions = subscriptions.filter(sub =>
+//       sub.planName?.match(searchRegex) ||
+//       sub.userId?.firstName?.match(searchRegex) ||
+//       sub.userId?.lastName?.match(searchRegex) ||
+//       sub.userId?.email?.match(searchRegex) ||
+//       sub.reference?.match(searchRegex) ||
+//       sub._id.toString().match(searchRegex)
+//     );
+//   }
+
+//   // Status filter
+//   if (req.query.status && req.query.status !== 'all') {
+//     filteredSubscriptions = filteredSubscriptions.filter(
+//       sub => sub.status === req.query.status
+//     );
+//   }
+
+//   // Plan type filter
+//   if (req.query.planType && req.query.planType !== 'all') {
+//     filteredSubscriptions = filteredSubscriptions.filter(
+//       sub => sub.planType === req.query.planType
+//     );
+//   }
+
+//   // Frequency filter
+//   if (req.query.frequency && req.query.frequency !== 'all') {
+//     filteredSubscriptions = filteredSubscriptions.filter(
+//       sub => sub.frequency === req.query.frequency
+//     );
+//   }
+
+//   // Size filter
+//   if (req.query.size && req.query.size !== 'all') {
+//     filteredSubscriptions = filteredSubscriptions.filter(
+//       sub => sub.size === req.query.size
+//     );
+//   }
+
+//   // Date range filter
+//   if (req.query.startDate || req.query.endDate) {
+//     filteredSubscriptions = filteredSubscriptions.filter(sub => {
+//       const subDate = new Date(sub.createdAt);
+//       let valid = true;
+
+//       if (req.query.startDate) {
+//         const startDate = new Date(req.query.startDate);
+//         valid = valid && subDate >= startDate;
+//       }
+
+//       if (req.query.endDate) {
+//         const endDate = new Date(req.query.endDate);
+//         valid = valid && subDate <= endDate;
+//       }
+
+//       return valid;
+//     });
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     count: filteredSubscriptions.length,
+//     pagination,
+//     total,
+//     data: filteredSubscriptions
+//   });
+// });
+
+exports.getSubscriptions = asyncHandler(async (req, res, next) => {
+  // 1. Build the base query object
+  let queryObj = { ...req.query };
+
+  // Remove special query parameters that aren't Subscription fields
+  const removeFields = [
+    "select",
+    "sort",
+    "page",
+    "limit",
+    "search",
+    "startDate",
+    "endDate",
+  ];
+  removeFields.forEach((param) => delete queryObj[param]);
+
+  // Convert query string to MongoDB operators
+  let queryStr = JSON.stringify(queryObj);
+  queryStr = queryStr.replace(
+    /\b(gt|gte|lt|lte|in)\b/g,
+    (match) => `$${match}`
+  );
+
+  // Parse back to object
+  let query = Subscription.find(JSON.parse(queryStr));
+
+  // 2. ADD SEARCH FUNCTIONALITY AT DATABASE LEVEL
+  if (req.query.search) {
+    const searchRegex = new RegExp(req.query.search, "i");
+    query = query.find({
+      $or: [
+        { planName: { $regex: searchRegex } },
+        { reference: { $regex: searchRegex } },
+        { "userId.firstName": { $regex: searchRegex } },
+        { "userId.lastName": { $regex: searchRegex } },
+        { "userId.email": { $regex: searchRegex } },
+      ],
+    });
+  }
+
+  // 3. ADD DATE RANGE FILTER AT DATABASE LEVEL
+  if (req.query.startDate || req.query.endDate) {
+    const dateFilter = {};
+    if (req.query.startDate) {
+      dateFilter.$gte = new Date(req.query.startDate);
+    }
+    if (req.query.endDate) {
+      dateFilter.$lte = new Date(req.query.endDate);
+    }
+    query = query.find({ createdAt: dateFilter });
+  }
+
+  // 4. ADD OTHER FILTERS AT DATABASE LEVEL
+  const dbFilters = ["status", "planType", "frequency", "size"];
+  dbFilters.forEach((filter) => {
+    if (req.query[filter] && req.query[filter] !== "all") {
+      query = query.find({ [filter]: req.query[filter] });
+    }
+  });
+
+  // 5. Get total count AFTER all filters are applied
+  const totalQuery = query.model.find().merge(query);
+  const total = await totalQuery.countDocuments();
+
+  // 6. Populate and select fields
+  query = query
+    .populate({
+      path: "userId",
+      select: "firstName lastName email phone address",
+    })
+    .populate({
+      path: "order",
+      select: "orderId orderStatus totalAmount",
+    })
+    .populate({
+      path: "deliveries",
+      select: "orderId orderStatus createdAt",
+    });
+
+  // 7. Select specific fields
   if (req.query.select) {
-    const fields = req.query.select.split(',').join(' ');
+    const fields = req.query.select.split(",").join(" ");
     query = query.select(fields);
   }
 
-  // Sort
+  // 8. Sort
   if (req.query.sort) {
-    const sortBy = req.query.sort.split(',').join(' ');
+    const sortBy = req.query.sort.split(",").join(" ");
     query = query.sort(sortBy);
   } else {
-    query = query.sort('-createdAt');
+    query = query.sort("-createdAt");
   }
 
-  // Pagination
+  // 9. Pagination
   const page = parseInt(req.query.page, 10) || 1;
   const limit = parseInt(req.query.limit, 10) || 25;
   const startIndex = (page - 1) * limit;
   const endIndex = page * limit;
-  const total = await Subscription.countDocuments(JSON.parse(queryStr));
 
   query = query.skip(startIndex).limit(limit);
 
-  // Execute query
+  // 10. Execute query
   const subscriptions = await query;
 
-  // Pagination result
+  // 11. Pagination result
   const pagination = {};
   if (endIndex < total) {
     pagination.next = {
       page: page + 1,
-      limit
+      limit,
     };
   }
   if (startIndex > 0) {
     pagination.prev = {
       page: page - 1,
-      limit
+      limit,
     };
   }
 
-  // Advanced filtering for search
-  let filteredSubscriptions = subscriptions;
-  
-  // Search functionality
-  if (req.query.search) {
-    const searchRegex = new RegExp(req.query.search, 'i');
-    filteredSubscriptions = subscriptions.filter(sub => 
-      sub.planName?.match(searchRegex) ||
-      sub.userId?.firstName?.match(searchRegex) ||
-      sub.userId?.lastName?.match(searchRegex) ||
-      sub.userId?.email?.match(searchRegex) ||
-      sub.reference?.match(searchRegex) ||
-      sub._id.toString().match(searchRegex)
-    );
-  }
-
-  // Status filter
-  if (req.query.status && req.query.status !== 'all') {
-    filteredSubscriptions = filteredSubscriptions.filter(
-      sub => sub.status === req.query.status
-    );
-  }
-
-  // Plan type filter
-  if (req.query.planType && req.query.planType !== 'all') {
-    filteredSubscriptions = filteredSubscriptions.filter(
-      sub => sub.planType === req.query.planType
-    );
-  }
-
-  // Frequency filter
-  if (req.query.frequency && req.query.frequency !== 'all') {
-    filteredSubscriptions = filteredSubscriptions.filter(
-      sub => sub.frequency === req.query.frequency
-    );
-  }
-
-  // Size filter
-  if (req.query.size && req.query.size !== 'all') {
-    filteredSubscriptions = filteredSubscriptions.filter(
-      sub => sub.size === req.query.size
-    );
-  }
-
-  // Date range filter
-  if (req.query.startDate || req.query.endDate) {
-    filteredSubscriptions = filteredSubscriptions.filter(sub => {
-      const subDate = new Date(sub.createdAt);
-      let valid = true;
-      
-      if (req.query.startDate) {
-        const startDate = new Date(req.query.startDate);
-        valid = valid && subDate >= startDate;
-      }
-      
-      if (req.query.endDate) {
-        const endDate = new Date(req.query.endDate);
-        valid = valid && subDate <= endDate;
-      }
-      
-      return valid;
-    });
-  }
+  //   res.status(200).json({
+  //     success: true,
+  //     count: subscriptions.length,
+  //     pagination,
+  //     total,
+  //     data: subscriptions
+  //   });
+  // });
 
   res.status(200).json({
     success: true,
-    count: filteredSubscriptions.length,
-    pagination,
-    total,
-    data: filteredSubscriptions
+    count: subscriptions.length, // Current page count
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page * limit < total,
+      hasPrev: startIndex > 0,
+    },
+    total, // Total count across all pages
+    data: subscriptions,
   });
 });
-
 // @desc    Get single subscription (Admin)
 // @route   GET /api/v1/admin/subscriptions/:id
 // @access  Private/Admin
 exports.getSubscription = asyncHandler(async (req, res, next) => {
   const subscription = await Subscription.findById(req.params.id)
-    .populate('userId', 'firstName lastName email phone address')
-    .populate('order', 'orderId orderStatus totalAmount paymentStatus')
-    .populate('deliveries', 'orderId orderStatus totalAmount createdAt deliveredAt');
+    .populate("userId", "firstName lastName email phone address")
+    .populate("order", "orderId orderStatus totalAmount paymentStatus")
+    .populate(
+      "deliveries",
+      "orderId orderStatus totalAmount createdAt deliveredAt"
+    );
 
   if (!subscription) {
     return next(
@@ -152,7 +298,7 @@ exports.getSubscription = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: subscription
+    data: subscription,
   });
 });
 
@@ -164,52 +310,64 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
   req.body.createdBy = req.user.id;
 
   // Validate required fields
-  const requiredFields = ['userId', 'planName', 'frequency', 'price', 'startDate'];
-  const missingFields = requiredFields.filter(field => !req.body[field]);
-  
+  const requiredFields = [
+    "userId",
+    "planName",
+    "frequency",
+    "price",
+    "startDate",
+  ];
+  const missingFields = requiredFields.filter((field) => !req.body[field]);
+
   if (missingFields.length > 0) {
     return next(
-      new ErrorResponse(`Missing required fields: ${missingFields.join(', ')}`, 400)
+      new ErrorResponse(
+        `Missing required fields: ${missingFields.join(", ")}`,
+        400
+      )
     );
   }
 
   // Validate user exists
   const user = await User.findById(req.body.userId);
   if (!user) {
-    return next(new ErrorResponse(`User not found with id ${req.body.userId}`, 404));
+    return next(
+      new ErrorResponse(`User not found with id ${req.body.userId}`, 404)
+    );
   }
 
   // Calculate end date if not provided
   if (!req.body.endDate && req.body.startDate) {
-    req.body.endDate = calculateEndDate(req.body.startDate, req.body.frequency, req.body.subscriptionPeriod);
+    req.body.endDate = calculateEndDate(
+      req.body.startDate,
+      req.body.frequency,
+      req.body.subscriptionPeriod
+    );
   }
 
   // Set status to active for admin-created subscriptions
-  req.body.status = 'active';
+  req.body.status = "active";
 
   const subscription = await Subscription.create(req.body);
 
   // Populate the created subscription
-  await subscription.populate('userId', 'firstName lastName email phone');
-  await subscription.populate('createdBy', 'name email');
-
-
+  await subscription.populate("userId", "firstName lastName email phone");
+  await subscription.populate("createdBy", "name email");
 
   // ✅ SMS NOTIFICATION: Send subscription created notification
-try {
-  const user = await User.findById(userId);
-  // if (user && user.phone && user.phoneVerified) {
+  try {
+    const user = await User.findById(userId);
+    // if (user && user.phone && user.phoneVerified) {
     await NotificationService.sendSubscriptionCreated(subscription, user);
-  // }
-} catch (smsError) {
-  console.error("Subscription creation SMS failed:", smsError);
-  // Don't fail the subscription creation if SMS fails
-};
-
+    // }
+  } catch (smsError) {
+    console.error("Subscription creation SMS failed:", smsError);
+    // Don't fail the subscription creation if SMS fails
+  }
 
   res.status(201).json({
     success: true,
-    data: subscription
+    data: subscription,
   });
 });
 
@@ -227,45 +385,56 @@ exports.updateSubscription = asyncHandler(async (req, res, next) => {
 
   // Update allowed fields
   const allowedUpdates = [
-    'planName', 'planType', 'size', 'frequency', 'subscriptionPeriod', 
-    'price', 'status', 'startDate', 'endDate', 'customPlanDetails'
+    "planName",
+    "planType",
+    "size",
+    "frequency",
+    "subscriptionPeriod",
+    "price",
+    "status",
+    "startDate",
+    "endDate",
+    "customPlanDetails",
   ];
-  
+
   const updates = Object.keys(req.body);
-  const isValidOperation = updates.every(update => allowedUpdates.includes(update));
-  
+  const isValidOperation = updates.every((update) =>
+    allowedUpdates.includes(update)
+  );
+
   if (!isValidOperation) {
-    return next(new ErrorResponse('Invalid updates!', 400));
+    return next(new ErrorResponse("Invalid updates!", 400));
   }
 
   // Recalculate end date if frequency or start date changes
   if ((req.body.frequency || req.body.startDate) && !req.body.endDate) {
     const frequency = req.body.frequency || subscription.frequency;
     const startDate = req.body.startDate || subscription.startDate;
-    const subscriptionPeriod = req.body.subscriptionPeriod || subscription.subscriptionPeriod;
-    
-    req.body.endDate = calculateEndDate(startDate, frequency, subscriptionPeriod);
+    const subscriptionPeriod =
+      req.body.subscriptionPeriod || subscription.subscriptionPeriod;
+
+    req.body.endDate = calculateEndDate(
+      startDate,
+      frequency,
+      subscriptionPeriod
+    );
   }
 
   // Add updated by info
   req.body.updatedBy = req.user.id;
   req.body.updatedAt = Date.now();
 
-  subscription = await Subscription.findByIdAndUpdate(
-    req.params.id, 
-    req.body, 
-    {
-      new: true,
-      runValidators: true
-    }
-  )
-    .populate('userId', 'firstName lastName email phone')
-    .populate('createdBy', 'name email')
-    .populate('updatedBy', 'name email');
+  subscription = await Subscription.findByIdAndUpdate(req.params.id, req.body, {
+    new: true,
+    runValidators: true,
+  })
+    .populate("userId", "firstName lastName email phone")
+    .populate("createdBy", "name email")
+    .populate("updatedBy", "name email");
 
   res.status(200).json({
     success: true,
-    data: subscription
+    data: subscription,
   });
 });
 
@@ -282,10 +451,15 @@ exports.deleteSubscription = asyncHandler(async (req, res, next) => {
   }
 
   // Check if there are associated orders
-  const orderCount = await Order.countDocuments({ subscription: req.params.id });
+  const orderCount = await Order.countDocuments({
+    subscription: req.params.id,
+  });
   if (orderCount > 0) {
     return next(
-      new ErrorResponse('Cannot delete subscription with associated orders. Cancel instead.', 400)
+      new ErrorResponse(
+        "Cannot delete subscription with associated orders. Cancel instead.",
+        400
+      )
     );
   }
 
@@ -294,7 +468,7 @@ exports.deleteSubscription = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: {},
-    message: 'Subscription deleted successfully'
+    message: "Subscription deleted successfully",
   });
 });
 
@@ -305,30 +479,32 @@ exports.bulkUpdateSubscriptions = asyncHandler(async (req, res, next) => {
   const { ids, updateData } = req.body;
 
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return next(new ErrorResponse('Subscription IDs array is required', 400));
+    return next(new ErrorResponse("Subscription IDs array is required", 400));
   }
 
-  if (!updateData || typeof updateData !== 'object') {
-    return next(new ErrorResponse('Update data object is required', 400));
+  if (!updateData || typeof updateData !== "object") {
+    return next(new ErrorResponse("Update data object is required", 400));
   }
 
   // Validate subscription IDs
-  const validIds = ids.filter(id => mongoose.Types.ObjectId.isValid(id));
+  const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
   if (validIds.length !== ids.length) {
-    return next(new ErrorResponse('Invalid subscription IDs provided', 400));
+    return next(new ErrorResponse("Invalid subscription IDs provided", 400));
   }
 
   // Check if subscriptions exist
-  const existingSubscriptions = await Subscription.find({ _id: { $in: validIds } });
+  const existingSubscriptions = await Subscription.find({
+    _id: { $in: validIds },
+  });
   if (existingSubscriptions.length !== validIds.length) {
-    return next(new ErrorResponse('Some subscriptions not found', 404));
+    return next(new ErrorResponse("Some subscriptions not found", 404));
   }
 
   // Add update metadata
   const updateWithMetadata = {
     ...updateData,
     updatedBy: req.user.id,
-    updatedAt: Date.now()
+    updatedAt: Date.now(),
   };
 
   // Perform bulk update
@@ -339,14 +515,16 @@ exports.bulkUpdateSubscriptions = asyncHandler(async (req, res, next) => {
   );
 
   // Fetch updated subscriptions
-  const updatedSubscriptions = await Subscription.find({ _id: { $in: validIds } })
-    .populate('userId', 'firstName lastName email phone')
-    .populate('updatedBy', 'name email');
+  const updatedSubscriptions = await Subscription.find({
+    _id: { $in: validIds },
+  })
+    .populate("userId", "firstName lastName email phone")
+    .populate("updatedBy", "name email");
 
   res.status(200).json({
     success: true,
     data: updatedSubscriptions,
-    message: `Successfully updated ${result.modifiedCount} subscriptions`
+    message: `Successfully updated ${result.modifiedCount} subscriptions`,
   });
 });
 
@@ -357,16 +535,16 @@ exports.bulkDeleteSubscriptions = asyncHandler(async (req, res, next) => {
   const { ids } = req.body;
 
   if (!ids || !Array.isArray(ids) || ids.length === 0) {
-    return next(new ErrorResponse('Subscription IDs array is required', 400));
+    return next(new ErrorResponse("Subscription IDs array is required", 400));
   }
 
   // Validate subscription IDs
-  const validIds = ids.filter(id => mongoose.Types.ObjectId.isValid(id));
+  const validIds = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
 
   // Check for subscriptions with orders
-  const subscriptionsWithOrders = await Order.find({ 
-    subscription: { $in: validIds } 
-  }).distinct('subscription');
+  const subscriptionsWithOrders = await Order.find({
+    subscription: { $in: validIds },
+  }).distinct("subscription");
 
   if (subscriptionsWithOrders.length > 0) {
     return next(
@@ -382,7 +560,7 @@ exports.bulkDeleteSubscriptions = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: {},
-    message: `Successfully deleted ${result.deletedCount} subscriptions`
+    message: `Successfully deleted ${result.deletedCount} subscriptions`,
   });
 });
 
@@ -393,47 +571,55 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
   const subscription = await Subscription.findById(req.params.id);
 
   if (!subscription) {
-    return next(new ErrorResponse(`No subscription found with id of ${req.params.id}`, 404));
+    return next(
+      new ErrorResponse(
+        `No subscription found with id of ${req.params.id}`,
+        404
+      )
+    );
   }
 
-  if (subscription.status !== 'active') {
-    return next(new ErrorResponse('Only active subscriptions can be paused', 400));
+  if (subscription.status !== "active") {
+    return next(
+      new ErrorResponse("Only active subscriptions can be paused", 400)
+    );
   }
 
   const now = new Date();
   const remainingTimeMs = subscription.endDate - now;
 
   // Calculate remaining time in days
-  const remainingDays = Math.max(Math.floor(remainingTimeMs / (1000 * 60 * 60 * 24)), 0);
+  const remainingDays = Math.max(
+    Math.floor(remainingTimeMs / (1000 * 60 * 60 * 24)),
+    0
+  );
 
   subscription.remainingDuration = Math.max(remainingTimeMs, 0);
   subscription.remainingDays = remainingDays;
   subscription.pausedAt = now;
-  subscription.status = 'paused';
+  subscription.status = "paused";
   subscription.updatedBy = req.user.id;
   subscription.updatedAt = now;
 
   await subscription.save({ validateBeforeSave: false });
 
-  await subscription.populate('userId', 'firstName lastName email phone');
-  await subscription.populate('updatedBy', 'name email');
-
+  await subscription.populate("userId", "firstName lastName email phone");
+  await subscription.populate("updatedBy", "name email");
 
   // ✅ SMS NOTIFICATION: Send subscription paused notification
-try {
-  const user = await User.findById(subscription.userId);
-  // if (user && user.phone && user.phoneVerified) {
+  try {
+    const user = await User.findById(subscription.userId);
+    // if (user && user.phone && user.phoneVerified) {
     await NotificationService.sendSubscriptionPaused(subscription, user);
-  // }
-} catch (smsError) {
-  console.error("Subscription paused SMS failed:", smsError);
-};
-
+    // }
+  } catch (smsError) {
+    console.error("Subscription paused SMS failed:", smsError);
+  }
 
   res.status(200).json({
     success: true,
     message: `Subscription paused successfully with ${remainingDays} day(s) remaining.`,
-    data: subscription
+    data: subscription,
   });
 });
 
@@ -444,15 +630,24 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
   const subscription = await Subscription.findById(req.params.id);
 
   if (!subscription) {
-    return next(new ErrorResponse(`No subscription found with id of ${req.params.id}`, 404));
+    return next(
+      new ErrorResponse(
+        `No subscription found with id of ${req.params.id}`,
+        404
+      )
+    );
   }
 
-  if (subscription.status !== 'paused') {
-    return next(new ErrorResponse('Only paused subscriptions can be resumed', 400));
+  if (subscription.status !== "paused") {
+    return next(
+      new ErrorResponse("Only paused subscriptions can be resumed", 400)
+    );
   }
 
   if (!subscription.remainingDuration) {
-    return next(new ErrorResponse('No remaining duration stored. Cannot resume.', 400));
+    return next(
+      new ErrorResponse("No remaining duration stored. Cannot resume.", 400)
+    );
   }
 
   const now = new Date();
@@ -465,10 +660,10 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
   subscription.pauseHistory.push({
     pausedAt: subscription.pausedAt,
     resumedAt: now,
-    durationMs: pausedDurationMs
+    durationMs: pausedDurationMs,
   });
 
-  subscription.status = 'active';
+  subscription.status = "active";
   subscription.pausedAt = null;
   subscription.remainingDuration = null;
   subscription.remainingDays = null;
@@ -479,30 +674,28 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
 
   await subscription.save({ validateBeforeSave: false });
 
-  await subscription.populate('userId', 'firstName lastName email phone');
-  await subscription.populate('updatedBy', 'name email');
+  await subscription.populate("userId", "firstName lastName email phone");
+  await subscription.populate("updatedBy", "name email");
 
   const daysRemaining = Math.max(
     Math.floor((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
     0
   );
 
-
-
   // ✅ SMS NOTIFICATION: Send subscription resumed notification
-try {
-  const user = await User.findById(subscription.userId);
-  // if (user && user.phone && user.phoneVerified) {
+  try {
+    const user = await User.findById(subscription.userId);
+    // if (user && user.phone && user.phoneVerified) {
     await NotificationService.sendSubscriptionResumed(subscription, user);
-  // }
-} catch (smsError) {
-  console.error("Subscription resumed SMS failed:", smsError);
-}
+    // }
+  } catch (smsError) {
+    console.error("Subscription resumed SMS failed:", smsError);
+  }
 
   res.status(200).json({
     success: true,
     message: `Subscription resumed successfully. ${daysRemaining} day(s) remaining.`,
-    data: subscription
+    data: subscription,
   });
 });
 
@@ -518,36 +711,34 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
     );
   }
 
-  if (subscription.status === 'cancelled') {
-    return next(new ErrorResponse('Subscription is already cancelled', 400));
+  if (subscription.status === "cancelled") {
+    return next(new ErrorResponse("Subscription is already cancelled", 400));
   }
 
-  subscription.status = 'cancelled';
+  subscription.status = "cancelled";
   subscription.cancelledAt = new Date();
   subscription.updatedBy = req.user.id;
   subscription.updatedAt = new Date();
-  
+
   await subscription.save();
 
-  await subscription.populate('userId', 'firstName lastName email phone');
-  await subscription.populate('updatedBy', 'name email');
-
+  await subscription.populate("userId", "firstName lastName email phone");
+  await subscription.populate("updatedBy", "name email");
 
   // ✅ SMS NOTIFICATION: Send subscription cancelled notification
-try {
-  const user = await User.findById(subscription.userId);
-  // if (user && user.phone && user.phoneVerified) {
+  try {
+    const user = await User.findById(subscription.userId);
+    // if (user && user.phone && user.phoneVerified) {
     await NotificationService.sendSubscriptionCancelled(subscription, user);
-  // }
-} catch (smsError) {
-  console.error("Subscription cancelled SMS failed:", smsError);
-};
-
+    // }
+  } catch (smsError) {
+    console.error("Subscription cancelled SMS failed:", smsError);
+  }
 
   res.status(200).json({
     success: true,
     data: subscription,
-    message: 'Subscription cancelled successfully'
+    message: "Subscription cancelled successfully",
   });
 });
 
@@ -559,37 +750,37 @@ exports.getSubscriptionAnalytics = asyncHandler(async (req, res, next) => {
   const statusCounts = await Subscription.aggregate([
     {
       $group: {
-        _id: '$status',
-        count: { $sum: 1 }
-      }
-    }
+        _id: "$status",
+        count: { $sum: 1 },
+      },
+    },
   ]);
 
   // Revenue analytics
   const revenuePipeline = await Subscription.aggregate([
-    { $match: { status: 'active' } },
-    { $group: { _id: null, total: { $sum: '$price' } } }
+    { $match: { status: "active" } },
+    { $group: { _id: null, total: { $sum: "$price" } } },
   ]);
 
   // Plan type distribution
   const planTypeDistribution = await Subscription.aggregate([
     {
       $group: {
-        _id: '$planType',
+        _id: "$planType",
         count: { $sum: 1 },
-        totalRevenue: { $sum: '$price' }
-      }
-    }
+        totalRevenue: { $sum: "$price" },
+      },
+    },
   ]);
 
   // Frequency distribution
   const frequencyDistribution = await Subscription.aggregate([
     {
       $group: {
-        _id: '$frequency',
-        count: { $sum: 1 }
-      }
-    }
+        _id: "$frequency",
+        count: { $sum: 1 },
+      },
+    },
   ]);
 
   // Monthly subscription growth
@@ -597,46 +788,52 @@ exports.getSubscriptionAnalytics = asyncHandler(async (req, res, next) => {
     {
       $group: {
         _id: {
-          year: { $year: '$createdAt' },
-          month: { $month: '$createdAt' }
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
         },
         count: { $sum: 1 },
-        revenue: { $sum: '$price' }
-      }
+        revenue: { $sum: "$price" },
+      },
     },
-    { $sort: { '_id.year': 1, '_id.month': 1 } },
-    { $limit: 12 }
+    { $sort: { "_id.year": 1, "_id.month": 1 } },
+    { $limit: 12 },
   ]);
 
   // Convert status counts to object
   const statusCountsObj = {};
-  statusCounts.forEach(item => {
+  statusCounts.forEach((item) => {
     statusCountsObj[item._id] = item.count;
   });
 
-  const totalRevenue = revenuePipeline.length > 0 ? revenuePipeline[0].total : 0;
+  const totalRevenue =
+    revenuePipeline.length > 0 ? revenuePipeline[0].total : 0;
 
   res.status(200).json({
     success: true,
     data: {
       totals: {
-        total: statusCountsObj.active + statusCountsObj.paused + statusCountsObj.cancelled + statusCountsObj.expired + statusCountsObj.pending,
+        total:
+          statusCountsObj.active +
+          statusCountsObj.paused +
+          statusCountsObj.cancelled +
+          statusCountsObj.expired +
+          statusCountsObj.pending,
         active: statusCountsObj.active || 0,
         paused: statusCountsObj.paused || 0,
         cancelled: statusCountsObj.cancelled || 0,
         expired: statusCountsObj.expired || 0,
-        pending: statusCountsObj.pending || 0
+        pending: statusCountsObj.pending || 0,
       },
       revenue: {
         total: totalRevenue,
-        formatted: `₦${totalRevenue.toLocaleString()}`
+        formatted: `₦${totalRevenue.toLocaleString()}`,
       },
       distributions: {
         planType: planTypeDistribution,
-        frequency: frequencyDistribution
+        frequency: frequencyDistribution,
       },
-      growth: monthlyGrowth
-    }
+      growth: monthlyGrowth,
+    },
   });
 });
 
@@ -644,23 +841,23 @@ exports.getSubscriptionAnalytics = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/admin/subscriptions/statistics
 // @access  Private/Admin
 exports.getSubscriptionStatistics = asyncHandler(async (req, res, next) => {
-  const { period = 'month' } = req.query; // day, week, month, year
+  const { period = "month" } = req.query; // day, week, month, year
 
   // Calculate date range based on period
   const now = new Date();
   let startDate;
-  
+
   switch (period) {
-    case 'day':
+    case "day":
       startDate = new Date(now.setDate(now.getDate() - 1));
       break;
-    case 'week':
+    case "week":
       startDate = new Date(now.setDate(now.getDate() - 7));
       break;
-    case 'month':
+    case "month":
       startDate = new Date(now.setMonth(now.getMonth() - 1));
       break;
-    case 'year':
+    case "year":
       startDate = new Date(now.setFullYear(now.getFullYear() - 1));
       break;
     default:
@@ -669,51 +866,51 @@ exports.getSubscriptionStatistics = asyncHandler(async (req, res, next) => {
 
   // New subscriptions in period
   const newSubscriptions = await Subscription.countDocuments({
-    createdAt: { $gte: startDate }
+    createdAt: { $gte: startDate },
   });
 
   // Active subscriptions count
   const activeSubscriptions = await Subscription.countDocuments({
-    status: 'active'
+    status: "active",
   });
 
   // Revenue in period
   const revenueResult = await Subscription.aggregate([
     {
       $match: {
-        status: 'active',
-        createdAt: { $gte: startDate }
-      }
+        status: "active",
+        createdAt: { $gte: startDate },
+      },
     },
     {
       $group: {
         _id: null,
-        total: { $sum: '$price' }
-      }
-    }
+        total: { $sum: "$price" },
+      },
+    },
   ]);
 
   // Most popular plan types
   const popularPlans = await Subscription.aggregate([
     {
       $group: {
-        _id: '$planType',
+        _id: "$planType",
         count: { $sum: 1 },
-        revenue: { $sum: '$price' }
-      }
+        revenue: { $sum: "$price" },
+      },
     },
     { $sort: { count: -1 } },
-    { $limit: 5 }
+    { $limit: 5 },
   ]);
 
   // Subscription status distribution
   const statusDistribution = await Subscription.aggregate([
     {
       $group: {
-        _id: '$status',
-        count: { $sum: 1 }
-      }
-    }
+        _id: "$status",
+        count: { $sum: 1 },
+      },
+    },
   ]);
 
   const periodRevenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
@@ -724,17 +921,17 @@ exports.getSubscriptionStatistics = asyncHandler(async (req, res, next) => {
       period: {
         type: period,
         startDate,
-        endDate: new Date()
+        endDate: new Date(),
       },
       overview: {
         newSubscriptions,
         activeSubscriptions,
         periodRevenue,
-        totalSubscriptions: await Subscription.countDocuments()
+        totalSubscriptions: await Subscription.countDocuments(),
       },
       popularPlans,
-      statusDistribution
-    }
+      statusDistribution,
+    },
   });
 });
 
@@ -742,22 +939,25 @@ exports.getSubscriptionStatistics = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/admin/subscriptions/export
 // @access  Private/Admin
 exports.exportSubscriptions = asyncHandler(async (req, res, next) => {
-  const { format = 'json', ...filters } = req.query;
+  const { format = "json", ...filters } = req.query;
 
   // Build base query
   let query = Subscription.find(filters)
-    .populate('userId', 'firstName lastName email phone')
-    .populate('order', 'orderId totalAmount')
-    .sort('-createdAt');
+    .populate("userId", "firstName lastName email phone")
+    .populate("order", "orderId totalAmount")
+    .sort("-createdAt");
 
   const subscriptions = await query;
 
-  if (format === 'csv') {
+  if (format === "csv") {
     // Convert to CSV
     const csvData = convertSubscriptionsToCSV(subscriptions);
-    
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', 'attachment; filename=subscriptions.csv');
+
+    res.setHeader("Content-Type", "text/csv");
+    res.setHeader(
+      "Content-Disposition",
+      "attachment; filename=subscriptions.csv"
+    );
     return res.send(csvData);
   }
 
@@ -766,7 +966,7 @@ exports.exportSubscriptions = asyncHandler(async (req, res, next) => {
     success: true,
     count: subscriptions.length,
     data: subscriptions,
-    exportedAt: new Date().toISOString()
+    exportedAt: new Date().toISOString(),
   });
 });
 
@@ -781,13 +981,13 @@ const calculateEndDate = (startDate, frequency, subscriptionPeriod = 1) => {
 
   switch (frequency) {
     case "Daily":
-      endDate.setDate(endDate.getDate() + (30 * periodMonths));
+      endDate.setDate(endDate.getDate() + 30 * periodMonths);
       break;
     case "Weekly":
-      endDate.setDate(endDate.getDate() + (7 * 4 * periodMonths));
+      endDate.setDate(endDate.getDate() + 7 * 4 * periodMonths);
       break;
     case "Bi-Weekly":
-      endDate.setDate(endDate.getDate() + (7 * 2 * 4 * periodMonths));
+      endDate.setDate(endDate.getDate() + 7 * 2 * 4 * periodMonths);
       break;
     case "Monthly":
     default:
@@ -801,15 +1001,25 @@ const calculateEndDate = (startDate, frequency, subscriptionPeriod = 1) => {
 // Helper function to convert subscriptions to CSV
 const convertSubscriptionsToCSV = (subscriptions) => {
   const headers = [
-    'ID', 'Customer Name', 'Customer Email', 'Plan Name', 'Plan Type',
-    'Frequency', 'Size', 'Status', 'Price', 'Start Date', 'End Date',
-    'Created At', 'Reference'
+    "ID",
+    "Customer Name",
+    "Customer Email",
+    "Plan Name",
+    "Plan Type",
+    "Frequency",
+    "Size",
+    "Status",
+    "Price",
+    "Start Date",
+    "End Date",
+    "Created At",
+    "Reference",
   ];
 
-  const rows = subscriptions.map(sub => [
+  const rows = subscriptions.map((sub) => [
     sub._id,
-    `${sub.userId?.firstName || ''} ${sub.userId?.lastName || ''}`.trim(),
-    sub.userId?.email || '',
+    `${sub.userId?.firstName || ""} ${sub.userId?.lastName || ""}`.trim(),
+    sub.userId?.email || "",
     sub.planName,
     sub.planType,
     sub.frequency,
@@ -817,15 +1027,15 @@ const convertSubscriptionsToCSV = (subscriptions) => {
     sub.status,
     sub.price,
     new Date(sub.startDate).toLocaleDateString(),
-    sub.endDate ? new Date(sub.endDate).toLocaleDateString() : 'N/A',
+    sub.endDate ? new Date(sub.endDate).toLocaleDateString() : "N/A",
     new Date(sub.createdAt).toLocaleDateString(),
-    sub.reference || ''
+    sub.reference || "",
   ]);
 
   const csvContent = [
-    headers.join(','),
-    ...rows.map(row => row.map(field => `"${field}"`).join(','))
-  ].join('\n');
+    headers.join(","),
+    ...rows.map((row) => row.map((field) => `"${field}"`).join(",")),
+  ].join("\n");
 
   return csvContent;
 };

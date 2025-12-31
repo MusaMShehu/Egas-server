@@ -4,7 +4,7 @@ const emailService = require("../services/emailService");
 const Subscription = require("../models/Subscription");
 
 // Run daily at 9 AM
-cron.schedule("0 9 * * *", async () => {
+cron.schedule("*/5 * * * *", async () => {
   try {
     // 2. Subscription ending alerts (7, 3, 1 days before)
     const alertDays = [7, 3, 1];

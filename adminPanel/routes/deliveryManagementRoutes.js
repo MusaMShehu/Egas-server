@@ -12,6 +12,12 @@ const {
   getMyDeliveries,
   getDeliveryStats,
   generateDeliverySchedules,
+  recordPartialDelivery,
+  confirmRemnantEntry,
+  requestRemnantDelivery,
+  getMyRemnant,
+  getAllRemnants,
+  getAgentRemnantDeliveries
 } = require("../controllers/deliveryManagementController");
 
 const { protect, authorize } = require("../../middleware/auth");
@@ -34,5 +40,14 @@ router.put("/:id/failed", protect, authorize("delivery"), markAsFailed);
 // Customer routes
 router.get("/my-deliveries", protect, getMyDeliveries);
 router.put("/:id/confirm", protect, confirmDelivery);
+
+
+// New remnant routes
+router.put('/:id/partial-delivery', protect, authorize('delivery'), recordPartialDelivery);
+router.put('/remnant/:id/confirm', protect, confirmRemnantEntry);
+router.post('/remnant/request-delivery', protect, requestRemnantDelivery);
+router.get('/remnant/my-remnant', protect, getMyRemnant);
+router.get('/remnants', protect, authorize('admin'), getAllRemnants);
+router.get('/agent/remnant-deliveries', protect, authorize('delivery'), getAgentRemnantDeliveries);
 
 module.exports = router;

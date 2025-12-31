@@ -4,6 +4,8 @@ const Subscription = require("../../models/Subscription");
 const User = require("../../models/User");
 const ErrorResponse = require("../../utils/errorResponse");
 const asyncHandler = require("../../middleware/async");
+const Remnant = require("../../models/Remnant");
+const Notification = require("../../models/Notification");
 
 // @desc    Get all delivery orders with filters
 // @route   GET /api/v1/deliveries
@@ -418,6 +420,32 @@ exports.getDeliveryStats = asyncHandler(async (req, res, next) => {
   const tomorrow = new Date(today);
   tomorrow.setDate(tomorrow.getDate() + 1);
 
+  // Add remnant stats
+  const remnantStats = await Remnant.aggregate([
+    {
+      $match: { status: "active" }
+    },
+    {
+      $group: {
+        _id: null,
+        totalCustomers: { $sum: 1 },
+        totalAccumulatedKg: { $sum: "$accumulatedKg" },
+        avgAccumulatedKg: { $avg: "$accumulatedKg" }
+      }
+    }
+  ]);
+
+  const customersWithRemnant = await Remnant.distinct("userId", { status: "active" });
+
+  stats.remnants = {
+    totalCustomers: remnantStats[0]?.totalCustomers || 0,
+    totalAccumulatedKg: remnantStats[0]?.totalAccumulatedKg || 0,
+    avgAccumulatedKg: remnantStats[0]?.avgAccumulatedKg || 0,
+    customersWithRemnant: customersWithRemnant.length || 0
+  };
+
+ 
+
   // Today's stats
   const todayStats = await Delivery.aggregate([
     {
@@ -568,6 +596,321 @@ exports.generateDeliverySchedules = asyncHandler(async (req, res, next) => {
   });
 });
 
+
+
+// @desc    Record remaining gas after partial delivery
+// @route   PUT /api/v1/deliveries/:id/partial-delivery
+// @access  Private/DeliveryAgent
+exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
+  const agentId = req.user.id;
+  const { deliveredKg, remainingKg, notes } = req.body;
+
+  if (!deliveredKg || !remainingKg) {
+    return next(new ErrorResponse("Both delivered and remaining kg are required", 400));
+  }
+
+  const delivery = await Delivery.findOne({
+    _id: req.params.id,
+    deliveryAgent: agentId,
+  }).populate("userId").populate("subscriptionId");
+
+  if (!delivery) {
+    return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
+  }
+
+  if (delivery.status === "delivered") {
+    return next(new ErrorResponse("Delivery already completed", 400));
+  }
+
+  // Calculate expected kg from subscription
+  const expectedKg = parseFloat(delivery.planDetails.size.split('kg')[0]);
+  const delivered = parseFloat(deliveredKg);
+  const remaining = parseFloat(remainingKg);
+
+  if (delivered + remaining !== expectedKg) {
+    return next(new ErrorResponse(`Total must equal expected ${expectedKg}kg`, 400));
+  }
+
+  // Mark current delivery as partial
+  delivery.status = "partial_delivery";
+  delivery.deliveredKg = delivered;
+  delivery.remainingKg = remaining;
+  delivery.agentNotes = notes || "";
+  delivery.deliveredAt = new Date();
+  delivery.partialDelivery = {
+    isPartial: true,
+    delivered: delivered,
+    remaining: remaining,
+    recordedBy: agentId,
+    recordedAt: new Date()
+  };
+
+  await delivery.save();
+
+  // Create or update remnant record for customer
+  const remnant = await Remnant.findOneAndUpdate(
+    { userId: delivery.userId, status: "active" },
+    {
+      $inc: { accumulatedKg: remaining },
+      $push: {
+        partialDeliveries: {
+          deliveryId: delivery._id,
+          originalKg: expectedKg,
+          delivered: delivered,
+          remaining: remaining,
+          date: new Date()
+        }
+      },
+      lastUpdated: new Date()
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  );
+
+  // Send notification to customer
+  await Notification.create({
+    userId: delivery.userId._id,
+    title: "Partial Gas Delivery",
+    message: `${delivered}kg delivered, ${remaining}kg remaining added to your account`,
+    type: "delivery",
+    data: { deliveryId: delivery._id, remnantId: remnant._id }
+  });
+
+  res.status(200).json({
+    success: true,
+    message: "Partial delivery recorded successfully",
+    data: {
+      delivery,
+      remnant,
+      totalAccumulated: remnant.accumulatedKg
+    }
+  });
+});
+
+// @desc    Customer confirms remnant entry
+// @route   PUT /api/v1/deliveries/remnant/:id/confirm
+// @access  Private
+exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
+  const userId = req.user.id;
+  const { notes } = req.body;
+
+  const remnant = await Remnant.findOne({
+    _id: req.params.id,
+    userId: userId
+  }).populate("partialDeliveries.deliveryId");
+
+  if (!remnant) {
+    return next(new ErrorResponse("Remnant record not found", 404));
+  }
+
+  if (remnant.status !== "active") {
+    return next(new ErrorResponse("Remnant record is not active", 400));
+  }
+
+  remnant.customerConfirmation = {
+    confirmed: true,
+    confirmedAt: new Date(),
+    customerNotes: notes || "",
+    confirmedBy: userId
+  };
+
+  await remnant.save();
+
+  res.status(200).json({
+    success: true,
+    message: "Remnant entry confirmed successfully",
+    data: remnant
+  });
+});
+
+// @desc    Request delivery of accumulated remnant
+// @route   POST /api/v1/deliveries/remnant/request-delivery
+// @access  Private
+exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
+  const userId = req.user.id;
+  const { requestedKg, deliveryDate, address, notes } = req.body;
+
+  const remnant = await Remnant.findOne({
+    userId: userId,
+    status: "active"
+  });
+
+  if (!remnant) {
+    return next(new ErrorResponse("No accumulated remnant found", 404));
+  }
+
+  if (remnant.accumulatedKg < 6) {
+    return next(new ErrorResponse(`Minimum 6kg required. You have ${remnant.accumulatedKg}kg accumulated`, 400));
+  }
+
+  if (requestedKg > remnant.accumulatedKg) {
+    return next(new ErrorResponse(`Cannot request more than ${remnant.accumulatedKg}kg available`, 400));
+  }
+
+  // Create remnant delivery order
+  const delivery = await Delivery.create({
+    userId: userId,
+    deliveryDate: deliveryDate || new Date(),
+    scheduledDate: new Date(),
+    status: "pending",
+    address: address || req.user.address,
+    customerPhone: req.user.phone,
+    customerName: `${req.user.firstName} ${req.user.lastName}`,
+    planDetails: {
+      planName: "Remnant Gas Delivery",
+      size: `${requestedKg}kg`,
+      frequency: "One-Time",
+      price: 0, // Or calculate price based on remnant
+      isRemnantDelivery: true
+    },
+    isRemnantDelivery: true,
+    remnantId: remnant._id,
+    requestedKg: requestedKg,
+    customerNotes: notes || ""
+  });
+
+  // Deduct from remnant
+  remnant.accumulatedKg -= requestedKg;
+  remnant.$inc({ deliveredFromRemnant: requestedKg });
+  
+  // If remnant reaches 0, mark as completed
+  if (remnant.accumulatedKg === 0) {
+    remnant.status = "completed";
+  }
+  
+  remnant.deliveryRequests.push({
+    deliveryId: delivery._id,
+    requestedKg: requestedKg,
+    date: new Date()
+  });
+
+  await remnant.save();
+
+  res.status(201).json({
+    success: true,
+    message: "Remnant delivery requested successfully",
+    data: {
+      delivery,
+      remainingAccumulated: remnant.accumulatedKg
+    }
+  });
+});
+
+// @desc    Get customer's remnant details
+// @route   GET /api/v1/deliveries/remnant/my-remnant
+// @access  Private
+exports.getMyRemnant = asyncHandler(async (req, res, next) => {
+  const userId = req.user.id;
+
+  const remnant = await Remnant.findOne({
+    userId: userId,
+    status: "active"
+  }).populate({
+    path: "partialDeliveries.deliveryId",
+    select: "deliveryDate planDetails agentNotes"
+  }).populate({
+    path: "deliveryRequests.deliveryId",
+    select: "status deliveryDate deliveryAgent"
+  });
+
+  if (!remnant) {
+    return res.status(200).json({
+      success: true,
+      data: null,
+      message: "No active remnant record"
+    });
+  }
+
+  res.status(200).json({
+    success: true,
+    data: remnant
+  });
+});
+
+// @desc    Get all remnants (admin)
+// @route   GET /api/v1/deliveries/remnants
+// @access  Private/Admin
+exports.getAllRemnants = asyncHandler(async (req, res, next) => {
+  const {
+    page = 1,
+    limit = 10,
+    status,
+    search,
+    minKg,
+    maxKg
+  } = req.query;
+
+  let filter = {};
+
+  if (status && status !== "all") {
+    filter.status = status;
+  }
+
+  if (minKg || maxKg) {
+    filter.accumulatedKg = {};
+    if (minKg) filter.accumulatedKg.$gte = parseFloat(minKg);
+    if (maxKg) filter.accumulatedKg.$lte = parseFloat(maxKg);
+  }
+
+  if (search) {
+    filter.$or = [
+      { "userName": { $regex: search, $options: "i" } },
+      { "userPhone": { $regex: search, $options: "i" } }
+    ];
+  }
+
+  const skip = (parseInt(page) - 1) * parseInt(limit);
+
+  const remnants = await Remnant.find(filter)
+    .populate("userId", "firstName lastName email phone address")
+    .sort({ lastUpdated: -1 })
+    .skip(skip)
+    .limit(parseInt(limit));
+
+  const total = await Remnant.countDocuments(filter);
+
+  res.status(200).json({
+    success: true,
+    count: remnants.length,
+    total,
+    pagination: {
+      page: parseInt(page),
+      pages: Math.ceil(total / parseInt(limit))
+    },
+    data: remnants
+  });
+});
+
+// @desc    Get delivery agent's remnant deliveries
+// @route   GET /api/v1/deliveries/agent/remnant-deliveries
+// @access  Private/DeliveryAgent
+exports.getAgentRemnantDeliveries = asyncHandler(async (req, res, next) => {
+  const agentId = req.user.id;
+  const { status } = req.query;
+
+  let filter = {
+    deliveryAgent: agentId,
+    isRemnantDelivery: true
+  };
+
+  if (status && status !== "all") {
+    filter.status = status;
+  }
+
+  const deliveries = await Delivery.find(filter)
+    .populate("userId", "firstName lastName phone address")
+    .populate("remnantId")
+    .sort({ deliveryDate: -1 });
+
+  res.status(200).json({
+    success: true,
+    count: deliveries.length,
+    data: deliveries
+  });
+});
+
+
+// Helper function to calculate delivery dates
+// Helper function to calculate delivery dates
 // Helper function to calculate delivery dates
 const calculateDeliveryDates = (subscription, startDate, endDate) => {
   const dates = [];

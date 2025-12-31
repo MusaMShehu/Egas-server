@@ -38,7 +38,7 @@ cron.schedule('0 9 * * *', async () => {
       await smsService.sendSubscriptionDeliveryReminder(
         subscription.userId._id,
         subscription._id,
-        subscription.productName,
+        subscription.planName,
         subscription.nextDelivery
       );
     }
