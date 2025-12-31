@@ -34,7 +34,7 @@ const subscriptionSchema = new mongoose.Schema(
       required: true,
       default: 1,
       min: 1,
-      max: 12, 
+      max: 12,
     },
     price: {
       type: Number,
@@ -91,10 +91,10 @@ const subscriptionSchema = new mongoose.Schema(
     },
     cancelledAt: { type: Date },
     expiredAt: {
-      type: Date
+      type: Date,
     },
     lastExpirationCheck: {
-      type: Date
+      type: Date,
     },
 
     pausedAt: {
@@ -114,6 +114,17 @@ const subscriptionSchema = new mongoose.Schema(
 
     remainingDays: {
       type: Number,
+      default: null,
+    },
+
+    // In your Subscription model
+    isRemnantSubscription: {
+      type: Boolean,
+      default: false,
+    },
+    remnantId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Remnant",
       default: null,
     },
 
@@ -137,34 +148,36 @@ subscriptionSchema.index({ subscriptionPeriod: 1 });
 
 // Enhanced virtual for checking if subscription is active
 subscriptionSchema.virtual("isActive").get(function () {
-  return this.status === 'active' && new Date() < this.endDate;
+  return this.status === "active" && new Date() < this.endDate;
 });
 
 // Virtual for checking if subscription should expire
 subscriptionSchema.virtual("shouldExpire").get(function () {
-  if (this.status === 'expired') return false;
-  if (['cancelled', 'expired'].includes(this.status)) return false;
-  
+  if (this.status === "expired") return false;
+  if (["cancelled", "expired"].includes(this.status)) return false;
+
   const now = new Date();
   const oneDayAfterEndDate = new Date(this.endDate);
   oneDayAfterEndDate.setDate(oneDayAfterEndDate.getDate() + 1);
-  
+
   return now >= oneDayAfterEndDate;
 });
 
 // Simple method to expire subscription (NO delivery cleanup)
-subscriptionSchema.methods.expireSubscription = async function() {
-  if (this.status === 'expired') return;
-  
+subscriptionSchema.methods.expireSubscription = async function () {
+  if (this.status === "expired") return;
+
   try {
     // Simply update subscription status
-    this.status = 'expired';
+    this.status = "expired";
     this.expiredAt = new Date();
     this.lastExpirationCheck = new Date();
-    
+
     await this.save();
-    
-    console.log(`✅ Subscription ${this._id} marked as expired (deliveries preserved)`);
+
+    console.log(
+      `✅ Subscription ${this._id} marked as expired (deliveries preserved)`
+    );
     return true;
   } catch (error) {
     console.error(`❌ Error expiring subscription ${this._id}:`, error);
@@ -191,7 +204,7 @@ subscriptionSchema.methods.calculateEndDate = function () {
       endDate.setDate(endDate.getDate() + 7 * 4 * totalMonths);
       break;
 
-    case "Bi-weekly":  // <-- MATCH ENUM EXACTLY
+    case "Bi-weekly": // <-- MATCH ENUM EXACTLY
       endDate.setDate(endDate.getDate() + 14 * totalMonths);
       break;
 

@@ -269,6 +269,18 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
     }
   );
 
+  // If this is a one-time remnant delivery, mark subscription as completed
+  if (delivery.isOneTimeRemnantDelivery && delivery.subscriptionId) {
+    await Subscription.findByIdAndUpdate(
+      delivery.subscriptionId,
+      {
+        status: "completed",
+        endDate: new Date(),
+        completedAt: new Date()
+      }
+    );
+  }
+
   res.status(200).json({
     success: true,
     message: "Delivery marked as successful",
@@ -756,8 +768,24 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Cannot request more than ${remnant.accumulatedKg}kg available`, 400));
   }
 
+  // Create a one-time subscription for this remnant delivery
+  const oneTimeSubscription = await Subscription.create({
+    userId: userId,
+    planName: `Remnant Gas Delivery - ${requestedKg}kg`,
+    size: `${requestedKg}kg`,
+    frequency: "One-Time",
+    price: 0,
+    status: "active",
+    startDate: new Date(),
+    endDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // Expires in 24 hours
+    isRemnantSubscription: true,
+    remnantId: remnant._id,
+    // Add any other required fields from your Subscription model
+  });
+
   // Create remnant delivery order
   const delivery = await Delivery.create({
+    subscriptionId: oneTimeSubscription._id,
     userId: userId,
     deliveryDate: deliveryDate || new Date(),
     scheduledDate: new Date(),
@@ -769,18 +797,23 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
       planName: "Remnant Gas Delivery",
       size: `${requestedKg}kg`,
       frequency: "One-Time",
-      price: 0, // Or calculate price based on remnant
+      price: 0,
       isRemnantDelivery: true
     },
     isRemnantDelivery: true,
     remnantId: remnant._id,
     requestedKg: requestedKg,
-    customerNotes: notes || ""
+    customerNotes: notes || "",
+    isOneTimeRemnantDelivery: true // Add this flag
   });
 
   // Deduct from remnant
   remnant.accumulatedKg -= requestedKg;
-  remnant.$inc({ deliveredFromRemnant: requestedKg });
+  
+  if (!remnant.deliveredFromRemnant) {
+    remnant.deliveredFromRemnant = 0;
+  }
+  remnant.deliveredFromRemnant += requestedKg;
   
   // If remnant reaches 0, mark as completed
   if (remnant.accumulatedKg === 0) {
@@ -790,7 +823,8 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
   remnant.deliveryRequests.push({
     deliveryId: delivery._id,
     requestedKg: requestedKg,
-    date: new Date()
+    date: new Date(),
+    subscriptionId: oneTimeSubscription._id
   });
 
   await remnant.save();
@@ -800,6 +834,7 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     message: "Remnant delivery requested successfully",
     data: {
       delivery,
+      subscription: oneTimeSubscription,
       remainingAccumulated: remnant.accumulatedKg
     }
   });
