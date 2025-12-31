@@ -677,13 +677,13 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
   );
 
   // Send notification to customer
-  await Notification.create({
-    userId: delivery.userId._id,
-    title: "Partial Gas Delivery",
-    message: `${delivered}kg delivered, ${remaining}kg remaining added to your account`,
-    type: "delivery",
-    data: { deliveryId: delivery._id, remnantId: remnant._id }
-  });
+  // await Notification.create({
+  //   userId: delivery.userId._id,
+  //   title: "Partial Gas Delivery",
+  //   message: `${delivered}kg delivered, ${remaining}kg remaining added to your account`,
+  //   type: "delivery",
+  //   data: { deliveryId: delivery._id, remnantId: remnant._id }
+  // });
 
   res.status(200).json({
     success: true,
