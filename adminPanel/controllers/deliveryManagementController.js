@@ -643,7 +643,6 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
 
 
   // Mark current delivery as partial
-  delivery.status = "partial_delivery";
   delivery.deliveredKg = delivered;
   delivery.remainingKg = remaining;
   delivery.agentNotes = notes || "";
