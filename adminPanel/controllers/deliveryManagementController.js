@@ -605,9 +605,17 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
   const agentId = req.user.id;
   const { deliveredKg, remainingKg, notes } = req.body;
 
-  if (!deliveredKg || !remainingKg) {
-    return next(new ErrorResponse("Both delivered and remaining kg are required", 400));
-  }
+ if (
+  deliveredKg === undefined ||
+  remainingKg === undefined ||
+  deliveredKg === null ||
+  remainingKg === null
+) {
+  return next(
+    new ErrorResponse("Both delivered and remaining kg are required", 400)
+  );
+}
+
 
   const delivery = await Delivery.findOne({
     _id: req.params.id,
@@ -627,9 +635,12 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
   const delivered = parseFloat(deliveredKg);
   const remaining = parseFloat(remainingKg);
 
-  if (delivered + remaining !== expectedKg) {
-    return next(new ErrorResponse(`Total must equal expected ${expectedKg}kg`, 400));
-  }
+ if (Math.abs(delivered + remaining - expectedKg) > 0.01) {
+  return next(
+    new ErrorResponse(`Total must equal expected ${expectedKg}kg`, 400)
+  );
+}
+
 
   // Mark current delivery as partial
   delivery.status = "partial_delivery";
