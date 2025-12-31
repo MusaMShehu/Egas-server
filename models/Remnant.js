@@ -21,7 +21,7 @@ const remnantSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: ['active', 'pending_confirmation', 'completed', 'cancelled'],
-    default: 'pending_confirmation',
+    default: 'active',
   },
   partialDeliveries: [{
     deliveryId: {
