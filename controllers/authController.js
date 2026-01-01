@@ -373,9 +373,22 @@ exports.getProfile = asyncHandler(async (req, res) => {
       city: user.city || "",
       state: user.state || "",
       gpsCoordinates: user.gpsCoordinates || "",
-      profilePic: user.profilePic
-        ? `${req.protocol}://${req.get("host")}/uploads/${user.profilePic}`
-        : `${req.protocol}://${req.get("host")}/uploads/default.jpg`,
+      profileImage: user.profileImage
+  ? {
+      // If profileImage is already an object (Cloudinary structure)
+      ...(typeof user.profileImage === 'object' ? user.profileImage : {
+        // If it's just a string URL (legacy format), convert to object
+        url: user.profileImage,
+        secure_url: user.profileImage.replace('http://', 'https://'),
+        public_id: null
+      })
+    }
+  : {
+      // Default image - update with your actual Cloudinary default image URL
+      url: `${req.protocol}://${req.get("host")}/uploads/default.jpg`,
+      secure_url: `${req.protocol}://${req.get("host")}/uploads/default.jpg`.replace('http://', 'https://'),
+      public_id: null
+    },
       memberSince: user.createdAt.toISOString().split("T")[0],
       role: user.role,
     };

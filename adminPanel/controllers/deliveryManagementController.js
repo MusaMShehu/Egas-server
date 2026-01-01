@@ -785,6 +785,12 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
   const { requestedKg, deliveryDate, address, notes } = req.body;
 
+  requestedKg = Number(requestedKg);
+
+if (Number.isNaN(requestedKg)) {
+  return next(new ErrorResponse("requestedKg must be a number", 400));
+}
+
   const remnant = await Remnant.findOne({
     userId: userId,
     status: "active"
@@ -882,7 +888,9 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
   if (!remnant.deliveredFromRemnant) {
     remnant.deliveredFromRemnant = 0;
   }
-  remnant.deliveredFromRemnant += requestedKg;
+  remnant.deliveredFromRemnant =
+  Number(remnant.deliveredFromRemnant || 0) + requestedKg;
+
   
   // If remnant reaches 0, mark as completed
   if (remnant.accumulatedKg <= 0) {
