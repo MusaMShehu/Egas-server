@@ -783,7 +783,7 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
-  const { requestedKg, deliveryDate, address, notes } = req.body;
+  let { requestedKg, deliveryDate, address, notes } = req.body;
 
   requestedKg = Number(requestedKg);
 

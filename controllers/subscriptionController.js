@@ -448,8 +448,8 @@ const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
   let frequencyMultiplier = 1;
   switch (frequency) {
     case "Daily": frequencyMultiplier = 30; break;    // 30x monthly
-    case "Weekly": frequencyMultiplier = 4; break;    // 4x monthly  
-    case "Bi-weekly": frequencyMultiplier = 2; break; // CHANGED: 2x monthly (was same as Monthly)
+    case "Weekly": frequencyMultiplier = 5; break;    // 4x monthly  
+    case "Bi-weekly": frequencyMultiplier = 3; break; // CHANGED: 2x monthly (was same as Monthly)
     case "Monthly": frequencyMultiplier = 1; break;   // 1x monthly
     case "One-Time": frequencyMultiplier = 1; break;  // 1x monthly
     default: frequencyMultiplier = 1;
