@@ -74,7 +74,7 @@ exports.getDeliveries = asyncHandler(async (req, res, next) => {
     .populate("subscriptionId", "planName size frequency status")
     .populate({
       path: "userId",
-      select: "firstName lastName email phone address city state gpsCoordinates profilePic"
+      select: "firstName lastName email phone address city state gpsCoordinates profileImage"
     })
     .populate("deliveryAgent", "firstName lastName email phone")
     .sort(sort)

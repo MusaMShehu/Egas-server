@@ -374,21 +374,25 @@ exports.getProfile = asyncHandler(async (req, res) => {
       state: user.state || "",
       gpsCoordinates: user.gpsCoordinates || "",
       profileImage: user.profileImage
-  ? {
-      // If profileImage is already an object (Cloudinary structure)
-      ...(typeof user.profileImage === 'object' ? user.profileImage : {
-        // If it's just a string URL (legacy format), convert to object
-        url: user.profileImage,
-        secure_url: user.profileImage.replace('http://', 'https://'),
-        public_id: null
-      })
-    }
-  : {
-      // Default image - update with your actual Cloudinary default image URL
-      url: `${req.protocol}://${req.get("host")}/uploads/default.jpg`,
-      secure_url: `${req.protocol}://${req.get("host")}/uploads/default.jpg`.replace('http://', 'https://'),
-      public_id: null
-    },
+        ? {
+            // If profileImage is already an object (Cloudinary structure)
+            ...(typeof user.profileImage === "object"
+              ? user.profileImage
+              : {
+                  // If it's just a string URL (legacy format), convert to object
+                  url: user.profileImage,
+                  secure_url: user.profileImage.replace("http://", "https://"),
+                  public_id: null,
+                }),
+          }
+        : {
+            // Default image - update with your actual Cloudinary default image URL
+            url: `${req.protocol}://${req.get("host")}/uploads/default.jpg`,
+            secure_url: `${req.protocol}://${req.get(
+              "host"
+            )}/uploads/default.jpg`.replace("http://", "https://"),
+            public_id: null,
+          },
       memberSince: user.createdAt.toISOString().split("T")[0],
       role: user.role,
     };
@@ -535,49 +539,70 @@ exports.updatePassword = asyncHandler(async (req, res, next) => {
 // @route   POST /api/v1/auth/forgotpassword
 // @access  Public
 exports.forgotPassword = asyncHandler(async (req, res, next) => {
-  const user = await User.findOne({ email: req.body.email });
+  const { email } = req.body;
 
+  if (!email) {
+    return next(new ErrorResponse('Email is required', 400));
+  }
+
+  // Find the user
+  const user = await User.findOne({ email });
   if (!user) {
-    return next(new ErrorResponse("There is no user with that email", 404));
+    return next(new ErrorResponse('There is no user with that email', 404));
   }
 
-  // Get reset token - FIXED: Check if getResetPasswordToken method exists
+  // Generate reset token
   let resetToken;
-  if (typeof user.getResetPasswordToken === "function") {
+  if (typeof user.getResetPasswordToken === 'function') {
     resetToken = user.getResetPasswordToken();
+    // Update user fields safely
+    await User.updateOne(
+      { _id: user._id },
+      {
+        resetPasswordToken: user.resetPasswordToken,
+        resetPasswordExpire: user.resetPasswordExpire
+      }
+    );
   } else {
-    // Fallback: generate random token
-    resetToken = crypto.randomBytes(20).toString("hex");
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-  }
+    resetToken = crypto.randomBytes(20).toString('hex');
+    const hashedToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const expire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-  await user.save({ validateBeforeSave: false });
+    // Update only reset token fields to avoid geo validation issues
+    await User.updateOne(
+      { _id: user._id },
+      {
+        resetPasswordToken: hashedToken,
+        resetPasswordExpire: expire
+      }
+    );
+  }
 
   // Create reset URL
   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
   try {
-    // Use your email service for password reset
+    // Send email
     await emailService.sendPasswordResetEmail({
       name: `${user.firstName} ${user.lastName}`,
       email: user.email,
-      resetUrl: resetUrl,
-      expiryTime: "10 minutes",
+      resetUrl,
+      expiryTime: '10 minutes',
     });
 
-    res.status(200).json({ success: true, data: "Email sent" });
+    res.status(200).json({ success: true, data: 'Email sent' });
   } catch (err) {
-    console.log(err);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    console.error('Email sending failed:', err);
 
-    await user.save({ validateBeforeSave: false });
+    // Remove reset token if email fails
+    await User.updateOne(
+      { _id: user._id },
+      {
+        $unset: { resetPasswordToken: '', resetPasswordExpire: '' }
+      }
+    );
 
-    return next(new ErrorResponse("Email could not be sent", 500));
+    return next(new ErrorResponse('Email could not be sent', 500));
   }
 });
 
@@ -640,57 +665,57 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
 // @desc    Forgot password
 // @route   POST /api/v1/auth/forgotpassword
 // @access  Public
-exports.forgotPassword = asyncHandler(async (req, res, next) => {
-  const user = await User.findOne({ email: req.body.email });
+// exports.forgotPassword = asyncHandler(async (req, res, next) => {
+//   const user = await User.findOne({ email: req.body.email });
 
-  if (!user) {
-    // For security, don't reveal that email doesn't exist
-    return res.status(200).json({
-      success: true,
-      message:
-        "If an account exists with this email, you will receive password reset instructions.",
-    });
-  }
+//   if (!user) {
+//     // For security, don't reveal that email doesn't exist
+//     return res.status(200).json({
+//       success: true,
+//       message:
+//         "If an account exists with this email, you will receive password reset instructions.",
+//     });
+//   }
 
-  // Get reset token
-  let resetToken;
-  if (typeof user.getResetPasswordToken === "function") {
-    resetToken = user.getResetPasswordToken();
-  } else {
-    // Fallback: generate random token
-    resetToken = crypto.randomBytes(20).toString("hex");
-    user.resetPasswordToken = crypto
-      .createHash("sha256")
-      .update(resetToken)
-      .digest("hex");
-    user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
-  }
+//   // Get reset token
+//   let resetToken;
+//   if (typeof user.getResetPasswordToken === "function") {
+//     resetToken = user.getResetPasswordToken();
+//   } else {
+//     // Fallback: generate random token
+//     resetToken = crypto.randomBytes(20).toString("hex");
+//     user.resetPasswordToken = crypto
+//       .createHash("sha256")
+//       .update(resetToken)
+//       .digest("hex");
+//     user.resetPasswordExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+//   }
 
-  await user.save({ validateBeforeSave: false });
+//   await user.save({ validateBeforeSave: false });
 
-  // Create reset URL
-  const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
+//   // Create reset URL
+//   const resetUrl = `${process.env.FRONTEND_URL}/reset-password/${resetToken}`;
 
-  try {
-    // Use your email service for password reset
-    await emailService.sendPasswordResetEmail({
-      name: `${user.firstName} ${user.lastName}`,
-      email: user.email,
-      resetUrl: resetUrl,
-      expiryTime: "10 minutes",
-    });
+//   try {
+//     // Use your email service for password reset
+//     await emailService.sendPasswordResetEmail({
+//       name: `${user.firstName} ${user.lastName}`,
+//       email: user.email,
+//       resetUrl: resetUrl,
+//       expiryTime: "10 minutes",
+//     });
 
-    res.status(200).json({
-      success: true,
-      message: "Password reset email sent successfully",
-    });
-  } catch (err) {
-    console.log("Email sending error:", err);
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+//     res.status(200).json({
+//       success: true,
+//       message: "Password reset email sent successfully",
+//     });
+//   } catch (err) {
+//     console.log("Email sending error:", err);
+//     user.resetPasswordToken = undefined;
+//     user.resetPasswordExpire = undefined;
 
-    await user.save({ validateBeforeSave: false });
+//     await user.save({ validateBeforeSave: false });
 
-    return next(new ErrorResponse("Email could not be sent", 500));
-  }
-});
+//     return next(new ErrorResponse("Email could not be sent", 500));
+//   }
+// });
