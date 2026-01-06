@@ -325,7 +325,7 @@ const generateDeliverySchedules = async (subscription, options = {}) => {
       let daysBetweenDeliveries;
       
       switch (subscription.frequency) {
-        case 'Bi-Weekly':
+        case 'Bi-weekly':
           numberOfDeliveries = 3;
           daysBetweenDeliveries = 14;
           break;
@@ -342,8 +342,8 @@ const generateDeliverySchedules = async (subscription, options = {}) => {
           daysBetweenDeliveries = 1;
           break;
         default:
-          numberOfDeliveries = 5;
-          daysBetweenDeliveries = 7;
+          numberOfDeliveries = 1;
+          daysBetweenDeliveries = 1;
       }
 
       if (logProgress) {
