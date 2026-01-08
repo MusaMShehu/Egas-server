@@ -5,6 +5,7 @@
 // /**
 //  * Enhanced Delivery Schedule Generator
 //  * Generates delivery schedules for subscriptions based on frequency and type
+//  * Uses specific number of deliveries per frequency: 5 for weekly, 3 for bi-weekly, 30 for daily, 12 for monthly, and 1 for one-time/emergency
 //  */
 // const generateDeliverySchedules = async (subscription, options = {}) => {
 //   try {
@@ -30,17 +31,8 @@
 
 //     const deliverySchedules = [];
 //     const startDate = new Date(subscription.startDate);
-//     const endDate = new Date(subscription.endDate);
     
-//     // Validate dates
-//     if (startDate > endDate) {
-//       throw new Error("Subscription start date cannot be after end date");
-//     }
-
-//     let currentDate = new Date(startDate);
-//     let deliveryCount = 0;
-
-//     // For one-time plans, only create one delivery
+//     // For one-time and emergency plans, only create one delivery
 //     if (subscription.frequency === "One-Time" || subscription.planType === "one-time" || subscription.planType === "emergency") {
 //       if (logProgress) {
 //         console.log(`🔄 Generating one-time delivery for subscription ${subscription._id}`);
@@ -51,32 +43,50 @@
 //       if (!existingDelivery || overrideExisting) {
 //         const deliveryData = createDeliveryData(subscription, user, startDate);
 //         deliverySchedules.push(deliveryData);
-//         deliveryCount++;
 //       } else if (logProgress) {
 //         console.log(`⏭️  Delivery already exists for one-time subscription ${subscription._id}`);
 //       }
 //     } else {
-//       // For recurring plans
-//       if (logProgress) {
-//         console.log(`🔄 Generating recurring deliveries for subscription ${subscription._id} (${subscription.frequency})`);
+//       // For recurring plans - generate specific number of deliveries
+//       let numberOfDeliveries;
+//       let daysBetweenDeliveries;
+      
+//       switch (subscription.frequency) {
+//         case 'Bi-weekly':
+//           numberOfDeliveries = 3;
+//           daysBetweenDeliveries = 14;
+//           break;
+//         case 'Weekly':
+//           numberOfDeliveries = 5;
+//           daysBetweenDeliveries = 7;
+//           break;
+//         case 'Monthly':
+//           numberOfDeliveries = 1;
+//           daysBetweenDeliveries = 30;
+//           break;
+//         case 'Daily':
+//           numberOfDeliveries = 30;
+//           daysBetweenDeliveries = 1;
+//           break;
+//         default:
+//           numberOfDeliveries = 1;
+//           daysBetweenDeliveries = 1;
 //       }
 
-//       while (currentDate <= endDate && deliveryCount < maxDeliveries) {
-//         const existingDelivery = await checkExistingDelivery(subscription._id, currentDate);
+//       if (logProgress) {
+//         console.log(`🔄 Generating ${numberOfDeliveries} deliveries for subscription ${subscription._id} (${subscription.frequency})`);
+//       }
+
+//       // Generate deliveries starting from subscription start date
+//       for (let i = 0; i < numberOfDeliveries; i++) {
+//         const deliveryDate = new Date(startDate);
+//         deliveryDate.setDate(deliveryDate.getDate() + (i * daysBetweenDeliveries));
+        
+//         const existingDelivery = await checkExistingDelivery(subscription._id, deliveryDate);
         
 //         if (!existingDelivery || overrideExisting) {
-//           const deliveryData = createDeliveryData(subscription, user, new Date(currentDate));
+//           const deliveryData = createDeliveryData(subscription, user, deliveryDate);
 //           deliverySchedules.push(deliveryData);
-//           deliveryCount++;
-//         }
-
-//         // Calculate next delivery date
-//         currentDate = calculateNextDeliveryDate(currentDate, subscription.frequency);
-        
-//         // Safety check to prevent infinite loops
-//         if (deliveryCount >= maxDeliveries) {
-//           console.warn(`⚠️  Reached maximum delivery limit (${maxDeliveries}) for subscription ${subscription._id}`);
-//           break;
 //         }
 //       }
 //     }
@@ -271,6 +281,8 @@
 
 
 
+
+
 const Delivery = require("../models/Delivery");
 const User = require("../models/User");
 const ErrorResponse = require("../utils/errorResponse");
@@ -278,14 +290,15 @@ const ErrorResponse = require("../utils/errorResponse");
 /**
  * Enhanced Delivery Schedule Generator
  * Generates delivery schedules for subscriptions based on frequency and type
- * Uses specific number of deliveries per frequency: 5 for weekly, 3 for bi-weekly, 30 for daily, 12 for monthly, and 1 for one-time/emergency
+ * Takes subscription period and pause/resume functionality into account
  */
 const generateDeliverySchedules = async (subscription, options = {}) => {
   try {
     const {
       overrideExisting = false,
       maxDeliveries = 10000, // Safety limit
-      logProgress = true
+      logProgress = true,
+      isResume = false // Flag to indicate if this is a resume operation
     } = options;
 
     // Validate subscription
@@ -303,7 +316,18 @@ const generateDeliverySchedules = async (subscription, options = {}) => {
     }
 
     const deliverySchedules = [];
-    const startDate = new Date(subscription.startDate);
+    let startDate = new Date(subscription.startDate);
+    const endDate = new Date(subscription.endDate);
+    
+    // If resuming, adjust start date based on pause history
+    if (isResume && subscription.pauseHistory && subscription.pauseHistory.length > 0) {
+      const totalPauseDurationMs = calculateTotalPauseDuration(subscription.pauseHistory);
+      startDate = new Date(startDate.getTime() + totalPauseDurationMs);
+      
+      if (logProgress) {
+        console.log(`🔄 Adjusted start date by ${totalPauseDurationMs / (1000 * 60 * 60 * 24)} days due to pause history`);
+      }
+    }
     
     // For one-time and emergency plans, only create one delivery
     if (subscription.frequency === "One-Time" || subscription.planType === "one-time" || subscription.planType === "emergency") {
@@ -320,47 +344,61 @@ const generateDeliverySchedules = async (subscription, options = {}) => {
         console.log(`⏭️  Delivery already exists for one-time subscription ${subscription._id}`);
       }
     } else {
-      // For recurring plans - generate specific number of deliveries
-      let numberOfDeliveries;
+      // For recurring plans - generate deliveries within subscription period
+      if (logProgress) {
+        console.log(`🔄 Generating deliveries for subscription ${subscription._id} (${subscription.frequency}) from ${startDate.toDateString()} to ${endDate.toDateString()}`);
+      }
+
+      // Calculate days between deliveries based on frequency
       let daysBetweenDeliveries;
       
       switch (subscription.frequency) {
         case 'Bi-weekly':
-          numberOfDeliveries = 3;
           daysBetweenDeliveries = 14;
           break;
         case 'Weekly':
-          numberOfDeliveries = 5;
           daysBetweenDeliveries = 7;
           break;
         case 'Monthly':
-          numberOfDeliveries = 1;
           daysBetweenDeliveries = 30;
           break;
         case 'Daily':
-          numberOfDeliveries = 30;
           daysBetweenDeliveries = 1;
           break;
         default:
-          numberOfDeliveries = 1;
-          daysBetweenDeliveries = 1;
+          daysBetweenDeliveries = 30; // Default to monthly
+      }
+
+      // Generate deliveries starting from adjusted start date
+      // Stop when we reach or exceed the end date
+      let deliveryDate = new Date(startDate);
+      let deliveryCount = 0;
+      
+      while (deliveryDate <= endDate && deliveryCount < maxDeliveries) {
+        // Skip if delivery date is during a pause period
+        if (!isDeliveryDuringPause(deliveryDate, subscription.pauseHistory)) {
+          const existingDelivery = await checkExistingDelivery(subscription._id, deliveryDate);
+          
+          if (!existingDelivery || overrideExisting) {
+            const deliveryData = createDeliveryData(subscription, user, new Date(deliveryDate));
+            deliverySchedules.push(deliveryData);
+          }
+        } else if (logProgress) {
+          console.log(`  ⏸️  Skipping delivery on ${deliveryDate.toDateString()} - falls in pause period`);
+        }
+        
+        // Calculate next delivery date
+        const nextDate = calculateNextDeliveryDate(deliveryDate, subscription.frequency);
+        deliveryDate = nextDate;
+        deliveryCount++;
+        
+        if (logProgress && deliveryCount % 10 === 0) {
+          console.log(`  ... generated ${deliveryCount} delivery dates so far`);
+        }
       }
 
       if (logProgress) {
-        console.log(`🔄 Generating ${numberOfDeliveries} deliveries for subscription ${subscription._id} (${subscription.frequency})`);
-      }
-
-      // Generate deliveries starting from subscription start date
-      for (let i = 0; i < numberOfDeliveries; i++) {
-        const deliveryDate = new Date(startDate);
-        deliveryDate.setDate(deliveryDate.getDate() + (i * daysBetweenDeliveries));
-        
-        const existingDelivery = await checkExistingDelivery(subscription._id, deliveryDate);
-        
-        if (!existingDelivery || overrideExisting) {
-          const deliveryData = createDeliveryData(subscription, user, deliveryDate);
-          deliverySchedules.push(deliveryData);
-        }
+        console.log(`  Generated ${deliverySchedules.length} delivery dates within subscription period`);
       }
     }
 
@@ -385,6 +423,141 @@ const generateDeliverySchedules = async (subscription, options = {}) => {
   } catch (error) {
     console.error('❌ Error generating delivery schedules:', error);
     throw new ErrorResponse(`Delivery schedule generation failed: ${error.message}`, 500);
+  }
+};
+
+/**
+ * Pause all deliveries for a subscription
+ * @param {String} subscriptionId - Subscription ID
+ * @param {Date} pauseDate - Date when subscription was paused
+ * @returns {Promise<Object>} Pause result
+ */
+const pauseDeliveries = async (subscriptionId, pauseDate) => {
+  try {
+    // Find all pending/assigned/accepted/out_for_delivery deliveries
+    const deliveries = await Delivery.find({
+      subscriptionId: subscriptionId,
+      status: { $in: ['pending', 'assigned', 'accepted', 'out_for_delivery'] },
+      deliveryDate: { $gte: pauseDate } // Only future deliveries
+    });
+
+    if (deliveries.length === 0) {
+      return {
+        success: true,
+        pausedCount: 0,
+        message: 'No deliveries to pause'
+      };
+    }
+
+    // Update deliveries to paused status
+    const updatePromises = deliveries.map(delivery => 
+      Delivery.findByIdAndUpdate(delivery._id, {
+        status: 'paused',
+        originalDeliveryDate: delivery.deliveryDate, // Save original date
+        pausedAt: pauseDate
+      })
+    );
+
+    await Promise.all(updatePromises);
+
+    console.log(`⏸️  Paused ${deliveries.length} deliveries for subscription ${subscriptionId}`);
+    
+    return {
+      success: true,
+      pausedCount: deliveries.length,
+      deliveries: deliveries.map(d => d._id)
+    };
+  } catch (error) {
+    console.error('❌ Error pausing deliveries:', error);
+    throw new ErrorResponse(`Failed to pause deliveries: ${error.message}`, 500);
+  }
+};
+
+/**
+ * Resume deliveries for a subscription
+ * @param {Object} subscription - Subscription object with pause history
+ * @param {Date} resumeDate - Date when subscription was resumed
+ * @returns {Promise<Object>} Resume result
+ */
+const resumeDeliveries = async (subscription, resumeDate) => {
+  try {
+    const subscriptionId = subscription._id;
+    
+    // Calculate total pause duration
+    const totalPauseDurationMs = calculateTotalPauseDuration(subscription.pauseHistory);
+    
+    // Find all paused deliveries for this subscription
+    const pausedDeliveries = await Delivery.find({
+      subscriptionId: subscriptionId,
+      status: 'paused'
+    });
+
+    if (pausedDeliveries.length === 0) {
+      return {
+        success: true,
+        resumedCount: 0,
+        message: 'No paused deliveries to resume'
+      };
+    }
+
+    const updateResults = [];
+    const deletePromises = [];
+    const createPromises = [];
+
+    for (const delivery of pausedDeliveries) {
+      // Calculate new delivery date (original date + pause duration)
+      const originalDate = delivery.originalDeliveryDate || delivery.deliveryDate;
+      const newDeliveryDate = new Date(originalDate.getTime() + totalPauseDurationMs);
+      
+      // If new date is in the past, delete this delivery
+      if (newDeliveryDate < resumeDate) {
+        deletePromises.push(Delivery.findByIdAndDelete(delivery._id));
+        continue;
+      }
+      
+      // Update delivery with new date and status
+      const updatedDelivery = await Delivery.findByIdAndUpdate(
+        delivery._id,
+        {
+          status: 'pending',
+          deliveryDate: newDeliveryDate,
+          scheduledDate: newDeliveryDate,
+          originalDeliveryDate: null, // Clear after rescheduling
+          pausedAt: null
+        },
+        { new: true }
+      );
+
+      updateResults.push({
+        deliveryId: delivery._id,
+        oldDate: originalDate,
+        newDate: newDeliveryDate,
+        daysExtended: totalPauseDurationMs / (1000 * 60 * 60 * 24)
+      });
+    }
+
+    // Execute all delete and create operations
+    await Promise.all(deletePromises);
+    
+    // Generate new deliveries for any gaps created by the pause
+    const generationResult = await generateDeliverySchedules(subscription, {
+      logProgress: false,
+      isResume: true // Flag to adjust dates based on pause
+    });
+
+    console.log(`▶️  Resumed ${updateResults.length} deliveries, deleted ${deletePromises.length}, created ${generationResult.count} new deliveries for subscription ${subscriptionId}`);
+    
+    return {
+      success: true,
+      resumedCount: updateResults.length,
+      deletedCount: deletePromises.length,
+      newCount: generationResult.count,
+      updates: updateResults,
+      subscriptionId: subscriptionId
+    };
+  } catch (error) {
+    console.error('❌ Error resuming deliveries:', error);
+    throw new ErrorResponse(`Failed to resume deliveries: ${error.message}`, 500);
   }
 };
 
@@ -432,7 +605,9 @@ const createDeliveryData = (subscription, user, deliveryDate) => {
       size: subscription.size,
       frequency: subscription.frequency,
       price: subscription.price
-    }
+    },
+    subscriptionPeriod: subscription.subscriptionPeriod,
+    planType: subscription.planType
   };
 };
 
@@ -452,17 +627,70 @@ const calculateNextDeliveryDate = (currentDate, frequency) => {
     case 'Weekly':
       nextDate.setDate(nextDate.getDate() + 7);
       break;
-    case 'Bi-Weekly':
+    case 'Bi-weekly':
       nextDate.setDate(nextDate.getDate() + 14);
       break;
     case 'Monthly':
       nextDate.setMonth(nextDate.getMonth() + 1);
+      break;
+    case 'One-Time':
+      // No next date for one-time deliveries
       break;
     default:
       nextDate.setMonth(nextDate.getMonth() + 1);
   }
   
   return nextDate;
+};
+
+/**
+ * Calculate total pause duration from pause history
+ * @param {Array} pauseHistory - Array of pause/resume objects
+ * @returns {Number} Total pause duration in milliseconds
+ */
+const calculateTotalPauseDuration = (pauseHistory) => {
+  if (!pauseHistory || pauseHistory.length === 0) {
+    return 0;
+  }
+
+  let totalDuration = 0;
+  
+  for (const pause of pauseHistory) {
+    if (pause.pausedAt && pause.resumedAt) {
+      totalDuration += (new Date(pause.resumedAt) - new Date(pause.pausedAt));
+    } else if (pause.durationMs) {
+      totalDuration += pause.durationMs;
+    }
+  }
+  
+  return totalDuration;
+};
+
+/**
+ * Check if a delivery date falls within any pause period
+ * @param {Date} deliveryDate - Delivery date to check
+ * @param {Array} pauseHistory - Array of pause/resume objects
+ * @returns {Boolean} True if date is during a pause period
+ */
+const isDeliveryDuringPause = (deliveryDate, pauseHistory) => {
+  if (!pauseHistory || pauseHistory.length === 0) {
+    return false;
+  }
+
+  const date = new Date(deliveryDate);
+  
+  for (const pause of pauseHistory) {
+    if (pause.pausedAt && pause.resumedAt) {
+      const pausedAt = new Date(pause.pausedAt);
+      const resumedAt = new Date(pause.resumedAt);
+      
+      if (date >= pausedAt && date <= resumedAt) {
+        return true;
+      }
+    }
+  }
+  
+  return false;
 };
 
 /**
@@ -543,10 +771,60 @@ const removeDeliverySchedules = async (subscriptionId) => {
   }
 };
 
+/**
+ * Regenerate deliveries for a subscription (useful when subscription is updated)
+ * @param {Object} subscription - Subscription object
+ * @param {Object} options - Configuration options
+ * @returns {Promise<Object>} Regeneration result
+ */
+const regenerateDeliverySchedules = async (subscription, options = {}) => {
+  try {
+    const { logProgress = true } = options;
+    
+    if (logProgress) {
+      console.log(`🔄 Regenerating deliveries for subscription ${subscription._id}`);
+    }
+    
+    // First remove existing deliveries
+    const removalResult = await removeDeliverySchedules(subscription._id);
+    
+    // Then generate new ones
+    const generationResult = await generateDeliverySchedules(subscription, {
+      ...options,
+      overrideExisting: true
+    });
+    
+    return {
+      success: true,
+      removed: removalResult.deletedCount,
+      generated: generationResult.count,
+      subscriptionId: subscription._id
+    };
+  } catch (error) {
+    console.error('❌ Error regenerating delivery schedules:', error);
+    throw new ErrorResponse(`Failed to regenerate delivery schedules: ${error.message}`, 500);
+  }
+};
+
+/**
+ * Get all deliveries for a subscription with pause information
+ * @param {String} subscriptionId - Subscription ID
+ * @returns {Promise<Array>} Array of deliveries
+ */
+const getSubscriptionDeliveries = async (subscriptionId) => {
+  return await Delivery.find({ subscriptionId: subscriptionId })
+    .sort({ deliveryDate: 1 });
+};
+
 module.exports = {
   generateDeliverySchedules,
   generateBatchDeliverySchedules,
   removeDeliverySchedules,
   calculateNextDeliveryDate,
-  checkExistingDelivery
+  checkExistingDelivery,
+  regenerateDeliverySchedules,
+  pauseDeliveries,
+  resumeDeliveries,
+  getSubscriptionDeliveries,
+  calculateTotalPauseDuration
 };

@@ -20,6 +20,15 @@ const deliverySchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
+    originalDeliveryDate: {
+      type: Date,
+    },
+    pausedAt: {
+      type: Date,
+    },
+    resumedAt: {
+      type: Date,
+    },
     scheduledDate: {
       type: Date,
       required: true,
