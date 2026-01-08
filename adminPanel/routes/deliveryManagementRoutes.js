@@ -17,7 +17,8 @@ const {
   requestRemnantDelivery,
   getMyRemnant,
   getAllRemnants,
-  getAgentRemnantDeliveries
+  getAgentRemnantDeliveries,
+  getNextDelivery
 } = require("../controllers/deliveryManagementController");
 
 const { protect, authorize } = require("../../middleware/auth");
@@ -40,6 +41,7 @@ router.put("/:id/failed", protect, authorize("delivery"), markAsFailed);
 // Customer routes
 router.get("/my-deliveries", protect, getMyDeliveries);
 router.put("/:id/confirm", protect, confirmDelivery);
+router.get('/next-delivery', protect, getNextDelivery);
 
 
 // New remnant routes

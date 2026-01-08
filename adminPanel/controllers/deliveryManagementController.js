@@ -1036,6 +1036,125 @@ exports.getAgentRemnantDeliveries = asyncHandler(async (req, res, next) => {
 });
 
 
+
+// @desc    Get next upcoming delivery for user
+// @route   GET /api/v1/deliveries/next-delivery
+// @access  Private
+exports.getNextDelivery = asyncHandler(async (req, res, next) => {
+  const userId = req.user.id;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Start of today
+
+  try {
+    // Find the earliest upcoming delivery from today onward
+    const nextDelivery = await Delivery.findOne({
+      userId: userId,
+      deliveryDate: { $gte: today },
+      status: { $in: ['pending', 'assigned', 'accepted', 'out_for_delivery'] }
+    })
+    .populate({
+      path: 'subscriptionId',
+      select: 'planName size frequency status',
+      model: Subscription
+    })
+    .populate({
+      path: 'userId',
+      select: 'firstName lastName email phone address',
+      model: User
+    })
+    .sort({ deliveryDate: 1 }) // Sort by earliest date first
+    .limit(1);
+
+    if (!nextDelivery) {
+      return res.status(200).json({
+        success: true,
+        data: null,
+        message: "No upcoming deliveries found"
+      });
+    }
+
+    // Format the response
+    const response = {
+      deliveryId: nextDelivery._id,
+      deliveryDate: nextDelivery.deliveryDate,
+      status: nextDelivery.status,
+      subscription: null,
+      isUpcoming: nextDelivery.deliveryDate > new Date() // True if future date
+    };
+
+    // If delivery has subscription info, extract it
+    if (nextDelivery.subscriptionId) {
+      response.subscription = {
+        id: nextDelivery.subscriptionId._id,
+        name: nextDelivery.subscriptionId.planName,
+        size: nextDelivery.subscriptionId.size,
+        frequency: nextDelivery.subscriptionId.frequency,
+        status: nextDelivery.subscriptionId.status
+      };
+    } else if (nextDelivery.planDetails) {
+      // Fallback to planDetails from delivery
+      response.subscription = {
+        name: nextDelivery.planDetails.planName || 'Remnant Delivery',
+        size: nextDelivery.planDetails.size || 'N/A',
+        frequency: nextDelivery.planDetails.frequency || 'One-Time',
+        status: 'active'
+      };
+    }
+
+    res.status(200).json({
+      success: true,
+      data: response
+    });
+
+  } catch (error) {
+    console.error('Error fetching next delivery:', error);
+    return next(new ErrorResponse('Failed to fetch next delivery', 500));
+  }
+});
+
+// @desc    Get delivery details by ID
+// @route   GET /api/v1/deliveries/:id
+// @access  Private
+// exports.getDelivery = asyncHandler(async (req, res, next) => {
+//   const userId = req.user.id;
+//   const deliveryId = req.params.id;
+
+//   const delivery = await Delivery.findOne({
+//     _id: deliveryId,
+//     userId: userId
+//   })
+//   .populate({
+//     path: 'subscriptionId',
+//     select: 'planName size frequency status startDate endDate',
+//     model: Subscription
+//   })
+//   .populate({
+//     path: 'userId',
+//     select: 'firstName lastName email phone address',
+//     model: User
+//   })
+//   .populate({
+//     path: 'deliveryAgent',
+//     select: 'firstName lastName phone',
+//     model: User
+//   });
+
+//   if (!delivery) {
+//     return next(new ErrorResponse('Delivery not found', 404));
+//   }
+
+//   // Check if user is authorized to view this delivery
+//   if (delivery.userId._id.toString() !== userId && req.user.role !== 'admin') {
+//     return next(new ErrorResponse('Not authorized to view this delivery', 403));
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     data: delivery
+//   });
+// });
+
+
 // Helper function to calculate delivery dates
 // Helper function to calculate delivery dates
 // Helper function to calculate delivery dates
