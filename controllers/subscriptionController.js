@@ -489,45 +489,130 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
 });
 
 // CHANGED: Fixed Bi-weekly frequency multiplier
+// const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
+//   if (!plan) return 0;
+
+//   // Extract numeric size value - handle both "6kg" and "6" formats
+//   const sizeKg =
+//     parseInt(String(size).replace("kg", ""), 10) || parseInt(size, 10);
+
+//   // Calculate base price
+//   let baseAmount = sizeKg * (plan.pricePerKg || 0);
+
+//   // CHANGED: Fixed frequency multipliers - Bi-weekly should be twice Monthly
+//   let frequencyMultiplier = 1;
+//   switch (frequency) {
+//     case "Daily":
+//       frequencyMultiplier = 30;
+//       break; // 30x monthly
+//     case "Weekly":
+//       frequencyMultiplier = 5;
+//       break; // 4x monthly
+//     case "Bi-weekly":
+//       frequencyMultiplier = 3;
+//       break; // CHANGED: 2x monthly (was same as Monthly)
+//     case "Monthly":
+//       frequencyMultiplier = 1;
+//       break; // 1x monthly
+//     case "One-Time":
+//       frequencyMultiplier = 1;
+//       break; // 1x monthly
+//     default:
+//       frequencyMultiplier = 1;
+//   }
+
+//   // Apply subscription period (months)
+//   const totalAmount = baseAmount * frequencyMultiplier * subscriptionPeriod;
+
+//   return Math.round(totalAmount);
+// };
+
+
+// CHANGED: Updated with correct delivery counts
 const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
   if (!plan) return 0;
 
-  // Extract numeric size value - handle both "6kg" and "6" formats
-  const sizeKg =
-    parseInt(String(size).replace("kg", ""), 10) || parseInt(size, 10);
+  // Extract numeric size value
+  const sizeKg = parseInt(String(size).replace("kg", ""), 10) || parseInt(size, 10);
 
   // Calculate base price
   let baseAmount = sizeKg * (plan.pricePerKg || 0);
 
-  // CHANGED: Fixed frequency multipliers - Bi-weekly should be twice Monthly
-  let frequencyMultiplier = 1;
+  // CHANGED: Correct delivery counts for each frequency
+  // Daily: 30 deliveries per month + 1 initial delivery = 31 for first month
+  // Weekly: 4 deliveries per month + 1 initial delivery = 5 for first month
+  // Bi-weekly: 2 deliveries per month + 1 initial delivery = 3 for first month
+  // Monthly: 1 delivery per month + 1 initial delivery = 2 for first month
+  // One-Time/Emergency: 1 delivery total
+  
+  let deliveriesPerMonth = 0;
+  
   switch (frequency) {
     case "Daily":
-      frequencyMultiplier = 30;
-      break; // 30x monthly
+      deliveriesPerMonth = 30;
+      break;
     case "Weekly":
-      frequencyMultiplier = 5;
-      break; // 4x monthly
+      deliveriesPerMonth = 4;
+      break;
     case "Bi-weekly":
-      frequencyMultiplier = 3;
-      break; // CHANGED: 2x monthly (was same as Monthly)
+      deliveriesPerMonth = 2;
+      break;
     case "Monthly":
-      frequencyMultiplier = 1;
-      break; // 1x monthly
+      deliveriesPerMonth = 1;
+      break;
     case "One-Time":
-      frequencyMultiplier = 1;
-      break; // 1x monthly
+    case "Emergency":
+      deliveriesPerMonth = 1;
+      break;
     default:
-      frequencyMultiplier = 1;
+      deliveriesPerMonth = 1;
   }
 
-  // Apply subscription period (months)
-  const totalAmount = baseAmount * frequencyMultiplier * subscriptionPeriod;
+  // For first month: add 1 extra delivery
+  // For subsequent months: use regular delivery count
+  let totalDeliveries = 0;
+  
+  if (frequency === "One-Time" || frequency === "Emergency") {
+    totalDeliveries = 1; // Only one delivery for one-time/emergency
+  } else {
+    if (subscriptionPeriod === 1) {
+      // First month only: deliveries per month + 1 extra
+      totalDeliveries = deliveriesPerMonth + 1;
+    } else {
+      // First month: deliveries per month + 1 extra
+      // Subsequent months: deliveries per month each
+      totalDeliveries = (deliveriesPerMonth + 1) + (deliveriesPerMonth * (subscriptionPeriod - 1));
+    }
+  }
+
+  // Total price = base amount × total deliveries
+  const totalAmount = baseAmount * totalDeliveries;
 
   return Math.round(totalAmount);
 };
 
 // Helper functions matching your frontend pattern
+// const getCustomPlanPrice = (plan, customPlanData) => {
+//   if (!plan) return 0;
+//   return calculatePrice(
+//     plan,
+//     customPlanData.size,
+//     customPlanData.frequency,
+//     customPlanData.subscriptionPeriod
+//   );
+// };
+
+// const getOneTimePlanPrice = (plan, size) => {
+//   if (!plan) return 0;
+//   return calculatePrice(plan, size, "One-Time", 1);
+// };
+
+// const getEmergencyPlanPrice = (plan, size) => {
+//   if (!plan) return 0;
+//   return calculatePrice(plan, size, "One-Time", 1);
+// };
+
+
 const getCustomPlanPrice = (plan, customPlanData) => {
   if (!plan) return 0;
   return calculatePrice(
@@ -545,7 +630,7 @@ const getOneTimePlanPrice = (plan, size) => {
 
 const getEmergencyPlanPrice = (plan, size) => {
   if (!plan) return 0;
-  return calculatePrice(plan, size, "One-Time", 1);
+  return calculatePrice(plan, size, "Emergency", 1);
 };
 
 // @desc    Verify subscription payment

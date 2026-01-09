@@ -139,6 +139,38 @@ const deliverySchema = new mongoose.Schema(
       min: 0,
     },
 
+    subscriptionPeriod: {
+    type: Number,
+    default: 1
+  },
+  
+  isInitialDelivery: {
+    type: Boolean,
+    default: false
+  },
+  
+  sequenceNumber: {
+    type: Number,
+    default: 0
+  },
+  
+  totalSequences: {
+    type: Number,
+    default: 0
+  },
+  
+  planType: {
+    type: String,
+    enum: ['custom', 'one-time', 'emergency', 'preset']
+  },
+  
+  // Price breakdown
+  priceBreakdown: {
+    pricePerKg: Number,
+    totalDeliveries: Number,
+    baseAmount: Number
+  },
+  
     // In your Delivery model
     isOneTimeRemnantDelivery: {
       type: Boolean,
