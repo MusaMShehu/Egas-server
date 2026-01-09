@@ -43,6 +43,7 @@ const deliverySchema = new mongoose.Schema(
         "delivered",
         "failed",
         "cancelled",
+        "paused",
       ],
       default: "pending",
     },
