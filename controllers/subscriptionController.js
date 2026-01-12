@@ -1139,6 +1139,91 @@ exports.updateSubscription = asyncHandler(async (req, res, next) => {
 // @desc    Pause a subscription
 // @route   PUT /api/v1/subscriptions/:id/pause
 // @access  Private
+// exports.pauseSubscription = asyncHandler(async (req, res, next) => {
+//   const subscription = await Subscription.findOne({
+//     _id: req.params.id,
+//     userId: req.user.id,
+//   });
+
+//   if (!subscription) {
+//     return next(
+//       new ErrorResponse(
+//         `No subscription found with id of ${req.params.id}`,
+//         404
+//       )
+//     );
+//   }
+
+//   if (subscription.status !== "active") {
+//     return next(
+//       new ErrorResponse("Only active subscriptions can be paused", 400)
+//     );
+//   }
+
+//   const now = new Date();
+//   const remainingTimeMs = subscription.endDate - now;
+
+//   // ✅ Calculate remaining time in days (rounded down)
+//   const remainingDays = Math.max(
+//     Math.floor(remainingTimeMs / (1000 * 60 * 60 * 24)),
+//     0
+//   );
+
+//   subscription.remainingDuration = Math.max(remainingTimeMs, 0); // keep milliseconds for accuracy
+//   subscription.remainingDays = remainingDays; // store in days for frontend
+//   subscription.pausedAt = now;
+//   subscription.status = "paused";
+
+//   // ✅ Ensure planType is set before saving (prevents validation error)
+//   if (!subscription.planType && subscription.plan?.type) {
+//     subscription.planType = subscription.plan.type;
+//   }
+
+//   await subscription.save({ validateBeforeSave: false }); // skip validation for missing fields
+
+//   // ✅ Pause all future deliveries
+//   try {
+//     await pauseDeliveries(subscription._id, now);
+//   } catch (pauseError) {
+//     console.error("Failed to pause deliveries:", pauseError);
+//   }
+
+
+//   // ✅ SMS NOTIFICATION: Send subscription paused notification
+//   try {
+//     const user = await User.findById(subscription.userId);
+//     // if (user && user.phone && user.phoneVerified) {
+//     await NotificationService.sendSubscriptionPaused(subscription, user);
+//     // }
+//   } catch (smsError) {
+//     console.error("Subscription paused SMS failed:", smsError);
+//   }
+
+//   // ✅ ADDED: Send subscription paused email
+//   setTimeout(async () => {
+//     try {
+//       const user = await User.findById(subscription.userId);
+//       if (user) {
+//         await emailService.sendSubscriptionPausedEmail(subscription, user);
+//       }
+//     } catch (emailError) {
+//       console.error("Failed to send subscription paused email:", emailError);
+//     }
+//   }, 0);
+
+//   res.status(200).json({
+//     success: true,
+//     message: `Subscription paused successfully with ${remainingDays} day(s) remaining.`,
+//     data: {
+//       id: subscription._id,
+//       status: subscription.status,
+//       remainingDays,
+//       pausedAt: subscription.pausedAt,
+//       endDate: subscription.endDate,
+//     },
+//   });
+// });
+
 exports.pauseSubscription = asyncHandler(async (req, res, next) => {
   const subscription = await Subscription.findOne({
     _id: req.params.id,
@@ -1174,32 +1259,30 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
   subscription.pausedAt = now;
   subscription.status = "paused";
 
-  // ✅ Ensure planType is set before saving (prevents validation error)
+  // ✅ Ensure planType is set before saving
   if (!subscription.planType && subscription.plan?.type) {
     subscription.planType = subscription.plan.type;
   }
 
-  await subscription.save({ validateBeforeSave: false }); // skip validation for missing fields
+  await subscription.save({ validateBeforeSave: false });
 
-  // ✅ Pause all future deliveries
+  // ✅ Enhanced: Pause all associated deliveries
   try {
     await pauseDeliveries(subscription._id, now);
+    console.log(`✅ Paused deliveries for subscription ${subscription._id}`);
   } catch (pauseError) {
     console.error("Failed to pause deliveries:", pauseError);
   }
 
-
-  // ✅ SMS NOTIFICATION: Send subscription paused notification
+  // ✅ SMS NOTIFICATION
   try {
     const user = await User.findById(subscription.userId);
-    // if (user && user.phone && user.phoneVerified) {
     await NotificationService.sendSubscriptionPaused(subscription, user);
-    // }
   } catch (smsError) {
     console.error("Subscription paused SMS failed:", smsError);
   }
 
-  // ✅ ADDED: Send subscription paused email
+  // ✅ Email notification
   setTimeout(async () => {
     try {
       const user = await User.findById(subscription.userId);
@@ -1220,13 +1303,159 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
       remainingDays,
       pausedAt: subscription.pausedAt,
       endDate: subscription.endDate,
+      deliveryUpdate: "All associated deliveries have been paused",
     },
   });
 });
 
+
 // @desc    Resume a paused subscription
 // @route   PUT /api/v1/subscriptions/:id/resume
 // @access  Private
+// exports.resumeSubscription = asyncHandler(async (req, res, next) => {
+//   const subscription = await Subscription.findOne({
+//     _id: req.params.id,
+//     userId: req.user.id,
+//   });
+
+//   if (!subscription) {
+//     return next(
+//       new ErrorResponse(
+//         `No subscription found with id of ${req.params.id}`,
+//         404
+//       )
+//     );
+//   }
+
+//   if (subscription.status !== "paused") {
+//     return next(
+//       new ErrorResponse("Only paused subscriptions can be resumed", 400)
+//     );
+//   }
+
+//   if (!subscription.remainingDuration) {
+//     return next(
+//       new ErrorResponse("No remaining duration stored. Cannot resume.", 400)
+//     );
+//   }
+
+//   const now = new Date();
+//   const pausedDurationMs = now - subscription.pausedAt;
+
+//   // Calculate the total time the subscription was paused since its start
+//   let totalPausedDurationMs = pausedDurationMs;
+
+//   // Add any previous pause durations from pauseHistory
+//   if (subscription.pauseHistory && subscription.pauseHistory.length > 0) {
+//     subscription.pauseHistory.forEach((pause) => {
+//       if (pause.durationMs) {
+//         totalPausedDurationMs += pause.durationMs;
+//       }
+//     });
+//   }
+
+//   // Preserve the original startDate
+//   const originalStartDate =
+//     subscription.originalStartDate || subscription.startDate;
+
+//   // Calculate new endDate by:
+//   // 1. Starting from original startDate
+//   // 2. Adding the total subscription duration (including remaining duration)
+//   // 3. Adding the total time the subscription was paused
+//   const totalSubscriptionDurationMs =
+//     subscription.remainingDuration + totalPausedDurationMs;
+//   const newEndDate = new Date(
+//     originalStartDate.getTime() + totalSubscriptionDurationMs
+//   );
+
+//   // Record this pause/resume cycle in history
+//   if (!subscription.pauseHistory) subscription.pauseHistory = [];
+//   subscription.pauseHistory.push({
+//     pausedAt: subscription.pausedAt,
+//     resumedAt: now,
+//     durationMs: pausedDurationMs,
+//   });
+
+//   // Update subscription status and dates
+//   subscription.status = "active";
+//   subscription.pausedAt = null;
+//   subscription.remainingDuration = null;
+//   subscription.remainingDays = null;
+
+//   // Preserve the original startDate - do NOT reset it
+//   subscription.startDate = originalStartDate;
+//   subscription.endDate = newEndDate;
+
+//   // Store original startDate if not already stored
+//   if (!subscription.originalStartDate) {
+//     subscription.originalStartDate = originalStartDate;
+//   }
+
+//   // ✅ Ensure planType is set before saving
+//   if (!subscription.planType && subscription.plan?.type) {
+//     subscription.planType = subscription.plan.type;
+//   }
+
+//   await subscription.save({ validateBeforeSave: false });
+
+//   // ✅ Resume all paused deliveries
+//   try {
+//     await resumeDeliveries(subscription, now);
+//   } catch (resumeError) {
+//     console.error("Failed to resume deliveries:", resumeError);
+//   }
+
+//   // ✅ SMS NOTIFICATION: Send subscription resumed notification
+//   try {
+//     const user = await User.findById(subscription.userId);
+//     // if (user && user.phone && user.phoneVerified) {
+//     await NotificationService.sendSubscriptionResumed(subscription, user);
+//     // }
+//   } catch (smsError) {
+//     console.error("Subscription resumed SMS failed:", smsError);
+//   }
+
+//   // Calculate remaining days from NOW (not from original start)
+//   const daysRemaining = Math.max(
+//     Math.ceil((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
+//     0
+//   );
+
+//   // Also calculate the total subscription duration in days for context
+//   const totalSubscriptionDays = Math.ceil(
+//     (subscription.endDate - subscription.startDate) / (1000 * 60 * 60 * 24)
+//   );
+
+//   // ✅ EMAIL NOTIFICATION: Send subscription resumed email
+//   setTimeout(async () => {
+//     try {
+//       const user = await User.findById(subscription.userId);
+//       if (user) {
+//         await emailService.sendSubscriptionResumedEmail(subscription, user);
+//       }
+//     } catch (emailError) {
+//       console.error("Failed to send subscription resumed email:", emailError);
+//     }
+//   }, 0);
+
+//   res.status(200).json({
+//     success: true,
+//     message: `Subscription resumed successfully. ${daysRemaining} day(s) remaining.`,
+//     data: {
+//       id: subscription._id,
+//       status: subscription.status,
+//       originalStartDate: subscription.originalStartDate,
+//       startDate: subscription.startDate,
+//       endDate: subscription.endDate,
+//       totalSubscriptionDays: totalSubscriptionDays,
+//       remainingDays: daysRemaining,
+//       pausedDurationDays: Math.floor(
+//         totalPausedDurationMs / (1000 * 60 * 60 * 24)
+//       ),
+//     },
+//   });
+// });
+
 exports.resumeSubscription = asyncHandler(async (req, res, next) => {
   const subscription = await Subscription.findOne({
     _id: req.params.id,
@@ -1273,10 +1502,7 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
   const originalStartDate =
     subscription.originalStartDate || subscription.startDate;
 
-  // Calculate new endDate by:
-  // 1. Starting from original startDate
-  // 2. Adding the total subscription duration (including remaining duration)
-  // 3. Adding the total time the subscription was paused
+  // Calculate new endDate with paused duration added
   const totalSubscriptionDurationMs =
     subscription.remainingDuration + totalPausedDurationMs;
   const newEndDate = new Date(
@@ -1296,8 +1522,6 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
   subscription.pausedAt = null;
   subscription.remainingDuration = null;
   subscription.remainingDays = null;
-
-  // Preserve the original startDate - do NOT reset it
   subscription.startDate = originalStartDate;
   subscription.endDate = newEndDate;
 
@@ -1313,35 +1537,29 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
 
   await subscription.save({ validateBeforeSave: false });
 
-  // ✅ Resume all paused deliveries
+  // ✅ Enhanced: Resume all paused deliveries with date extension
   try {
-    await resumeDeliveries(subscription, now);
+    const resumeResult = await resumeDeliveries(subscription, now, totalPausedDurationMs);
+    console.log(`✅ Resumed deliveries for subscription ${subscription._id}:`, resumeResult);
   } catch (resumeError) {
     console.error("Failed to resume deliveries:", resumeError);
   }
 
-  // ✅ SMS NOTIFICATION: Send subscription resumed notification
+  // ✅ SMS NOTIFICATION
   try {
     const user = await User.findById(subscription.userId);
-    // if (user && user.phone && user.phoneVerified) {
     await NotificationService.sendSubscriptionResumed(subscription, user);
-    // }
   } catch (smsError) {
     console.error("Subscription resumed SMS failed:", smsError);
   }
 
-  // Calculate remaining days from NOW (not from original start)
+  // Calculate remaining days from NOW
   const daysRemaining = Math.max(
     Math.ceil((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
     0
   );
 
-  // Also calculate the total subscription duration in days for context
-  const totalSubscriptionDays = Math.ceil(
-    (subscription.endDate - subscription.startDate) / (1000 * 60 * 60 * 24)
-  );
-
-  // ✅ EMAIL NOTIFICATION: Send subscription resumed email
+  // ✅ EMAIL NOTIFICATION
   setTimeout(async () => {
     try {
       const user = await User.findById(subscription.userId);
@@ -1362,8 +1580,8 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
       originalStartDate: subscription.originalStartDate,
       startDate: subscription.startDate,
       endDate: subscription.endDate,
-      totalSubscriptionDays: totalSubscriptionDays,
       remainingDays: daysRemaining,
+      deliveryUpdate: "All paused deliveries have been rescheduled",
       pausedDurationDays: Math.floor(
         totalPausedDurationMs / (1000 * 60 * 60 * 24)
       ),

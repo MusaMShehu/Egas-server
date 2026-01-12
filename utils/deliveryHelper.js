@@ -1092,8 +1092,51 @@ const generateDeliverySchedules = async (subscription, options = {}) => {
  * @param {Date} pauseDate - Date when subscription was paused
  * @returns {Promise<Object>} Pause result
  */
-const pauseDeliveries = async (subscriptionId, pauseDate) => {
+// const pauseDeliveries = async (subscriptionId, pauseDate) => {
+//   try {
+//     // Find all pending/assigned/accepted/out_for_delivery deliveries
+//     const deliveries = await Delivery.find({
+//       subscriptionId: subscriptionId,
+//       status: { $in: ['pending', 'assigned', 'accepted', 'out_for_delivery'] },
+//       deliveryDate: { $gte: pauseDate } // Only future deliveries
+//     });
+
+//     if (deliveries.length === 0) {
+//       return {
+//         success: true,
+//         pausedCount: 0,
+//         message: 'No deliveries to pause'
+//       };
+//     }
+
+//     // Update deliveries to paused status
+//     const updatePromises = deliveries.map(delivery => 
+//       Delivery.findByIdAndUpdate(delivery._id, {
+//         status: 'paused',
+//         originalDeliveryDate: delivery.deliveryDate, // Save original date
+//         pausedAt: pauseDate
+//       })
+//     );
+
+//     await Promise.all(updatePromises);
+
+//     console.log(`⏸️  Paused ${deliveries.length} deliveries for subscription ${subscriptionId}`);
+    
+//     return {
+//       success: true,
+//       pausedCount: deliveries.length,
+//       deliveries: deliveries.map(d => d._id)
+//     };
+//   } catch (error) {
+//     console.error('❌ Error pausing deliveries:', error);
+//     throw new ErrorResponse(`Failed to pause deliveries: ${error.message}`, 500);
+//   }
+// };
+
+const pauseDeliveries = async (subscriptionId, pauseDate, options = {}) => {
   try {
+    const { logProgress = true } = options;
+    
     // Find all pending/assigned/accepted/out_for_delivery deliveries
     const deliveries = await Delivery.find({
       subscriptionId: subscriptionId,
@@ -1102,6 +1145,9 @@ const pauseDeliveries = async (subscriptionId, pauseDate) => {
     });
 
     if (deliveries.length === 0) {
+      if (logProgress) {
+        console.log(`ℹ️  No deliveries to pause for subscription ${subscriptionId}`);
+      }
       return {
         success: true,
         pausedCount: 0,
@@ -1110,22 +1156,40 @@ const pauseDeliveries = async (subscriptionId, pauseDate) => {
     }
 
     // Update deliveries to paused status
-    const updatePromises = deliveries.map(delivery => 
-      Delivery.findByIdAndUpdate(delivery._id, {
+    const updatePromises = deliveries.map(async (delivery) => {
+      const updateData = {
         status: 'paused',
-        originalDeliveryDate: delivery.deliveryDate, // Save original date
-        pausedAt: pauseDate
-      })
-    );
+        pausedAt: pauseDate,
+        originalDeliveryDate: delivery.deliveryDate, // Save original date for resuming
+        originalScheduledDate: delivery.scheduledDate || delivery.deliveryDate
+      };
+      
+      return Delivery.findByIdAndUpdate(
+        delivery._id,
+        updateData,
+        { new: true }
+      );
+    });
 
-    await Promise.all(updatePromises);
+    const updatedDeliveries = await Promise.all(updatePromises);
 
-    console.log(`⏸️  Paused ${deliveries.length} deliveries for subscription ${subscriptionId}`);
+    if (logProgress) {
+      console.log(`⏸️  Paused ${updatedDeliveries.length} deliveries for subscription ${subscriptionId}`);
+      
+      // Log details of paused deliveries
+      updatedDeliveries.forEach(delivery => {
+        console.log(`   - Delivery ${delivery._id}: ${delivery.deliveryDate.toDateString()} -> PAUSED`);
+      });
+    }
     
     return {
       success: true,
-      pausedCount: deliveries.length,
-      deliveries: deliveries.map(d => d._id)
+      pausedCount: updatedDeliveries.length,
+      deliveries: updatedDeliveries.map(d => ({
+        _id: d._id,
+        deliveryDate: d.deliveryDate,
+        status: d.status
+      }))
     };
   } catch (error) {
     console.error('❌ Error pausing deliveries:', error);
@@ -1139,12 +1203,92 @@ const pauseDeliveries = async (subscriptionId, pauseDate) => {
  * @param {Date} resumeDate - Date when subscription was resumed
  * @returns {Promise<Object>} Resume result
  */
-const resumeDeliveries = async (subscription, resumeDate) => {
-  try {
-    const subscriptionId = subscription._id;
+// const resumeDeliveries = async (subscription, resumeDate) => {
+//   try {
+//     const subscriptionId = subscription._id;
     
-    // Calculate total pause duration
-    const totalPauseDurationMs = calculateTotalPauseDuration(subscription.pauseHistory);
+//     // Calculate total pause duration
+//     const totalPauseDurationMs = calculateTotalPauseDuration(subscription.pauseHistory);
+    
+//     // Find all paused deliveries for this subscription
+//     const pausedDeliveries = await Delivery.find({
+//       subscriptionId: subscriptionId,
+//       status: 'paused'
+//     });
+
+//     if (pausedDeliveries.length === 0) {
+//       return {
+//         success: true,
+//         resumedCount: 0,
+//         message: 'No paused deliveries to resume'
+//       };
+//     }
+
+//     const updateResults = [];
+//     const deletePromises = [];
+//     const createPromises = [];
+
+//     for (const delivery of pausedDeliveries) {
+//       // Calculate new delivery date (original date + pause duration)
+//       const originalDate = delivery.originalDeliveryDate || delivery.deliveryDate;
+//       const newDeliveryDate = new Date(originalDate.getTime() + totalPauseDurationMs);
+      
+//       // If new date is in the past, delete this delivery
+//       if (newDeliveryDate < resumeDate) {
+//         deletePromises.push(Delivery.findByIdAndDelete(delivery._id));
+//         continue;
+//       }
+      
+//       // Update delivery with new date and status
+//       const updatedDelivery = await Delivery.findByIdAndUpdate(
+//         delivery._id,
+//         {
+//           status: 'pending',
+//           deliveryDate: newDeliveryDate,
+//           scheduledDate: newDeliveryDate,
+//           originalDeliveryDate: null, // Clear after rescheduling
+//           pausedAt: null
+//         },
+//         { new: true }
+//       );
+
+//       updateResults.push({
+//         deliveryId: delivery._id,
+//         oldDate: originalDate,
+//         newDate: newDeliveryDate,
+//         daysExtended: totalPauseDurationMs / (1000 * 60 * 60 * 24)
+//       });
+//     }
+
+//     // Execute all delete and create operations
+//     await Promise.all(deletePromises);
+    
+//     // Generate new deliveries for any gaps created by the pause
+//     const generationResult = await generateDeliverySchedules(subscription, {
+//       logProgress: false,
+//       isResume: true // Flag to adjust dates based on pause
+//     });
+
+//     console.log(`▶️  Resumed ${updateResults.length} deliveries, deleted ${deletePromises.length}, created ${generationResult.count} new deliveries for subscription ${subscriptionId}`);
+    
+//     return {
+//       success: true,
+//       resumedCount: updateResults.length,
+//       deletedCount: deletePromises.length,
+//       newCount: generationResult.count,
+//       updates: updateResults,
+//       subscriptionId: subscriptionId
+//     };
+//   } catch (error) {
+//     console.error('❌ Error resuming deliveries:', error);
+//     throw new ErrorResponse(`Failed to resume deliveries: ${error.message}`, 500);
+//   }
+// };
+
+const resumeDeliveries = async (subscription, resumeDate, totalPauseDurationMs, options = {}) => {
+  try {
+    const { logProgress = true, overrideExisting = false } = options;
+    const subscriptionId = subscription._id;
     
     // Find all paused deliveries for this subscription
     const pausedDeliveries = await Delivery.find({
@@ -1153,6 +1297,9 @@ const resumeDeliveries = async (subscription, resumeDate) => {
     });
 
     if (pausedDeliveries.length === 0) {
+      if (logProgress) {
+        console.log(`ℹ️  No paused deliveries to resume for subscription ${subscriptionId}`);
+      }
       return {
         success: true,
         resumedCount: 0,
@@ -1160,59 +1307,119 @@ const resumeDeliveries = async (subscription, resumeDate) => {
       };
     }
 
-    const updateResults = [];
-    const deletePromises = [];
-    const createPromises = [];
+    const resumeResults = [];
+    const extendedDeliveries = [];
+    const now = new Date();
 
-    for (const delivery of pausedDeliveries) {
-      // Calculate new delivery date (original date + pause duration)
-      const originalDate = delivery.originalDeliveryDate || delivery.deliveryDate;
-      const newDeliveryDate = new Date(originalDate.getTime() + totalPauseDurationMs);
-      
-      // If new date is in the past, delete this delivery
-      if (newDeliveryDate < resumeDate) {
-        deletePromises.push(Delivery.findByIdAndDelete(delivery._id));
-        continue;
-      }
-      
-      // Update delivery with new date and status
-      const updatedDelivery = await Delivery.findByIdAndUpdate(
-        delivery._id,
-        {
-          status: 'pending',
-          deliveryDate: newDeliveryDate,
-          scheduledDate: newDeliveryDate,
-          originalDeliveryDate: null, // Clear after rescheduling
-          pausedAt: null
-        },
-        { new: true }
-      );
-
-      updateResults.push({
-        deliveryId: delivery._id,
-        oldDate: originalDate,
-        newDate: newDeliveryDate,
-        daysExtended: totalPauseDurationMs / (1000 * 60 * 60 * 24)
-      });
+    if (logProgress) {
+      console.log(`🔄 Resuming ${pausedDeliveries.length} deliveries for subscription ${subscriptionId}`);
+      console.log(`   Total pause duration: ${Math.round(totalPauseDurationMs / (1000 * 60 * 60 * 24))} days`);
     }
 
-    // Execute all delete and create operations
-    await Promise.all(deletePromises);
-    
-    // Generate new deliveries for any gaps created by the pause
-    const generationResult = await generateDeliverySchedules(subscription, {
-      logProgress: false,
-      isResume: true // Flag to adjust dates based on pause
-    });
+    for (const delivery of pausedDeliveries) {
+      try {
+        // Calculate new delivery date (original date + pause duration)
+        const originalDate = delivery.originalDeliveryDate || delivery.deliveryDate;
+        const newDeliveryDate = new Date(originalDate.getTime() + totalPauseDurationMs);
+        
+        // Check if the new date is still valid (not in the past)
+        if (newDeliveryDate < now) {
+          if (logProgress) {
+            console.log(`   ⏭️  Skipping delivery ${delivery._id}: New date ${newDeliveryDate.toDateString()} is in the past`);
+          }
+          continue;
+        }
 
-    console.log(`▶️  Resumed ${updateResults.length} deliveries, deleted ${deletePromises.length}, created ${generationResult.count} new deliveries for subscription ${subscriptionId}`);
-    
+        // Check if a delivery already exists for the new date
+        const existingDelivery = await checkExistingDelivery(
+          subscriptionId, 
+          newDeliveryDate,
+          { excludeId: delivery._id } // Exclude current delivery from check
+        );
+
+        if (existingDelivery && !overrideExisting) {
+          if (logProgress) {
+            console.log(`   ⚠️  Delivery already exists for date ${newDeliveryDate.toDateString()}, keeping as paused`);
+          }
+          continue;
+        }
+
+        // Update delivery with new date and resume status
+        const updatedDelivery = await Delivery.findByIdAndUpdate(
+          delivery._id,
+          {
+            status: 'pending',
+            deliveryDate: newDeliveryDate,
+            scheduledDate: newDeliveryDate,
+            pausedAt: null,
+            resumedAt: resumeDate,
+            originalDeliveryDate: null, // Clear after rescheduling
+            originalScheduledDate: null,
+            // Add pause/resume history
+            $push: {
+              pauseResumeHistory: {
+                action: 'resumed',
+                date: resumeDate,
+                originalDate: originalDate,
+                newDate: newDeliveryDate,
+                pauseDurationMs: totalPauseDurationMs
+              }
+            }
+          },
+          { new: true }
+        );
+
+        resumeResults.push({
+          deliveryId: delivery._id,
+          originalDate: originalDate,
+          newDate: newDeliveryDate,
+          daysExtended: Math.round(totalPauseDurationMs / (1000 * 60 * 60 * 24)),
+          status: 'resumed'
+        });
+
+        extendedDeliveries.push(updatedDelivery);
+
+        if (logProgress) {
+          console.log(`   ✅ Delivery ${delivery._id}: ${originalDate.toDateString()} → ${newDeliveryDate.toDateString()} (+${Math.round(totalPauseDurationMs / (1000 * 60 * 60 * 24))} days)`);
+        }
+
+      } catch (deliveryError) {
+        console.error(`   ❌ Error resuming delivery ${delivery._id}:`, deliveryError.message);
+        resumeResults.push({
+          deliveryId: delivery._id,
+          error: deliveryError.message,
+          status: 'failed'
+        });
+      }
+    }
+
+    // Generate any missing deliveries for the extended period
+    if (subscription.status === 'active') {
+      const generationResult = await generateDeliverySchedules(subscription, {
+        logProgress: false,
+        isResume: true,
+        startDate: new Date(now.getTime() + totalPauseDurationMs) // Start after the pause
+      });
+
+      if (logProgress && generationResult.count > 0) {
+        console.log(`   📦 Generated ${generationResult.count} new deliveries for extended period`);
+      }
+    }
+
+    if (logProgress) {
+      console.log(`✅ Successfully resumed ${resumeResults.filter(r => r.status === 'resumed').length} deliveries`);
+    }
+
     return {
       success: true,
-      resumedCount: updateResults.length,
-      deletedCount: deletePromises.length,
-      newCount: generationResult.count,
-      updates: updateResults,
+      resumedCount: resumeResults.filter(r => r.status === 'resumed').length,
+      failedCount: resumeResults.filter(r => r.status === 'failed').length,
+      extendedDeliveries: extendedDeliveries.map(d => ({
+        _id: d._id,
+        deliveryDate: d.deliveryDate,
+        status: d.status
+      })),
+      details: resumeResults,
       subscriptionId: subscriptionId
     };
   } catch (error) {
@@ -1227,21 +1434,45 @@ const resumeDeliveries = async (subscription, resumeDate) => {
  * @param {Date} deliveryDate - Delivery date to check
  * @returns {Promise<Object|null>} Existing delivery or null
  */
-const checkExistingDelivery = async (subscriptionId, deliveryDate) => {
+// const checkExistingDelivery = async (subscriptionId, deliveryDate) => {
+//   const deliveryStart = new Date(deliveryDate);
+//   deliveryStart.setHours(0, 0, 0, 0);
+  
+//   const deliveryEnd = new Date(deliveryDate);
+//   deliveryEnd.setHours(23, 59, 59, 999);
+
+//   return await Delivery.findOne({
+//     subscriptionId: subscriptionId,
+//     deliveryDate: { 
+//       $gte: deliveryStart, 
+//       $lte: deliveryEnd 
+//     }
+//   });
+// };
+
+const checkExistingDelivery = async (subscriptionId, deliveryDate, options = {}) => {
+  const { excludeId = null } = options;
   const deliveryStart = new Date(deliveryDate);
   deliveryStart.setHours(0, 0, 0, 0);
   
   const deliveryEnd = new Date(deliveryDate);
   deliveryEnd.setHours(23, 59, 59, 999);
 
-  return await Delivery.findOne({
+  const query = {
     subscriptionId: subscriptionId,
     deliveryDate: { 
       $gte: deliveryStart, 
       $lte: deliveryEnd 
     }
-  });
+  };
+
+  if (excludeId) {
+    query._id = { $ne: excludeId };
+  }
+
+  return await Delivery.findOne(query);
 };
+
 
 /**
  * Create delivery data object
@@ -1481,6 +1712,63 @@ const getSubscriptionDeliveries = async (subscriptionId) => {
     .sort({ deliveryDate: 1 });
 };
 
+
+/**
+ * Get all deliveries for a subscription with pause/resume history
+ */
+const getSubscriptionDeliveriesWithHistory = async (subscriptionId) => {
+  return await Delivery.find({ subscriptionId: subscriptionId })
+    .sort({ deliveryDate: 1 })
+    .select('deliveryDate status pausedAt resumedAt pauseResumeHistory originalDeliveryDate');
+};
+
+/**
+ * Auto-sync delivery status with subscription
+ * This function should be called when checking subscription status
+ */
+const syncDeliveryStatusWithSubscription = async (subscription) => {
+  try {
+    const subscriptionId = subscription._id;
+    
+    if (subscription.status === 'paused') {
+      // Find deliveries that should be paused but aren't
+      const deliveriesToPause = await Delivery.find({
+        subscriptionId: subscriptionId,
+        status: { $in: ['pending', 'assigned', 'accepted', 'out_for_delivery'] },
+        deliveryDate: { $gte: subscription.pausedAt }
+      });
+
+      if (deliveriesToPause.length > 0) {
+        await pauseDeliveries(subscriptionId, subscription.pausedAt, { logProgress: false });
+        console.log(`🔄 Auto-paused ${deliveriesToPause.length} deliveries for subscription ${subscriptionId}`);
+      }
+    } else if (subscription.status === 'active') {
+      // Find deliveries that should be active but are paused
+      const pausedDeliveries = await Delivery.find({
+        subscriptionId: subscriptionId,
+        status: 'paused',
+        pausedAt: { $lte: new Date() }
+      });
+
+      if (pausedDeliveries.length > 0) {
+        // Calculate total pause duration from subscription
+        const totalPauseDurationMs = calculateTotalPauseDuration(subscription.pauseHistory);
+        await resumeDeliveries(subscription, new Date(), totalPauseDurationMs, { 
+          logProgress: false,
+          overrideExisting: false 
+        });
+        console.log(`🔄 Auto-resumed ${pausedDeliveries.length} deliveries for subscription ${subscriptionId}`);
+      }
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('❌ Error syncing delivery status:', error);
+    return { success: false, error: error.message };
+  }
+};
+
+
 /**
  * Calculate expected number of deliveries for a subscription
  * @param {Object} subscription - Subscription object
@@ -1547,5 +1835,7 @@ module.exports = {
   resumeDeliveries,
   getSubscriptionDeliveries,
   calculateTotalPauseDuration,
-  calculateExpectedDeliveries
+  calculateExpectedDeliveries,
+  getSubscriptionDeliveriesWithHistory,
+  syncDeliveryStatusWithSubscription
 };

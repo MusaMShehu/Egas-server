@@ -18,7 +18,10 @@ const {
   getMyRemnant,
   getAllRemnants,
   getAgentRemnantDeliveries,
-  getNextDelivery
+  getNextDelivery,
+  getDeliveriesBySubscription,
+  getDeliveryPauseHistory,
+  syncDeliveryWithSubscription
 } = require("../controllers/deliveryManagementController");
 
 const { protect, authorize } = require("../../middleware/auth");
@@ -27,9 +30,14 @@ const router = express.Router();
 
 // Admin routes
 router.get("/", protect, authorize("admin"), getDeliveries);
+router.get("/deliveries-by-subscriptions", protect, authorize("admin"), getDeliveriesBySubscription);
 router.put("/:id/assign", protect, authorize("admin"), assignDeliveryAgent);
 router.get("/stats", protect, authorize("admin"), getDeliveryStats);
 router.post("/generate-schedules", protect, authorize("admin"), generateDeliverySchedules);
+router.get("/delivery-pause-history", protect, authorize("admin"), getDeliveryPauseHistory);
+
+// Delivery Sync
+router.post("/:id/sync-subscription", protect, syncDeliveryWithSubscription);
 
 // Delivery agent routes
 router.get("/agent/my-deliveries", protect, authorize("delivery"), getAgentDeliveries);

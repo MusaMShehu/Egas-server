@@ -20,19 +20,43 @@ const deliverySchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    originalDeliveryDate: {
-      type: Date,
-    },
-    pausedAt: {
-      type: Date,
-    },
-    resumedAt: {
-      type: Date,
-    },
+        
     scheduledDate: {
       type: Date,
       required: true,
     },
+
+    pausedAt: {
+      type: Date,
+      default: null,
+    },
+    resumedAt: {
+      type: Date,
+      default: null,
+    },
+    originalDeliveryDate: {
+      type: Date, // Store original date before pause
+    },
+    originalScheduledDate: {
+      type: Date, // Store original scheduled date
+    },
+    pauseResumeHistory: [
+      {
+        action: {
+          type: String,
+          enum: ['paused', 'resumed'],
+        },
+        date: {
+          type: Date,
+          required: true,
+        },
+        originalDate: Date,
+        newDate: Date,
+        pauseDurationMs: Number,
+        reason: String,
+      }
+    ],
+
     status: {
       type: String,
       enum: [
@@ -192,6 +216,21 @@ deliverySchema.index({ subscriptionId: 1 });
 deliverySchema.index({ remnantId: 1 });
 deliverySchema.index({ isRemnantDelivery: 1 });
 deliverySchema.index({ "partialDelivery.isPartial": 1 });
+
+// Add indexes for pause/resume queries
+deliverySchema.index({ subscriptionId: 1, status: 1 });
+deliverySchema.index({ pausedAt: 1 });
+deliverySchema.index({ deliveryDate: 1, status: 1 });
+
+// Virtual to check if delivery can be paused
+deliverySchema.virtual('canBePaused').get(function() {
+  return ['pending', 'assigned', 'accepted', 'out_for_delivery'].includes(this.status);
+});
+
+// Virtual to check if delivery can be resumed
+deliverySchema.virtual('canBeResumed').get(function() {
+  return this.status === 'paused';
+});
 
 // Add a virtual to check if delivery can be marked as partial
 deliverySchema.methods.canBePartial = function () {

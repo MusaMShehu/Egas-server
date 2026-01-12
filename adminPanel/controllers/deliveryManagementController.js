@@ -95,6 +95,184 @@ exports.getDeliveries = asyncHandler(async (req, res, next) => {
   });
 });
 
+
+// In deliveryController.js
+
+// @desc    Get deliveries by subscription with pause status
+// @route   GET /api/v1/deliveries/subscription/:subscriptionId
+// @access  Private
+exports.getDeliveriesBySubscription = asyncHandler(async (req, res, next) => {
+  const { subscriptionId } = req.params;
+  const userId = req.user.id;
+  const { includePaused = true } = req.query;
+
+  // Verify subscription belongs to user (unless admin)
+  const subscription = await Subscription.findById(subscriptionId);
+  if (!subscription) {
+    return next(new ErrorResponse('Subscription not found', 404));
+  }
+
+  if (subscription.userId.toString() !== userId && req.user.role !== 'admin') {
+    return next(new ErrorResponse('Not authorized', 403));
+  }
+
+  // Build query
+  const query = { subscriptionId: subscriptionId };
+  
+  if (!includePaused) {
+    query.status = { $ne: 'paused' };
+  }
+
+  const deliveries = await Delivery.find(query)
+    .populate('deliveryAgent', 'firstName lastName phone')
+    .sort({ deliveryDate: 1 });
+
+  // Add subscription pause status to each delivery
+  const deliveriesWithPauseStatus = deliveries.map(delivery => {
+    const deliveryObj = delivery.toObject();
+    
+    // Check if delivery falls within a subscription pause period
+    deliveryObj.isSubscriptionPaused = false;
+    deliveryObj.pauseHistory = [];
+    
+    if (subscription.pauseHistory && subscription.pauseHistory.length > 0) {
+      subscription.pauseHistory.forEach(pause => {
+        if (pause.pausedAt && delivery.deliveryDate >= pause.pausedAt) {
+          if (!pause.resumedAt || delivery.deliveryDate <= pause.resumedAt) {
+            deliveryObj.isSubscriptionPaused = true;
+          }
+        }
+      });
+    }
+    
+    return deliveryObj;
+  });
+
+  res.status(200).json({
+    success: true,
+    count: deliveriesWithPauseStatus.length,
+    data: deliveriesWithPauseStatus,
+    subscriptionStatus: subscription.status,
+    subscriptionPausedAt: subscription.pausedAt
+  });
+});
+
+// @desc    Get delivery pause/resume history
+// @route   GET /api/v1/deliveries/:id/pause-history
+// @access  Private
+exports.getDeliveryPauseHistory = asyncHandler(async (req, res, next) => {
+  const deliveryId = req.params.id;
+  const userId = req.user.id;
+
+  const delivery = await Delivery.findById(deliveryId)
+    .populate('subscriptionId', 'status pauseHistory pausedAt');
+
+  if (!delivery) {
+    return next(new ErrorResponse('Delivery not found', 404));
+  }
+
+  // Verify authorization
+  if (delivery.userId.toString() !== userId && req.user.role !== 'admin') {
+    return next(new ErrorResponse('Not authorized', 403));
+  }
+
+  // Get pause history from delivery and subscription
+  const pauseHistory = {
+    deliveryPauses: delivery.pauseResumeHistory || [],
+    subscriptionPauses: delivery.subscriptionId?.pauseHistory || [],
+    currentStatus: {
+      delivery: delivery.status,
+      subscription: delivery.subscriptionId?.status,
+      isInSync: delivery.status === 'paused' ? 
+                delivery.subscriptionId?.status === 'paused' : 
+                delivery.subscriptionId?.status === 'active'
+    }
+  };
+
+  res.status(200).json({
+    success: true,
+    data: pauseHistory
+  });
+});
+
+// @desc    Manual sync delivery with subscription status
+// @route   POST /api/v1/deliveries/:id/sync-subscription
+// @access  Private
+exports.syncDeliveryWithSubscription = asyncHandler(async (req, res, next) => {
+  const deliveryId = req.params.id;
+  const userId = req.user.id;
+
+  const delivery = await Delivery.findById(deliveryId)
+    .populate('subscriptionId');
+
+  if (!delivery) {
+    return next(new ErrorResponse('Delivery not found', 404));
+  }
+
+  // Verify authorization
+  if (delivery.userId.toString() !== userId && req.user.role !== 'admin') {
+    return next(new ErrorResponse('Not authorized', 403));
+  }
+
+  if (!delivery.subscriptionId) {
+    return next(new ErrorResponse('Delivery has no associated subscription', 400));
+  }
+
+  const subscription = delivery.subscriptionId;
+  let syncResult = {};
+
+  // Sync based on subscription status
+  if (subscription.status === 'paused' && delivery.status !== 'paused') {
+    // Pause delivery to match subscription
+    delivery.status = 'paused';
+    delivery.pausedAt = subscription.pausedAt || new Date();
+    delivery.originalDeliveryDate = delivery.deliveryDate;
+    await delivery.save();
+    
+    syncResult = {
+      action: 'paused',
+      reason: 'Subscription is paused',
+      newStatus: 'paused',
+      subscriptionStatus: subscription.status
+    };
+  } else if (subscription.status === 'active' && delivery.status === 'paused') {
+    // Resume delivery and extend date based on pause duration
+    const totalPauseDurationMs = calculateTotalPauseDuration(subscription.pauseHistory);
+    const newDeliveryDate = new Date(delivery.originalDeliveryDate.getTime() + totalPauseDurationMs);
+    
+    delivery.status = 'pending';
+    delivery.deliveryDate = newDeliveryDate;
+    delivery.scheduledDate = newDeliveryDate;
+    delivery.resumedAt = new Date();
+    delivery.pausedAt = null;
+    await delivery.save();
+    
+    syncResult = {
+      action: 'resumed',
+      reason: 'Subscription is active',
+      newStatus: 'pending',
+      newDeliveryDate: newDeliveryDate,
+      daysExtended: Math.round(totalPauseDurationMs / (1000 * 60 * 60 * 24)),
+      subscriptionStatus: subscription.status
+    };
+  } else {
+    syncResult = {
+      action: 'none',
+      reason: 'Delivery status already in sync with subscription',
+      currentStatus: delivery.status,
+      subscriptionStatus: subscription.status
+    };
+  }
+
+  res.status(200).json({
+    success: true,
+    message: 'Delivery synced with subscription',
+    data: syncResult,
+    deliveryId: delivery._id,
+    subscriptionId: subscription._id
+  });
+});
+
 // @desc    Assign delivery to agent
 // @route   PUT /api/v1/deliveries/:id/assign
 // @access  Private/Admin

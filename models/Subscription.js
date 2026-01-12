@@ -14,7 +14,7 @@ const subscriptionSchema = new mongoose.Schema(
     planType: {
       type: String,
       enum: ["custom", "one-time", "emergency", "preset"],
-      // required: true,
+      // required: true, // Commented out as per your schema
     },
     size: String,
     frequency: {
@@ -128,12 +128,19 @@ const subscriptionSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Fixed: Combined pauseHistory schema to avoid duplicate field
     pauseHistory: [
       {
-        pausedAt: { type: Date },
+        pausedAt: { type: Date, required: true },
         resumedAt: { type: Date },
         durationMs: { type: Number },
-      },
+        reason: { type: String },
+        deliveryUpdates: {
+          pausedCount: { type: Number, default: 0 },
+          resumedCount: { type: Number, default: 0 },
+          extendedCount: { type: Number, default: 0 }
+        }
+      }
     ],
   },
   {
@@ -141,6 +148,7 @@ const subscriptionSchema = new mongoose.Schema(
   }
 );
 
+// Indexes
 subscriptionSchema.index({ userId: 1 });
 subscriptionSchema.index({ status: 1 });
 subscriptionSchema.index({ endDate: 1 });
@@ -197,15 +205,15 @@ subscriptionSchema.methods.calculateEndDate = function () {
 
   switch (this.frequency) {
     case "Daily":
-      endDate.setDate(endDate.getDate() + 30 * totalMonths);
+      endDate.setDate(endDate.getDate() + 30 * totalMonths); // Approximate month as 30 days
       break;
 
     case "Weekly":
-      endDate.setDate(endDate.getDate() + 7 * 4 * totalMonths);
+      endDate.setDate(endDate.getDate() + 7 * 4 * totalMonths); // 4 weeks per month
       break;
 
-    case "Bi-weekly": // <-- MATCH ENUM EXACTLY
-      endDate.setDate(endDate.getDate() + 14 * totalMonths);
+    case "Bi-weekly":
+      endDate.setDate(endDate.getDate() + 14 * 4 * totalMonths); // Fixed: 14 days * 4 periods per month
       break;
 
     case "Monthly":
@@ -217,11 +225,48 @@ subscriptionSchema.methods.calculateEndDate = function () {
   return endDate;
 };
 
+// Methods to handle pause/resume (Moved from schema definition to methods)
+subscriptionSchema.methods.recordPause = function(reason = 'User initiated') {
+  if (!this.pauseHistory) this.pauseHistory = [];
+  this.pauseHistory.push({
+    pausedAt: new Date(),
+    reason: reason
+  });
+  this.pausedAt = new Date();
+  this.status = 'paused';
+  return this.save();
+};
+
+subscriptionSchema.methods.recordResume = function() {
+  if (!this.pauseHistory || this.pauseHistory.length === 0) {
+    return Promise.reject(new Error('No active pause to resume'));
+  }
+  
+  const activePause = this.pauseHistory[this.pauseHistory.length - 1];
+  if (activePause.resumedAt) {
+    return Promise.reject(new Error('Pause already resumed'));
+  }
+  
+  activePause.resumedAt = new Date();
+  activePause.durationMs = activePause.resumedAt - activePause.pausedAt;
+  
+  this.resumedAt = new Date();
+  this.status = 'active';
+  
+  return this.save();
+};
+
 // Pre-save middleware to auto-calculate end date if not provided
 subscriptionSchema.pre("save", function (next) {
   if (!this.endDate && this.startDate) {
     this.endDate = this.calculateEndDate();
   }
+  
+  // Ensure endDate is always populated if startDate exists
+  if (this.startDate && !this.endDate) {
+    this.endDate = this.calculateEndDate();
+  }
+  
   next();
 });
 
