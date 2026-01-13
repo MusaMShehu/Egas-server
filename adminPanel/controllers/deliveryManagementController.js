@@ -1084,28 +1084,47 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
-  const { notes } = req.body;
+  const { notes } = req.body; // This comes from frontend as 'notes'
+
+  console.log('Confirming remnant - User ID:', userId);
+  console.log('Remnant ID:', req.params.id);
+  console.log('Received notes:', notes);
 
   const remnant = await Remnant.findOne({
     _id: req.params.id,
-    userId: userId
-  }).populate("partialDeliveries.deliveryId");
+    userId: userId  // This matches your schema
+  });
+
+  console.log('Found remnant:', remnant ? 'Yes' : 'No');
 
   if (!remnant) {
     return next(new ErrorResponse("Remnant record not found", 404));
   }
 
-  if (remnant.status !== "active") {
-    return next(new ErrorResponse("Remnant record is not active", 400));
+  if (remnant.status !== "active" && remnant.status !== "pending_confirmation") {
+    return next(new ErrorResponse("Remnant record is not active or pending confirmation", 400));
   }
 
+  // Mark all pending partial deliveries as confirmed
+  remnant.partialDeliveries.forEach(pd => {
+    if (!pd.confirmed) {  // Note: schema uses 'confirmed' not 'customerConfirmed'
+      pd.confirmed = true;
+      pd.confirmedAt = new Date();
+    }
+  });
+
+  // Update customer confirmation
   remnant.customerConfirmation = {
     confirmed: true,
     confirmedAt: new Date(),
-    customerNotes: notes || "",
+    customerNotes: notes || "",  // Store as customerNotes
     confirmedBy: userId
   };
 
+  // Update status
+  remnant.status = 'active';
+
+  // Save and return the updated document
   await remnant.save();
 
   res.status(200).json({
