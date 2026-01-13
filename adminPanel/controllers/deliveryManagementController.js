@@ -96,8 +96,6 @@ exports.getDeliveries = asyncHandler(async (req, res, next) => {
 });
 
 
-// In deliveryController.js
-
 // @desc    Get deliveries by subscription with pause status
 // @route   GET /api/v1/deliveries/subscription/:subscriptionId
 // @access  Private
@@ -416,6 +414,56 @@ exports.markOutForDelivery = asyncHandler(async (req, res, next) => {
 // @desc    Mark delivery as delivered
 // @route   PUT /api/v1/deliveries/:id/delivered
 // @access  Private/DeliveryAgent
+// exports.markAsDelivered = asyncHandler(async (req, res, next) => {
+//   const agentId = req.user.id;
+//   const { notes } = req.body;
+
+//   const delivery = await Delivery.findOne({
+//     _id: req.params.id,
+//     deliveryAgent: agentId,
+//   });
+
+//   if (!delivery) {
+//     return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
+//   }
+
+//   if (delivery.status === "delivered") {
+//     return next(new ErrorResponse("Delivery already marked as delivered", 400));
+//   }
+
+//   delivery.status = "delivered";
+//   delivery.deliveredAt = new Date();
+//   delivery.agentNotes = notes;
+
+//   await delivery.save();
+
+//   // Update subscription delivery history
+//   await Subscription.findByIdAndUpdate(
+//     delivery.subscriptionId,
+//     {
+//       $push: { deliveries: delivery._id },
+//     }
+//   );
+
+//   // If this is a one-time remnant delivery, mark subscription as expired
+//   if (delivery.isOneTimeRemnantDelivery && delivery.subscriptionId) {
+//     await Subscription.findByIdAndUpdate(
+//       delivery.subscriptionId,
+//       {
+//         status: "expired",
+//         expiredAt: new Date(),
+//         endDate: new Date() // Set end date to now
+//       }
+//     );
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: "Delivery marked as successful",
+//     data: delivery,
+//   });
+// });
+
 exports.markAsDelivered = asyncHandler(async (req, res, next) => {
   const agentId = req.user.id;
   const { notes } = req.body;
@@ -433,6 +481,23 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Delivery already marked as delivered", 400));
   }
 
+  // Handle remnant deliveries
+  if (delivery.isOneTimeRemnantDelivery && delivery.remnantId) {
+    // Update remnant status
+    const remnant = await Remnant.findById(delivery.remnantId);
+    if (remnant) {
+      // Mark the specific delivery request as delivered
+      remnant.deliveryRequests = remnant.deliveryRequests.map(request => {
+        if (request.deliveryId.toString() === delivery._id.toString()) {
+          request.status = 'delivered';
+        }
+        return request;
+      });
+      await remnant.save();
+    }
+  }
+
+  // Mark delivery as delivered
   delivery.status = "delivered";
   delivery.deliveredAt = new Date();
   delivery.agentNotes = notes;
@@ -454,7 +519,7 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
       {
         status: "expired",
         expiredAt: new Date(),
-        endDate: new Date() // Set end date to now
+        endDate: new Date()
       }
     );
   }
@@ -829,17 +894,10 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
   const agentId = req.user.id;
   const { deliveredKg, remainingKg, notes } = req.body;
 
- if (
-  deliveredKg === undefined ||
-  remainingKg === undefined ||
-  deliveredKg === null ||
-  remainingKg === null
-) {
-  return next(
-    new ErrorResponse("Both delivered and remaining kg are required", 400)
-  );
-}
-
+  // Validate inputs
+  if (!deliveredKg || !remainingKg) {
+    return next(new ErrorResponse("Both delivered and remaining kg are required", 400));
+  }
 
   const delivery = await Delivery.findOne({
     _id: req.params.id,
@@ -850,8 +908,14 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
   }
 
+  // Check if delivery already completed
   if (delivery.status === "delivered") {
     return next(new ErrorResponse("Delivery already completed", 400));
+  }
+
+  // Check if partial delivery already recorded for this schedule
+  if (delivery.partialDeliveryRecorded) {
+    return next(new ErrorResponse("Partial delivery already recorded for this schedule", 400));
   }
 
   // Calculate expected kg from subscription
@@ -859,18 +923,17 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
   const delivered = parseFloat(deliveredKg);
   const remaining = parseFloat(remainingKg);
 
- if (Math.abs(delivered + remaining - expectedKg) > 0.01) {
-  return next(
-    new ErrorResponse(`Total must equal expected ${expectedKg}kg`, 400)
-  );
-}
+  // Validate total equals expected
+  if (Math.abs(delivered + remaining - expectedKg) > 0.01) {
+    return next(new ErrorResponse(`Total must equal expected ${expectedKg}kg`, 400));
+  }
 
-
-  // Mark current delivery as partial
+  // Mark delivery as delivered with partial info
+  delivery.status = "delivered";
+  delivery.deliveredAt = new Date();
+  delivery.agentNotes = notes || "";
   delivery.deliveredKg = delivered;
   delivery.remainingKg = remaining;
-  delivery.agentNotes = notes || "";
-  delivery.deliveredAt = new Date();
   delivery.partialDelivery = {
     isPartial: true,
     delivered: delivered,
@@ -878,10 +941,11 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
     recordedBy: agentId,
     recordedAt: new Date()
   };
+  delivery.partialDeliveryRecorded = true; // Prevent future partial recordings
 
   await delivery.save();
 
-  // Create or update remnant record for customer
+  // Create or update remnant record
   const remnant = await Remnant.findOneAndUpdate(
     { userId: delivery.userId, status: "active" },
     {
@@ -892,13 +956,108 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
           originalKg: expectedKg,
           delivered: delivered,
           remaining: remaining,
-          date: new Date()
+          date: new Date(),
+          confirmed: false // Initially not confirmed by customer
         }
       },
       lastUpdated: new Date()
     },
     { upsert: true, new: true, setDefaultsOnInsert: true }
   );
+
+  // Update user info in remnant
+  if (delivery.userId) {
+    remnant.userName = delivery.customerName;
+    remnant.userPhone = delivery.customerPhone;
+    await remnant.save();
+  }
+
+  res.status(200).json({
+    success: true,
+    message: "Partial delivery recorded and marked as delivered",
+    data: {
+      delivery,
+      remnant,
+      totalAccumulated: remnant.accumulatedKg,
+      note: "Customer needs to confirm remnant entry before requesting delivery"
+    }
+  });
+});
+
+// exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
+//   const agentId = req.user.id;
+//   const { deliveredKg, remainingKg, notes } = req.body;
+
+//  if (
+//   deliveredKg === undefined ||
+//   remainingKg === undefined ||
+//   deliveredKg === null ||
+//   remainingKg === null
+// ) {
+//   return next(
+//     new ErrorResponse("Both delivered and remaining kg are required", 400)
+//   );
+// }
+
+
+//   const delivery = await Delivery.findOne({
+//     _id: req.params.id,
+//     deliveryAgent: agentId,
+//   }).populate("userId").populate("subscriptionId");
+
+//   if (!delivery) {
+//     return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
+//   }
+
+//   if (delivery.status === "delivered") {
+//     return next(new ErrorResponse("Delivery already completed", 400));
+//   }
+
+//   // Calculate expected kg from subscription
+//   const expectedKg = parseFloat(delivery.planDetails.size.split('kg')[0]);
+//   const delivered = parseFloat(deliveredKg);
+//   const remaining = parseFloat(remainingKg);
+
+//  if (Math.abs(delivered + remaining - expectedKg) > 0.01) {
+//   return next(
+//     new ErrorResponse(`Total must equal expected ${expectedKg}kg`, 400)
+//   );
+// }
+
+
+//   // Mark current delivery as partial
+//   delivery.deliveredKg = delivered;
+//   delivery.remainingKg = remaining;
+//   delivery.agentNotes = notes || "";
+//   delivery.deliveredAt = new Date();
+//   delivery.partialDelivery = {
+//     isPartial: true,
+//     delivered: delivered,
+//     remaining: remaining,
+//     recordedBy: agentId,
+//     recordedAt: new Date()
+//   };
+
+//   await delivery.save();
+
+//   // Create or update remnant record for customer
+//   const remnant = await Remnant.findOneAndUpdate(
+//     { userId: delivery.userId, status: "active" },
+//     {
+//       $inc: { accumulatedKg: remaining },
+//       $push: {
+//         partialDeliveries: {
+//           deliveryId: delivery._id,
+//           originalKg: expectedKg,
+//           delivered: delivered,
+//           remaining: remaining,
+//           date: new Date()
+//         }
+//       },
+//       lastUpdated: new Date()
+//     },
+//     { upsert: true, new: true, setDefaultsOnInsert: true }
+//   );
 
   // Send notification to customer
   // await Notification.create({
@@ -909,16 +1068,16 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
   //   data: { deliveryId: delivery._id, remnantId: remnant._id }
   // });
 
-  res.status(200).json({
-    success: true,
-    message: "Partial delivery recorded successfully",
-    data: {
-      delivery,
-      remnant,
-      totalAccumulated: remnant.accumulatedKg
-    }
-  });
-});
+//   res.status(200).json({
+//     success: true,
+//     message: "Partial delivery recorded successfully",
+//     data: {
+//       delivery,
+//       remnant,
+//       totalAccumulated: remnant.accumulatedKg
+//     }
+//   });
+// });
 
 // @desc    Customer confirms remnant entry
 // @route   PUT /api/v1/deliveries/remnant/:id/confirm

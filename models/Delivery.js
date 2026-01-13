@@ -20,7 +20,7 @@ const deliverySchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-        
+
     scheduledDate: {
       type: Date,
       required: true,
@@ -44,7 +44,7 @@ const deliverySchema = new mongoose.Schema(
       {
         action: {
           type: String,
-          enum: ['paused', 'resumed'],
+          enum: ["paused", "resumed"],
         },
         date: {
           type: Date,
@@ -54,7 +54,7 @@ const deliverySchema = new mongoose.Schema(
         newDate: Date,
         pauseDurationMs: Number,
         reason: String,
-      }
+      },
     ],
 
     status: {
@@ -135,20 +135,17 @@ const deliverySchema = new mongoose.Schema(
       type: Number,
       min: 0,
     },
+
     partialDelivery: {
-      isPartial: {
-        type: Boolean,
-        default: false,
-      },
+      isPartial: { type: Boolean, default: false },
       delivered: Number,
       remaining: Number,
-      recordedBy: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-      },
+      recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       recordedAt: Date,
+      canRecordPartial: { type: Boolean, default: true }, // NEW: Track if partial can be recorded
     },
-
+    partialDeliveryRecorded: { type: Boolean, default: false }, // NEW: Track if partial was recorded
+    
     // Remnant delivery fields
     isRemnantDelivery: {
       type: Boolean,
@@ -164,37 +161,37 @@ const deliverySchema = new mongoose.Schema(
     },
 
     subscriptionPeriod: {
-    type: Number,
-    default: 1
-  },
-  
-  isInitialDelivery: {
-    type: Boolean,
-    default: false
-  },
-  
-  sequenceNumber: {
-    type: Number,
-    default: 0
-  },
-  
-  totalSequences: {
-    type: Number,
-    default: 0
-  },
-  
-  planType: {
-    type: String,
-    enum: ['custom', 'one-time', 'emergency', 'preset']
-  },
-  
-  // Price breakdown
-  priceBreakdown: {
-    pricePerKg: Number,
-    totalDeliveries: Number,
-    baseAmount: Number
-  },
-  
+      type: Number,
+      default: 1,
+    },
+
+    isInitialDelivery: {
+      type: Boolean,
+      default: false,
+    },
+
+    sequenceNumber: {
+      type: Number,
+      default: 0,
+    },
+
+    totalSequences: {
+      type: Number,
+      default: 0,
+    },
+
+    planType: {
+      type: String,
+      enum: ["custom", "one-time", "emergency", "preset"],
+    },
+
+    // Price breakdown
+    priceBreakdown: {
+      pricePerKg: Number,
+      totalDeliveries: Number,
+      baseAmount: Number,
+    },
+
     // In your Delivery model
     isOneTimeRemnantDelivery: {
       type: Boolean,
@@ -223,13 +220,15 @@ deliverySchema.index({ pausedAt: 1 });
 deliverySchema.index({ deliveryDate: 1, status: 1 });
 
 // Virtual to check if delivery can be paused
-deliverySchema.virtual('canBePaused').get(function() {
-  return ['pending', 'assigned', 'accepted', 'out_for_delivery'].includes(this.status);
+deliverySchema.virtual("canBePaused").get(function () {
+  return ["pending", "assigned", "accepted", "out_for_delivery"].includes(
+    this.status
+  );
 });
 
 // Virtual to check if delivery can be resumed
-deliverySchema.virtual('canBeResumed').get(function() {
-  return this.status === 'paused';
+deliverySchema.virtual("canBeResumed").get(function () {
+  return this.status === "paused";
 });
 
 // Add a virtual to check if delivery can be marked as partial
