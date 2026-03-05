@@ -197,11 +197,71 @@ const deliverySchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+
+    // New fields for requirements
+    failureHistory: [{
+      attemptedAt: Date,
+      reason: String,
+      notes: String,
+      agentId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      }
+    }],
+    
+    isRetry: {
+      type: Boolean,
+      default: false
+    },
+    
+    retryCount: {
+      type: Number,
+      default: 0
+    },
+    
+    remnantConfirmed: {
+      type: Boolean,
+      default: false
+    },
+    
+    // Enhanced customer confirmation
+    customerConfirmation: {
+      confirmed: { type: Boolean, default: false },
+      confirmedAt: Date,
+      customerNotes: String,
+      required: { type: Boolean, default: true },
+      pendingSince: Date
+    },
+    
+    // Enhanced partial delivery tracking
+    partialDelivery: {
+      isPartial: { type: Boolean, default: false },
+      delivered: Number,
+      remaining: Number,
+      recordedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      recordedAt: Date,
+      customerConfirmed: { type: Boolean, default: false },
+      customerConfirmedAt: Date
+    },
+    
+    // Security fields
+    lastModifiedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User'
+    },
+    
+    ipAddress: String,
+    userAgent: String
   },
   {
     timestamps: true,
   }
 );
+
+// Indexes for new queries
+deliverySchema.index({ 'failureHistory.attemptedAt': -1 });
+deliverySchema.index({ isRetry: 1, retryCount: 1 });
+deliverySchema.index({ 'customerConfirmation.pendingSince': 1 });
 
 deliverySchema.index({ deliveryDate: 1 });
 deliverySchema.index({ status: 1 });
