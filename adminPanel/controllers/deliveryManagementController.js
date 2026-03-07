@@ -1278,16 +1278,21 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
     session.endSession();
 
     // Send notification to customer to confirm remnant entry
-    await Notification.create({
-      userId: delivery.userId._id,
-      title: "Partial Delivery - Please Confirm Remnant",
-      message: `${delivered}kg delivered, ${remaining}kg added to your remnant account. Please confirm.`,
-      type: "remnant_confirmation",
-      data: { 
-        deliveryId: delivery._id, 
-        remnantId: remnant._id 
-      }
-    });
+    try {
+      await Notification.create({
+        userId: delivery.userId._id,
+        title: "Partial Delivery - Please Confirm Remnant",
+        message: `${delivered}kg delivered, ${remaining}kg added to your remnant account. Please confirm.`,
+        type: "delivery_confirmation", // Use an allowed value
+        data: { 
+          deliveryId: delivery._id, 
+          remnantId: remnant._id 
+        }
+      });
+    } catch (notifError) {
+      // Log but don't fail the request if notification fails
+      console.error("Failed to create notification:", notifError);
+    }
 
     res.status(200).json({
       success: true,
