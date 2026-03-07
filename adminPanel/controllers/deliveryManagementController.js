@@ -533,6 +533,7 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
       message:
         "Your gas has been delivered. Please confirm receipt in your dashboard.",
       type: "delivery",
+      subType: "delivery_fulfilled",
       data: { deliveryId: delivery._id },
     });
 
@@ -767,6 +768,7 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
       title: "Delivery Failed",
       message: `Delivery failed: ${reason}. New delivery scheduled for ${newDeliveryDate.toLocaleDateString()}`,
       type: "delivery",
+      subType: "delivery_failed",
       data: { deliveryId: delivery._id },
     });
 

@@ -50,6 +50,8 @@ const notificationSchema = new mongoose.Schema({
       'subscription_paused',
       'subscription_resumed',
       'subscription_cancelled',
+      'delivery_fulfilled',
+      'delivery_failed',
       
       // Wallet
       'wallet_topup_success',
