@@ -501,7 +501,7 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
 
         // Mark remnant subscription as delivered but pending confirmation
         if (delivery.subscriptionId) {
-          delivery.subscriptionId.status = "delivered_pending_confirmation";
+          delivery.subscriptionId.status = "delivered";
           delivery.subscriptionId.deliveredAt = new Date();
           // Set end date to delivered date but keep pending confirmation
           delivery.subscriptionId.endDate = new Date();
@@ -532,7 +532,7 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
       title: "Delivery Completed - Please Confirm",
       message:
         "Your gas has been delivered. Please confirm receipt in your dashboard.",
-      type: "delivery_confirmation",
+      type: "delivery",
       data: { deliveryId: delivery._id },
     });
 

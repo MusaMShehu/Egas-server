@@ -21,7 +21,8 @@ const notificationSchema = new mongoose.Schema({
     enum: [
       'account',
       'order',
-      'subscription', 
+      'subscription',
+      'delivery', 
       'wallet',
       'support',
       'promotional',
