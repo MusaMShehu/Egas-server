@@ -501,7 +501,7 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
 
         // Mark remnant subscription as delivered but pending confirmation
         if (delivery.subscriptionId) {
-          delivery.subscriptionId.status = "delivered";
+          delivery.subscriptionId.status = "expired";
           delivery.subscriptionId.deliveredAt = new Date();
           // Set end date to delivered date but keep pending confirmation
           delivery.subscriptionId.endDate = new Date();
