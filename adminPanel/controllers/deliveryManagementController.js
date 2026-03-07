@@ -1624,7 +1624,7 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
       subscriptionPeriod: 1,
       price: 0,
       reference: reference,
-      status: "pending_confirmation", // Changed from active
+      status: "active", // Changed from active
       paymentStatus: "completed",
       isPaid: true,
       paidAt: new Date(),
@@ -1643,7 +1643,7 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
       userId: userId,
       deliveryDate: deliveryDate || new Date(),
       scheduledDate: new Date(),
-      status: "assigned", // Changed from pending
+      status: "pending",
       address: address || user.address,
       customerPhone: user.phone,
       customerName: `${user.firstName} ${user.lastName}`,
