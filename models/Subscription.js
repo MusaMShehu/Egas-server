@@ -66,7 +66,7 @@ const subscriptionSchema = new mongoose.Schema(
     paidAt: Date,
     paymentMethod: {
       type: String,
-      enum: ["wallet", "paystack"],
+      enum: ["wallet", "paystack", "remnant"],
     },
 
     customPlanDetails: {
