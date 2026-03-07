@@ -1300,8 +1300,12 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
     });
 
   } catch (error) {
-    await session.abortTransaction();
+    // Only abort if transaction is still active
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
     session.endSession();
+    console.error("Error recording partial delivery:", error);
     return next(new ErrorResponse("Error recording partial delivery: " + error.message, 500));
   }
 });
