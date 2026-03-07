@@ -1,5 +1,5 @@
 // controllers/deliveryController.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 const crypto = require("crypto");
 const Delivery = require("../../models/Delivery");
 const Subscription = require("../../models/Subscription");
@@ -8,7 +8,11 @@ const ErrorResponse = require("../../utils/errorResponse");
 const asyncHandler = require("../../middleware/async");
 const Remnant = require("../../models/Remnant");
 const Notification = require("../../models/Notification");
-const { validateObjectId, auditLog, rateLimiter } = require("../../middleware/security");
+const {
+  validateObjectId,
+  auditLog,
+  rateLimiter,
+} = require("../../middleware/security");
 
 // @desc    Get all delivery orders with filters
 // @route   GET /api/v1/deliveries
@@ -59,9 +63,9 @@ exports.getDeliveries = asyncHandler(async (req, res, next) => {
   // Search functionality
   if (search) {
     filter.$or = [
-      { "customerName": { $regex: search, $options: "i" } },
-      { "customerPhone": { $regex: search, $options: "i" } },
-      { "address": { $regex: search, $options: "i" } },
+      { customerName: { $regex: search, $options: "i" } },
+      { customerPhone: { $regex: search, $options: "i" } },
+      { address: { $regex: search, $options: "i" } },
       { "planDetails.planName": { $regex: search, $options: "i" } },
     ];
   }
@@ -77,7 +81,8 @@ exports.getDeliveries = asyncHandler(async (req, res, next) => {
     .populate("subscriptionId", "planName size frequency status")
     .populate({
       path: "userId",
-      select: "firstName lastName email phone address city state gpsCoordinates profileImage"
+      select:
+        "firstName lastName email phone address city state gpsCoordinates profileImage",
     })
     .populate("deliveryAgent", "firstName lastName email phone")
     .sort(sort)
@@ -98,7 +103,6 @@ exports.getDeliveries = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 // @desc    Get deliveries by subscription with pause status
 // @route   GET /api/v1/deliveries/subscription/:subscriptionId
 // @access  Private
@@ -110,34 +114,34 @@ exports.getDeliveriesBySubscription = asyncHandler(async (req, res, next) => {
   // Verify subscription belongs to user (unless admin)
   const subscription = await Subscription.findById(subscriptionId);
   if (!subscription) {
-    return next(new ErrorResponse('Subscription not found', 404));
+    return next(new ErrorResponse("Subscription not found", 404));
   }
 
-  if (subscription.userId.toString() !== userId && req.user.role !== 'admin') {
-    return next(new ErrorResponse('Not authorized', 403));
+  if (subscription.userId.toString() !== userId && req.user.role !== "admin") {
+    return next(new ErrorResponse("Not authorized", 403));
   }
 
   // Build query
   const query = { subscriptionId: subscriptionId };
-  
+
   if (!includePaused) {
-    query.status = { $ne: 'paused' };
+    query.status = { $ne: "paused" };
   }
 
   const deliveries = await Delivery.find(query)
-    .populate('deliveryAgent', 'firstName lastName phone')
+    .populate("deliveryAgent", "firstName lastName phone")
     .sort({ deliveryDate: 1 });
 
   // Add subscription pause status to each delivery
-  const deliveriesWithPauseStatus = deliveries.map(delivery => {
+  const deliveriesWithPauseStatus = deliveries.map((delivery) => {
     const deliveryObj = delivery.toObject();
-    
+
     // Check if delivery falls within a subscription pause period
     deliveryObj.isSubscriptionPaused = false;
     deliveryObj.pauseHistory = [];
-    
+
     if (subscription.pauseHistory && subscription.pauseHistory.length > 0) {
-      subscription.pauseHistory.forEach(pause => {
+      subscription.pauseHistory.forEach((pause) => {
         if (pause.pausedAt && delivery.deliveryDate >= pause.pausedAt) {
           if (!pause.resumedAt || delivery.deliveryDate <= pause.resumedAt) {
             deliveryObj.isSubscriptionPaused = true;
@@ -145,7 +149,7 @@ exports.getDeliveriesBySubscription = asyncHandler(async (req, res, next) => {
         }
       });
     }
-    
+
     return deliveryObj;
   });
 
@@ -154,7 +158,7 @@ exports.getDeliveriesBySubscription = asyncHandler(async (req, res, next) => {
     count: deliveriesWithPauseStatus.length,
     data: deliveriesWithPauseStatus,
     subscriptionStatus: subscription.status,
-    subscriptionPausedAt: subscription.pausedAt
+    subscriptionPausedAt: subscription.pausedAt,
   });
 });
 
@@ -165,16 +169,18 @@ exports.getDeliveryPauseHistory = asyncHandler(async (req, res, next) => {
   const deliveryId = req.params.id;
   const userId = req.user.id;
 
-  const delivery = await Delivery.findById(deliveryId)
-    .populate('subscriptionId', 'status pauseHistory pausedAt');
+  const delivery = await Delivery.findById(deliveryId).populate(
+    "subscriptionId",
+    "status pauseHistory pausedAt",
+  );
 
   if (!delivery) {
-    return next(new ErrorResponse('Delivery not found', 404));
+    return next(new ErrorResponse("Delivery not found", 404));
   }
 
   // Verify authorization
-  if (delivery.userId.toString() !== userId && req.user.role !== 'admin') {
-    return next(new ErrorResponse('Not authorized', 403));
+  if (delivery.userId.toString() !== userId && req.user.role !== "admin") {
+    return next(new ErrorResponse("Not authorized", 403));
   }
 
   // Get pause history from delivery and subscription
@@ -184,15 +190,16 @@ exports.getDeliveryPauseHistory = asyncHandler(async (req, res, next) => {
     currentStatus: {
       delivery: delivery.status,
       subscription: delivery.subscriptionId?.status,
-      isInSync: delivery.status === 'paused' ? 
-                delivery.subscriptionId?.status === 'paused' : 
-                delivery.subscriptionId?.status === 'active'
-    }
+      isInSync:
+        delivery.status === "paused"
+          ? delivery.subscriptionId?.status === "paused"
+          : delivery.subscriptionId?.status === "active",
+    },
   };
 
   res.status(200).json({
     success: true,
-    data: pauseHistory
+    data: pauseHistory,
   });
 });
 
@@ -203,74 +210,80 @@ exports.syncDeliveryWithSubscription = asyncHandler(async (req, res, next) => {
   const deliveryId = req.params.id;
   const userId = req.user.id;
 
-  const delivery = await Delivery.findById(deliveryId)
-    .populate('subscriptionId');
+  const delivery =
+    await Delivery.findById(deliveryId).populate("subscriptionId");
 
   if (!delivery) {
-    return next(new ErrorResponse('Delivery not found', 404));
+    return next(new ErrorResponse("Delivery not found", 404));
   }
 
   // Verify authorization
-  if (delivery.userId.toString() !== userId && req.user.role !== 'admin') {
-    return next(new ErrorResponse('Not authorized', 403));
+  if (delivery.userId.toString() !== userId && req.user.role !== "admin") {
+    return next(new ErrorResponse("Not authorized", 403));
   }
 
   if (!delivery.subscriptionId) {
-    return next(new ErrorResponse('Delivery has no associated subscription', 400));
+    return next(
+      new ErrorResponse("Delivery has no associated subscription", 400),
+    );
   }
 
   const subscription = delivery.subscriptionId;
   let syncResult = {};
 
   // Sync based on subscription status
-  if (subscription.status === 'paused' && delivery.status !== 'paused') {
+  if (subscription.status === "paused" && delivery.status !== "paused") {
     // Pause delivery to match subscription
-    delivery.status = 'paused';
+    delivery.status = "paused";
     delivery.pausedAt = subscription.pausedAt || new Date();
     delivery.originalDeliveryDate = delivery.deliveryDate;
     await delivery.save();
-    
+
     syncResult = {
-      action: 'paused',
-      reason: 'Subscription is paused',
-      newStatus: 'paused',
-      subscriptionStatus: subscription.status
+      action: "paused",
+      reason: "Subscription is paused",
+      newStatus: "paused",
+      subscriptionStatus: subscription.status,
     };
-  } else if (subscription.status === 'active' && delivery.status === 'paused') {
+  } else if (subscription.status === "active" && delivery.status === "paused") {
     // Resume delivery and extend date based on pause duration
-    const totalPauseDurationMs = calculateTotalPauseDuration(subscription.pauseHistory);
-    const newDeliveryDate = new Date(delivery.originalDeliveryDate.getTime() + totalPauseDurationMs);
-    
-    delivery.status = 'pending';
+    const totalPauseDurationMs = calculateTotalPauseDuration(
+      subscription.pauseHistory,
+    );
+    const newDeliveryDate = new Date(
+      delivery.originalDeliveryDate.getTime() + totalPauseDurationMs,
+    );
+
+    delivery.status = "pending";
     delivery.deliveryDate = newDeliveryDate;
     delivery.scheduledDate = newDeliveryDate;
     delivery.resumedAt = new Date();
     delivery.pausedAt = null;
     await delivery.save();
-    
+
     syncResult = {
-      action: 'resumed',
-      reason: 'Subscription is active',
-      newStatus: 'pending',
+      action: "resumed",
+      reason: "Subscription is active",
+      newStatus: "pending",
       newDeliveryDate: newDeliveryDate,
       daysExtended: Math.round(totalPauseDurationMs / (1000 * 60 * 60 * 24)),
-      subscriptionStatus: subscription.status
+      subscriptionStatus: subscription.status,
     };
   } else {
     syncResult = {
-      action: 'none',
-      reason: 'Delivery status already in sync with subscription',
+      action: "none",
+      reason: "Delivery status already in sync with subscription",
       currentStatus: delivery.status,
-      subscriptionStatus: subscription.status
+      subscriptionStatus: subscription.status,
     };
   }
 
   res.status(200).json({
     success: true,
-    message: 'Delivery synced with subscription',
+    message: "Delivery synced with subscription",
     data: syncResult,
     deliveryId: delivery._id,
-    subscriptionId: subscription._id
+    subscriptionId: subscription._id,
   });
 });
 
@@ -293,7 +306,9 @@ exports.assignDeliveryAgent = asyncHandler(async (req, res, next) => {
 
   // Check if delivery is already assigned
   if (delivery.deliveryAgent && delivery.status !== "pending") {
-    return next(new ErrorResponse("Delivery already assigned to an agent", 400));
+    return next(
+      new ErrorResponse("Delivery already assigned to an agent", 400),
+    );
   }
 
   delivery.deliveryAgent = deliveryAgentId;
@@ -325,7 +340,7 @@ exports.getAgentDeliveries = asyncHandler(async (req, res, next) => {
   // Handle status filter
   if (status && status !== "all") {
     // If multiple statuses (comma-separated) are sent, handle them properly
-    const statuses = status.split(",").map(s => s.trim());
+    const statuses = status.split(",").map((s) => s.trim());
     filter.status = { $in: statuses };
   }
 
@@ -365,7 +380,9 @@ exports.acceptDelivery = asyncHandler(async (req, res, next) => {
   });
 
   if (!delivery) {
-    return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
+    return next(
+      new ErrorResponse("Delivery order not found or not assigned to you", 404),
+    );
   }
 
   if (delivery.status !== "assigned") {
@@ -396,11 +413,15 @@ exports.markOutForDelivery = asyncHandler(async (req, res, next) => {
   });
 
   if (!delivery) {
-    return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
+    return next(
+      new ErrorResponse("Delivery order not found or not assigned to you", 404),
+    );
   }
 
   if (!["assigned", "accepted"].includes(delivery.status)) {
-    return next(new ErrorResponse("Delivery must be assigned or accepted first", 400));
+    return next(
+      new ErrorResponse("Delivery must be assigned or accepted first", 400),
+    );
   }
 
   delivery.status = "out_for_delivery";
@@ -429,18 +450,27 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
     const delivery = await Delivery.findOne({
       _id: req.params.id,
       deliveryAgent: agentId,
-    }).populate("subscriptionId").session(session);
+    })
+      .populate("subscriptionId")
+      .session(session);
 
     if (!delivery) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
+      return next(
+        new ErrorResponse(
+          "Delivery order not found or not assigned to you",
+          404,
+        ),
+      );
     }
 
     if (delivery.status === "delivered") {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse("Delivery already marked as delivered", 400));
+      return next(
+        new ErrorResponse("Delivery already marked as delivered", 400),
+      );
     }
 
     // Mark delivery as delivered but pending customer confirmation
@@ -450,23 +480,25 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
     delivery.customerConfirmation = {
       confirmed: false,
       required: true,
-      pendingSince: new Date()
+      pendingSince: new Date(),
     };
 
     // Handle remnant deliveries
     if (delivery.isOneTimeRemnantDelivery && delivery.remnantId) {
-      const remnant = await Remnant.findById(delivery.remnantId).session(session);
+      const remnant = await Remnant.findById(delivery.remnantId).session(
+        session,
+      );
       if (remnant) {
         // Mark delivery request as delivered but pending customer confirmation
-        remnant.deliveryRequests = remnant.deliveryRequests.map(request => {
+        remnant.deliveryRequests = remnant.deliveryRequests.map((request) => {
           if (request.deliveryId.toString() === delivery._id.toString()) {
-            request.status = 'delivered';
+            request.status = "delivered";
             request.deliveredAt = new Date();
             request.customerConfirmed = false;
           }
           return request;
         });
-        
+
         // Mark remnant subscription as delivered but pending confirmation
         if (delivery.subscriptionId) {
           delivery.subscriptionId.status = "delivered_pending_confirmation";
@@ -475,7 +507,7 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
           delivery.subscriptionId.endDate = new Date();
           await delivery.subscriptionId.save({ session });
         }
-        
+
         await remnant.save({ session });
       }
     }
@@ -486,9 +518,9 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
     await Subscription.findByIdAndUpdate(
       delivery.subscriptionId,
       {
-        $push: { deliveries: delivery._id }
+        $push: { deliveries: delivery._id },
       },
-      { session }
+      { session },
     );
 
     await session.commitTransaction();
@@ -498,9 +530,10 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
     await Notification.create({
       userId: delivery.userId,
       title: "Delivery Completed - Please Confirm",
-      message: "Your gas has been delivered. Please confirm receipt in your dashboard.",
+      message:
+        "Your gas has been delivered. Please confirm receipt in your dashboard.",
       type: "delivery_confirmation",
-      data: { deliveryId: delivery._id }
+      data: { deliveryId: delivery._id },
     });
 
     res.status(200).json({
@@ -508,14 +541,21 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
       message: "Delivery marked as delivered. Awaiting customer confirmation.",
       data: {
         ...delivery.toObject(),
-        note: "Customer confirmation required before finalizing"
-      }
+        note: "Customer confirmation required before finalizing",
+      },
     });
-
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+
     session.endSession();
-    return next(new ErrorResponse("Error marking delivery as delivered: " + error.message, 500));
+    return next(
+      new ErrorResponse(
+        "Error marking delivery as delivered: " + error.message,
+        500,
+      ),
+    );
   }
 });
 // exports.markAsDelivered = asyncHandler(async (req, res, next) => {
@@ -585,9 +625,6 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
 //   });
 // });
 
-
-
-
 // @desc    Mark delivery as failed
 // @route   PUT /api/v1/deliveries/:id/failed
 // @access  Private/DeliveryAgent
@@ -608,18 +645,27 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
     const delivery = await Delivery.findOne({
       _id: req.params.id,
       deliveryAgent: agentId,
-    }).populate("subscriptionId").session(session);
+    })
+      .populate("subscriptionId")
+      .session(session);
 
     if (!delivery) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
+      return next(
+        new ErrorResponse(
+          "Delivery order not found or not assigned to you",
+          404,
+        ),
+      );
     }
 
     if (delivery.status === "delivered") {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse("Cannot mark delivered order as failed", 400));
+      return next(
+        new ErrorResponse("Cannot mark delivered order as failed", 400),
+      );
     }
 
     // Store original values for audit
@@ -627,7 +673,7 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
     const originalDeliveryDate = delivery.deliveryDate;
 
     // Check if this is a retry attempt
-    const isRetry = delivery.retryCount > 0 || delivery.status === 'failed';
+    const isRetry = delivery.retryCount > 0 || delivery.status === "failed";
 
     // Determine new delivery date (postponed to specified date or next day)
     let newDeliveryDate;
@@ -645,14 +691,14 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
     delivery.agentNotes = notes;
     delivery.retryCount = (delivery.retryCount || 0) + 1;
     delivery.isRetry = true;
-    
+
     // Store failure history
     if (!delivery.failureHistory) delivery.failureHistory = [];
     delivery.failureHistory.push({
       attemptedAt: new Date(),
       reason: reason,
       notes: notes,
-      agentId: agentId
+      agentId: agentId,
     });
 
     // If this is a retry, keep the same delivery record with updated date
@@ -660,9 +706,9 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
       delivery.deliveryDate = newDeliveryDate;
       delivery.scheduledDate = newDeliveryDate;
       delivery.status = "assigned"; // Reset to assigned for retry
-      
+
       await delivery.save({ session });
-      
+
       await session.commitTransaction();
       session.endSession();
 
@@ -673,23 +719,25 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
           delivery,
           retryCount: delivery.retryCount,
           nextAttemptDate: newDeliveryDate,
-          note: "This is a retry of the same delivery"
-        }
+          note: "This is a retry of the same delivery",
+        },
       });
     }
 
     // Handle remnant deliveries differently
     if (delivery.isOneTimeRemnantDelivery) {
-      const remnant = await Remnant.findOne({ _id: delivery.remnantId }).session(session);
+      const remnant = await Remnant.findOne({
+        _id: delivery.remnantId,
+      }).session(session);
       if (remnant) {
         remnant.accumulatedKg += delivery.requestedKg;
-        remnant.deliveryRequests = remnant.deliveryRequests.map(request => {
+        remnant.deliveryRequests = remnant.deliveryRequests.map((request) => {
           if (request.deliveryId.toString() === delivery._id.toString()) {
-            request.status = 'failed';
+            request.status = "failed";
           }
           return request;
         });
-        
+
         if (remnant.status === "completed") {
           remnant.status = "active";
         }
@@ -719,23 +767,32 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
       title: "Delivery Failed",
       message: `Delivery failed: ${reason}. New delivery scheduled for ${newDeliveryDate.toLocaleDateString()}`,
       type: "delivery",
-      data: { deliveryId: delivery._id }
+      data: { deliveryId: delivery._id },
     });
 
     res.status(200).json({
       success: true,
-      message: isRetry ? "Delivery marked for retry" : "Delivery failed and rescheduled",
+      message: isRetry
+        ? "Delivery marked for retry"
+        : "Delivery failed and rescheduled",
       data: {
         delivery,
         nextAttemptDate: newDeliveryDate,
-        retryCount: delivery.retryCount
-      }
+        retryCount: delivery.retryCount,
+      },
     });
-
   } catch (error) {
-    await session.abortTransaction();
+    if (session.inTransaction()) {
+      await session.abortTransaction();
+    }
+
     session.endSession();
-    return next(new ErrorResponse("Error processing failed delivery: " + error.message, 500));
+    return next(
+      new ErrorResponse(
+        "Error processing failed delivery: " + error.message,
+        500,
+      ),
+    );
   }
 });
 
@@ -832,9 +889,6 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
 //   });
 // });
 
-
-
-
 // @desc    Customer confirms delivery
 // @route   PUT /api/v1/deliveries/:id/confirm
 // @access  Private
@@ -851,13 +905,15 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
       _id: req.params.id,
       userId: userId,
       status: "delivered",
-      "customerConfirmation.confirmed": false
+      "customerConfirmation.confirmed": false,
     }).session(session);
 
     if (!delivery) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse("Delivery not found or already confirmed", 404));
+      return next(
+        new ErrorResponse("Delivery not found or already confirmed", 404),
+      );
     }
 
     // Update delivery confirmation
@@ -869,18 +925,20 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
 
     // Handle remnant deliveries on confirmation
     if (delivery.isOneTimeRemnantDelivery && delivery.remnantId) {
-      const remnant = await Remnant.findById(delivery.remnantId).session(session);
+      const remnant = await Remnant.findById(delivery.remnantId).session(
+        session,
+      );
       if (remnant) {
         // Mark delivery request as fully confirmed
-        remnant.deliveryRequests = remnant.deliveryRequests.map(request => {
+        remnant.deliveryRequests = remnant.deliveryRequests.map((request) => {
           if (request.deliveryId.toString() === delivery._id.toString()) {
-            request.status = 'confirmed';
+            request.status = "confirmed";
             request.confirmedAt = new Date();
             request.customerConfirmed = true;
           }
           return request;
         });
-        
+
         // Mark remnant subscription as expired (fulfilled)
         if (delivery.subscriptionId) {
           delivery.subscriptionId.status = "expired";
@@ -888,7 +946,7 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
           delivery.subscriptionId.endDate = new Date(); // Set to delivered date
           await delivery.subscriptionId.save({ session });
         }
-        
+
         await remnant.save({ session });
       }
     }
@@ -900,13 +958,14 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
     res.status(200).json({
       success: true,
       message: "Delivery confirmed successfully",
-      data: delivery
+      data: delivery,
     });
-
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    return next(new ErrorResponse("Error confirming delivery: " + error.message, 500));
+    return next(
+      new ErrorResponse("Error confirming delivery: " + error.message, 500),
+    );
   }
 });
 
@@ -992,28 +1051,28 @@ exports.getDeliveryStats = asyncHandler(async (req, res, next) => {
   // Add remnant stats
   const remnantStats = await Remnant.aggregate([
     {
-      $match: { status: "active" }
+      $match: { status: "active" },
     },
     {
       $group: {
         _id: null,
         totalCustomers: { $sum: 1 },
         totalAccumulatedKg: { $sum: "$accumulatedKg" },
-        avgAccumulatedKg: { $avg: "$accumulatedKg" }
-      }
-    }
+        avgAccumulatedKg: { $avg: "$accumulatedKg" },
+      },
+    },
   ]);
 
-  const customersWithRemnant = await Remnant.distinct("userId", { status: "active" });
+  const customersWithRemnant = await Remnant.distinct("userId", {
+    status: "active",
+  });
 
   stats.remnants = {
     totalCustomers: remnantStats[0]?.totalCustomers || 0,
     totalAccumulatedKg: remnantStats[0]?.totalAccumulatedKg || 0,
     avgAccumulatedKg: remnantStats[0]?.avgAccumulatedKg || 0,
-    customersWithRemnant: customersWithRemnant.length || 0
+    customersWithRemnant: customersWithRemnant.length || 0,
   };
-
- 
 
   // Today's stats
   const todayStats = await Delivery.aggregate([
@@ -1071,7 +1130,9 @@ exports.getDeliveryStats = asyncHandler(async (req, res, next) => {
   todayStats.forEach((stat) => {
     stats.today.total += stat.count;
     if (stat._id === "delivered") stats.today.delivered = stat.count;
-    if (["pending", "assigned", "accepted", "out_for_delivery"].includes(stat._id)) {
+    if (
+      ["pending", "assigned", "accepted", "out_for_delivery"].includes(stat._id)
+    ) {
       stats.today.pending += stat.count;
     }
     if (stat._id === "failed") stats.today.failed = stat.count;
@@ -1080,7 +1141,9 @@ exports.getDeliveryStats = asyncHandler(async (req, res, next) => {
   overallStats.forEach((stat) => {
     stats.overall.total += stat.count;
     if (stat._id === "delivered") stats.overall.delivered = stat.count;
-    if (["pending", "assigned", "accepted", "out_for_delivery"].includes(stat._id)) {
+    if (
+      ["pending", "assigned", "accepted", "out_for_delivery"].includes(stat._id)
+    ) {
       stats.overall.pending += stat.count;
     }
     if (stat._id === "failed") stats.overall.failed = stat.count;
@@ -1116,7 +1179,7 @@ exports.generateDeliverySchedules = asyncHandler(async (req, res, next) => {
       const deliveryDates = calculateDeliveryDates(
         subscription,
         startDate,
-        endDate
+        endDate,
       );
 
       for (const deliveryDate of deliveryDates) {
@@ -1165,8 +1228,6 @@ exports.generateDeliverySchedules = asyncHandler(async (req, res, next) => {
   });
 });
 
-
-
 // @desc    Record remaining gas after partial delivery
 // @route   PUT /api/v1/deliveries/:id/partial-delivery
 // @access  Private/DeliveryAgent
@@ -1176,7 +1237,9 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
   const { deliveredKg, remainingKg, notes } = req.body;
 
   if (!deliveredKg || !remainingKg) {
-    return next(new ErrorResponse("Both delivered and remaining kg are required", 400));
+    return next(
+      new ErrorResponse("Both delivered and remaining kg are required", 400),
+    );
   }
 
   const session = await mongoose.startSession();
@@ -1186,12 +1249,20 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
     const delivery = await Delivery.findOne({
       _id: req.params.id,
       deliveryAgent: agentId,
-    }).populate("userId").populate("subscriptionId").session(session);
+    })
+      .populate("userId")
+      .populate("subscriptionId")
+      .session(session);
 
     if (!delivery) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse("Delivery order not found or not assigned to you", 404));
+      return next(
+        new ErrorResponse(
+          "Delivery order not found or not assigned to you",
+          404,
+        ),
+      );
     }
 
     if (delivery.status === "delivered") {
@@ -1203,18 +1274,25 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
     if (delivery.partialDeliveryRecorded) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse("Partial delivery already recorded for this schedule", 400));
+      return next(
+        new ErrorResponse(
+          "Partial delivery already recorded for this schedule",
+          400,
+        ),
+      );
     }
 
     // Calculate expected kg from subscription
-    const expectedKg = parseFloat(delivery.planDetails.size.split('kg')[0]);
+    const expectedKg = parseFloat(delivery.planDetails.size.split("kg")[0]);
     const delivered = parseFloat(deliveredKg);
     const remaining = parseFloat(remainingKg);
 
     if (Math.abs(delivered + remaining - expectedKg) > 0.01) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse(`Total must equal expected ${expectedKg}kg`, 400));
+      return next(
+        new ErrorResponse(`Total must equal expected ${expectedKg}kg`, 400),
+      );
     }
 
     // Mark delivery as delivered with partial info (pending customer confirmation)
@@ -1229,21 +1307,21 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
       remaining: remaining,
       recordedBy: agentId,
       recordedAt: new Date(),
-      customerConfirmed: false // Added: require customer confirmation
+      customerConfirmed: false, // Added: require customer confirmation
     };
     delivery.partialDeliveryRecorded = true;
     delivery.customerConfirmation = {
       confirmed: false,
       required: true,
-      pendingSince: new Date()
+      pendingSince: new Date(),
     };
 
     await delivery.save({ session });
 
     // Create or update remnant record (pending customer confirmation)
-    let remnant = await Remnant.findOne({ 
-      userId: delivery.userId, 
-      status: { $in: ['active', 'pending_confirmation'] }
+    let remnant = await Remnant.findOne({
+      userId: delivery.userId,
+      status: { $in: ["active", "pending_confirmation"] },
     }).session(session);
 
     if (!remnant) {
@@ -1252,8 +1330,8 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
         userName: delivery.customerName,
         userPhone: delivery.customerPhone,
         accumulatedKg: 0,
-        status: 'pending_confirmation',
-        partialDeliveries: []
+        status: "pending_confirmation",
+        partialDeliveries: [],
       });
     }
 
@@ -1264,13 +1342,13 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
       delivered: delivered,
       remaining: remaining,
       date: new Date(),
-      confirmed: false // Not confirmed by customer yet
+      confirmed: false, // Not confirmed by customer yet
     });
 
-    // Increment accumulated kg only after confirmation? 
+    // Increment accumulated kg only after confirmation?
     // For now, add but mark as pending
     remnant.accumulatedKg += remaining;
-    remnant.status = 'pending_confirmation';
+    remnant.status = "pending_confirmation";
     remnant.lastUpdated = new Date();
 
     await remnant.save({ session });
@@ -1285,10 +1363,10 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
         title: "Partial Delivery - Please Confirm Remnant",
         message: `${delivered}kg delivered, ${remaining}kg added to your remnant account. Please confirm.`,
         type: "delivery_confirmation", // Use an allowed value
-        data: { 
-          deliveryId: delivery._id, 
-          remnantId: remnant._id 
-        }
+        data: {
+          deliveryId: delivery._id,
+          remnantId: remnant._id,
+        },
       });
     } catch (notifError) {
       // Log but don't fail the request if notification fails
@@ -1301,10 +1379,9 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
       data: {
         delivery,
         remnant,
-        note: "Customer must confirm remnant entry before it becomes available"
-      }
+        note: "Customer must confirm remnant entry before it becomes available",
+      },
     });
-
   } catch (error) {
     // Only abort if transaction is still active
     if (session.inTransaction()) {
@@ -1312,7 +1389,12 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
     }
     session.endSession();
     console.error("Error recording partial delivery:", error);
-    return next(new ErrorResponse("Error recording partial delivery: " + error.message, 500));
+    return next(
+      new ErrorResponse(
+        "Error recording partial delivery: " + error.message,
+        500,
+      ),
+    );
   }
 });
 
@@ -1410,8 +1492,6 @@ exports.recordPartialDelivery = asyncHandler(async (req, res, next) => {
 //   });
 // });
 
-
-
 // @desc    Customer confirms remnant entry
 // @route   PUT /api/v1/deliveries/remnant/:id/confirm
 // @access  Private
@@ -1425,7 +1505,7 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
   try {
     const remnant = await Remnant.findOne({
       _id: req.params.id,
-      userId: userId
+      userId: userId,
     }).session(session);
 
     if (!remnant) {
@@ -1434,7 +1514,10 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
       return next(new ErrorResponse("Remnant record not found", 404));
     }
 
-    if (remnant.status === "active" && remnant.customerConfirmation?.confirmed) {
+    if (
+      remnant.status === "active" &&
+      remnant.customerConfirmation?.confirmed
+    ) {
       await session.abortTransaction();
       session.endSession();
       return next(new ErrorResponse("Remnant already confirmed", 400));
@@ -1442,7 +1525,7 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
 
     // Mark all pending partial deliveries as confirmed
     let totalConfirmedKg = 0;
-    remnant.partialDeliveries.forEach(pd => {
+    remnant.partialDeliveries.forEach((pd) => {
       if (!pd.confirmed) {
         pd.confirmed = true;
         pd.confirmedAt = new Date();
@@ -1455,26 +1538,26 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
       confirmed: true,
       confirmedAt: new Date(),
       customerNotes: notes || "",
-      confirmedBy: userId
+      confirmedBy: userId,
     };
 
     // Update status to active
-    remnant.status = 'active';
+    remnant.status = "active";
 
     await remnant.save({ session });
 
     // Update associated deliveries to mark remnant as confirmed
-    const deliveryIds = remnant.partialDeliveries.map(pd => pd.deliveryId);
+    const deliveryIds = remnant.partialDeliveries.map((pd) => pd.deliveryId);
     await Delivery.updateMany(
       { _id: { $in: deliveryIds } },
-      { 
-        $set: { 
-          'remnantConfirmed': true,
-          'customerConfirmation.confirmed': true,
-          'customerConfirmation.confirmedAt': new Date()
-        } 
+      {
+        $set: {
+          remnantConfirmed: true,
+          "customerConfirmation.confirmed": true,
+          "customerConfirmation.confirmedAt": new Date(),
+        },
       },
-      { session }
+      { session },
     );
 
     await session.commitTransaction();
@@ -1486,14 +1569,15 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
       data: {
         ...remnant.toObject(),
         totalConfirmedKg,
-        note: "Remnant now available for delivery requests"
-      }
+        note: "Remnant now available for delivery requests",
+      },
     });
-
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    return next(new ErrorResponse("Error confirming remnant: " + error.message, 500));
+    return next(
+      new ErrorResponse("Error confirming remnant: " + error.message, 500),
+    );
   }
 });
 
@@ -1568,7 +1652,7 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
   try {
     const remnant = await Remnant.findOne({
       userId: userId,
-      status: "active"
+      status: "active",
     }).session(session);
 
     if (!remnant) {
@@ -1581,27 +1665,46 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     if (!remnant.customerConfirmation?.confirmed) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse("Please confirm your remnant entries first", 400));
+      return next(
+        new ErrorResponse("Please confirm your remnant entries first", 400),
+      );
     }
 
     // Check for unconfirmed partial deliveries
-    const unconfirmedDeliveries = remnant.partialDeliveries.filter(pd => !pd.confirmed);
+    const unconfirmedDeliveries = remnant.partialDeliveries.filter(
+      (pd) => !pd.confirmed,
+    );
     if (unconfirmedDeliveries.length > 0) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse(`Please confirm ${unconfirmedDeliveries.length} pending remnant entries first`, 400));
+      return next(
+        new ErrorResponse(
+          `Please confirm ${unconfirmedDeliveries.length} pending remnant entries first`,
+          400,
+        ),
+      );
     }
 
     if (remnant.accumulatedKg < 6) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse(`Minimum 6kg required. You have ${remnant.accumulatedKg}kg accumulated`, 400));
+      return next(
+        new ErrorResponse(
+          `Minimum 6kg required. You have ${remnant.accumulatedKg}kg accumulated`,
+          400,
+        ),
+      );
     }
 
     if (requestedKg > remnant.accumulatedKg) {
       await session.abortTransaction();
       session.endSession();
-      return next(new ErrorResponse(`Cannot request more than ${remnant.accumulatedKg}kg available`, 400));
+      return next(
+        new ErrorResponse(
+          `Cannot request more than ${remnant.accumulatedKg}kg available`,
+          400,
+        ),
+      );
     }
 
     // Get user details
@@ -1613,57 +1716,67 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     }
 
     // Create subscription for remnant delivery
-    const reference = `REMNANT-${Date.now()}-${crypto.randomBytes(4).toString('hex')}`;
-    
-    const oneTimeSubscription = await Subscription.create([{
-      userId: userId,
-      planName: `Remnant Gas Delivery - ${requestedKg}kg`,
-      planType: "one-time",
-      size: `${requestedKg}kg`,
-      frequency: "One-Time",
-      subscriptionPeriod: 1,
-      price: 0,
-      reference: reference,
-      status: "active", // Changed from active
-      paymentStatus: "completed",
-      isPaid: true,
-      paidAt: new Date(),
-      paymentMethod: "remnant",
-      startDate: new Date(),
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      isRemnantSubscription: true,
-      remnantId: remnant._id
-    }], { session });
+    const reference = `REMNANT-${Date.now()}-${crypto.randomBytes(4).toString("hex")}`;
+
+    const oneTimeSubscription = await Subscription.create(
+      [
+        {
+          userId: userId,
+          planName: `Remnant Gas Delivery - ${requestedKg}kg`,
+          planType: "one-time",
+          size: `${requestedKg}kg`,
+          frequency: "One-Time",
+          subscriptionPeriod: 1,
+          price: 0,
+          reference: reference,
+          status: "active",
+          paymentStatus: "completed",
+          isPaid: true,
+          paidAt: new Date(),
+          paymentMethod: "remnant",
+          startDate: new Date(),
+          endDate: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000),
+          isRemnantSubscription: true,
+          remnantId: remnant._id,
+        },
+      ],
+      { session },
+    );
 
     const subscription = oneTimeSubscription[0];
 
     // Create delivery order (status: assigned, not delivered)
-    const delivery = await Delivery.create([{
-      subscriptionId: subscription._id,
-      userId: userId,
-      deliveryDate: deliveryDate || new Date(),
-      scheduledDate: new Date(),
-      status: "pending",
-      address: address || user.address,
-      customerPhone: user.phone,
-      customerName: `${user.firstName} ${user.lastName}`,
-      planDetails: {
-        planName: "Remnant Gas Delivery",
-        size: `${requestedKg}kg`,
-        frequency: "One-Time",
-        price: 0,
-        isRemnantDelivery: true
-      },
-      isRemnantDelivery: true,
-      isOneTimeRemnantDelivery: true,
-      remnantId: remnant._id,
-      requestedKg: requestedKg,
-      customerNotes: notes || "",
-      customerConfirmation: {
-        confirmed: false,
-        required: true
-      }
-    }], { session });
+    const delivery = await Delivery.create(
+      [
+        {
+          subscriptionId: subscription._id,
+          userId: userId,
+          deliveryDate: deliveryDate || new Date(),
+          scheduledDate: new Date(),
+          status: "pending",
+          address: address || user.address,
+          customerPhone: user.phone,
+          customerName: `${user.firstName} ${user.lastName}`,
+          planDetails: {
+            planName: "Remnant Gas Delivery",
+            size: `${requestedKg}kg`,
+            frequency: "One-Time",
+            price: 0,
+            isRemnantDelivery: true,
+          },
+          isRemnantDelivery: true,
+          isOneTimeRemnantDelivery: true,
+          remnantId: remnant._id,
+          requestedKg: requestedKg,
+          customerNotes: notes || "",
+          customerConfirmation: {
+            confirmed: false,
+            required: true,
+          },
+        },
+      ],
+      { session },
+    );
 
     // Update subscription with delivery ID
     subscription.deliveries.push(delivery[0]._id);
@@ -1671,7 +1784,8 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
 
     // Deduct from remnant
     remnant.accumulatedKg -= requestedKg;
-    remnant.deliveredFromRemnant = (remnant.deliveredFromRemnant || 0) + requestedKg;
+    remnant.deliveredFromRemnant =
+      (remnant.deliveredFromRemnant || 0) + requestedKg;
 
     // Add delivery request (status: pending delivery)
     remnant.deliveryRequests.push({
@@ -1679,7 +1793,7 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
       requestedKg: requestedKg,
       date: new Date(),
       subscriptionId: subscription._id,
-      status: 'pending' // Will change to 'delivered' after agent delivery + customer confirmation
+      status: "pending", // Will change to 'delivered' after agent delivery + customer confirmation
     });
 
     // If remnant reaches 0, mark as completed
@@ -1700,20 +1814,23 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
         subscription: {
           _id: subscription._id,
           reference: subscription.reference,
-          planName: subscription.planName
+          planName: subscription.planName,
         },
         remainingAccumulated: remnant.accumulatedKg,
-        note: "Delivery has been assigned and will be processed"
-      }
+        note: "Delivery has been assigned and will be processed",
+      },
     });
-
   } catch (error) {
     await session.abortTransaction();
     session.endSession();
-    return next(new ErrorResponse("Error requesting remnant delivery: " + error.message, 500));
+    return next(
+      new ErrorResponse(
+        "Error requesting remnant delivery: " + error.message,
+        500,
+      ),
+    );
   }
 });
-
 
 // exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
 //   const userId = req.user.id;
@@ -1758,10 +1875,10 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
 //     planType: "one-time",
 //     size: `${requestedKg}kg`,
 //     frequency: "One-Time",
-//     subscriptionPeriod: 1, 
+//     subscriptionPeriod: 1,
 //     price: 0,
 //     reference: reference,
-//     order: null, 
+//     order: null,
 //     status: "active",
 //     paymentStatus: "completed",
 //     isPaid: true,
@@ -1818,20 +1935,19 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
 
 //   // Deduct from remnant
 //   remnant.accumulatedKg -= requestedKg;
-  
+
 //   if (!remnant.deliveredFromRemnant) {
 //     remnant.deliveredFromRemnant = 0;
 //   }
 //   remnant.deliveredFromRemnant =
 //   Number(remnant.deliveredFromRemnant || 0) + requestedKg;
 
-  
 //   // If remnant reaches 0, mark as completed
 //   if (remnant.accumulatedKg <= 0) {
 //     remnant.accumulatedKg = 0;
 //     remnant.status = "completed";
 //   }
-  
+
 //   remnant.deliveryRequests.push({
 //     deliveryId: delivery._id,
 //     requestedKg: requestedKg,
@@ -1866,22 +1982,22 @@ exports.getMyRemnant = asyncHandler(async (req, res, next) => {
   const remnant = await Remnant.findOne({ userId })
     .populate({
       path: "partialDeliveries.deliveryId",
-      select: "deliveryDate planDetails agentNotes deliveredKg remainingKg"
+      select: "deliveryDate planDetails agentNotes deliveredKg remainingKg",
     })
     .populate({
       path: "deliveryRequests.deliveryId",
-      select: "status deliveryDate deliveryAgent deliveredAt"
+      select: "status deliveryDate deliveryAgent deliveredAt",
     })
     .populate({
       path: "deliveryRequests.subscriptionId",
-      select: "planName reference"
+      select: "planName reference",
     });
 
   // Get previous history even if no remnant record
   const previousDeliveries = await Delivery.find({
     userId: userId,
     isRemnantDelivery: true,
-    status: "delivered"
+    status: "delivered",
   })
     .select("deliveryDate deliveredAt requestedKg planDetails")
     .sort({ deliveryDate: -1 })
@@ -1893,15 +2009,17 @@ exports.getMyRemnant = asyncHandler(async (req, res, next) => {
       current: remnant || {
         userId: userId,
         accumulatedKg: 0,
-        status: 'no_record',
+        status: "no_record",
         partialDeliveries: [],
-        deliveryRequests: []
+        deliveryRequests: [],
       },
       history: previousDeliveries,
-      pendingConfirmations: remnant?.partialDeliveries?.filter(p => !p.confirmed) || [],
+      pendingConfirmations:
+        remnant?.partialDeliveries?.filter((p) => !p.confirmed) || [],
       totalAccumulated: remnant?.accumulatedKg || 0,
-      canRequestDelivery: remnant?.accumulatedKg >= 6 && remnant?.customerConfirmation?.confirmed
-    }
+      canRequestDelivery:
+        remnant?.accumulatedKg >= 6 && remnant?.customerConfirmation?.confirmed,
+    },
   });
 });
 
@@ -1937,14 +2055,7 @@ exports.getMyRemnant = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/deliveries/remnants
 // @access  Private/Admin
 exports.getAllRemnants = asyncHandler(async (req, res, next) => {
-  const {
-    page = 1,
-    limit = 10,
-    status,
-    search,
-    minKg,
-    maxKg
-  } = req.query;
+  const { page = 1, limit = 10, status, search, minKg, maxKg } = req.query;
 
   let filter = {};
 
@@ -1960,8 +2071,8 @@ exports.getAllRemnants = asyncHandler(async (req, res, next) => {
 
   if (search) {
     filter.$or = [
-      { "userName": { $regex: search, $options: "i" } },
-      { "userPhone": { $regex: search, $options: "i" } }
+      { userName: { $regex: search, $options: "i" } },
+      { userPhone: { $regex: search, $options: "i" } },
     ];
   }
 
@@ -1981,9 +2092,9 @@ exports.getAllRemnants = asyncHandler(async (req, res, next) => {
     total,
     pagination: {
       page: parseInt(page),
-      pages: Math.ceil(total / parseInt(limit))
+      pages: Math.ceil(total / parseInt(limit)),
     },
-    data: remnants
+    data: remnants,
   });
 });
 
@@ -1996,7 +2107,7 @@ exports.getAgentRemnantDeliveries = asyncHandler(async (req, res, next) => {
 
   let filter = {
     deliveryAgent: agentId,
-    isRemnantDelivery: true
+    isRemnantDelivery: true,
   };
 
   if (status && status !== "all") {
@@ -2011,11 +2122,9 @@ exports.getAgentRemnantDeliveries = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     count: deliveries.length,
-    data: deliveries
+    data: deliveries,
   });
 });
-
-
 
 // @desc    Get next upcoming delivery for user
 // @route   GET /api/v1/deliveries/next-delivery
@@ -2030,26 +2139,26 @@ exports.getNextDelivery = asyncHandler(async (req, res, next) => {
     const nextDelivery = await Delivery.findOne({
       userId: userId,
       deliveryDate: { $gte: today },
-      status: { $in: ['pending', 'assigned', 'accepted', 'out_for_delivery'] }
+      status: { $in: ["pending", "assigned", "accepted", "out_for_delivery"] },
     })
-    .populate({
-      path: 'subscriptionId',
-      select: 'planName size frequency status',
-      model: Subscription
-    })
-    .populate({
-      path: 'userId',
-      select: 'firstName lastName email phone address',
-      model: User
-    })
-    .sort({ deliveryDate: 1 }) // Sort by earliest date first
-    .limit(1);
+      .populate({
+        path: "subscriptionId",
+        select: "planName size frequency status",
+        model: Subscription,
+      })
+      .populate({
+        path: "userId",
+        select: "firstName lastName email phone address",
+        model: User,
+      })
+      .sort({ deliveryDate: 1 }) // Sort by earliest date first
+      .limit(1);
 
     if (!nextDelivery) {
       return res.status(200).json({
         success: true,
         data: null,
-        message: "No upcoming deliveries found"
+        message: "No upcoming deliveries found",
       });
     }
 
@@ -2059,7 +2168,7 @@ exports.getNextDelivery = asyncHandler(async (req, res, next) => {
       deliveryDate: nextDelivery.deliveryDate,
       status: nextDelivery.status,
       subscription: null,
-      isUpcoming: nextDelivery.deliveryDate > new Date() // True if future date
+      isUpcoming: nextDelivery.deliveryDate > new Date(), // True if future date
     };
 
     // If delivery has subscription info, extract it
@@ -2069,26 +2178,25 @@ exports.getNextDelivery = asyncHandler(async (req, res, next) => {
         name: nextDelivery.subscriptionId.planName,
         size: nextDelivery.subscriptionId.size,
         frequency: nextDelivery.subscriptionId.frequency,
-        status: nextDelivery.subscriptionId.status
+        status: nextDelivery.subscriptionId.status,
       };
     } else if (nextDelivery.planDetails) {
       // Fallback to planDetails from delivery
       response.subscription = {
-        name: nextDelivery.planDetails.planName || 'Remnant Delivery',
-        size: nextDelivery.planDetails.size || 'N/A',
-        frequency: nextDelivery.planDetails.frequency || 'One-Time',
-        status: 'active'
+        name: nextDelivery.planDetails.planName || "Remnant Delivery",
+        size: nextDelivery.planDetails.size || "N/A",
+        frequency: nextDelivery.planDetails.frequency || "One-Time",
+        status: "active",
       };
     }
 
     res.status(200).json({
       success: true,
-      data: response
+      data: response,
     });
-
   } catch (error) {
-    console.error('Error fetching next delivery:', error);
-    return next(new ErrorResponse('Failed to fetch next delivery', 500));
+    console.error("Error fetching next delivery:", error);
+    return next(new ErrorResponse("Failed to fetch next delivery", 500));
   }
 });
 
@@ -2133,7 +2241,6 @@ exports.getNextDelivery = asyncHandler(async (req, res, next) => {
 //     data: delivery
 //   });
 // });
-
 
 // Helper function to calculate delivery dates
 // Helper function to calculate delivery dates
