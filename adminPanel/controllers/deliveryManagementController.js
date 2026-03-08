@@ -736,7 +736,7 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
       const remnant = await Remnant.findOne({
         _id: delivery.remnantId,
       }).session(session);
-      
+
       if (remnant) {
         remnant.deliveryRequests = remnant.deliveryRequests.map((request) => {
           if (request.deliveryId.toString() === delivery._id.toString()) {
@@ -1018,38 +1018,174 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
 // @desc    Get customer's delivery history
 // @route   GET /api/v1/deliveries/my-deliveries
 // @access  Private
+// exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
+//   const userId = req.user.id;
+//   const { status, page = 1, limit = 10 } = req.query;
+
+//   let filter = { userId };
+
+//   if (status && status !== "all") {
+//     filter.status = status;
+//   }
+
+//   const skip = (parseInt(page) - 1) * parseInt(limit);
+
+//   const deliveries = await Delivery.find(filter)
+//     .populate("subscriptionId", "planName size frequency")
+//     .populate("deliveryAgent", "firstName lastName phone")
+//     .sort({ deliveryDate: -1 })
+//     .skip(skip)
+//     .limit(parseInt(limit));
+
+//   const total = await Delivery.countDocuments(filter);
+
+//   res.status(200).json({
+//     success: true,
+//     count: deliveries.length,
+//     total,
+//     pagination: {
+//       page: parseInt(page),
+//       pages: Math.ceil(total / parseInt(limit)),
+//     },
+//     data: deliveries,
+//   });
+// });
+
+
+// controllers/deliveryController.js
+
+// Get my deliveries with proper filtering for upcoming, delivered, and overdue
 exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
-  const { status, page = 1, limit = 10 } = req.query;
+  const { 
+    status, 
+    page = 1, 
+    limit = 10,
+    sortBy = 'deliveryDate',
+    sortOrder = 'desc',
+    tab, // 'upcoming', 'delivered', 'overdue'
+    startDate,
+    endDate
+  } = req.query;
 
   let filter = { userId };
 
-  if (status && status !== "all") {
-    filter.status = status;
+  // Handle tab-based filtering
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  if (tab) {
+    switch (tab) {
+      case 'upcoming':
+        // Upcoming: future deliveries that are not delivered/cancelled/failed
+        filter.deliveryDate = { $gte: now };
+        filter.status = { $nin: ['delivered', 'cancelled', 'failed'] };
+        break;
+      
+      case 'delivered':
+        filter.status = 'delivered';
+        break;
+      
+      case 'overdue':
+        // Overdue: past deliveries that are not delivered/cancelled/failed
+        filter.deliveryDate = { $lt: now };
+        filter.status = { $nin: ['delivered', 'cancelled', 'failed'] };
+        break;
+      
+      default:
+        break;
+    }
   }
 
+  // Apply additional status filter if provided (overrides tab filter)
+  if (status && status !== 'all' && !tab) {
+    if (status.includes(',')) {
+      filter.status = { $in: status.split(',') };
+    } else {
+      filter.status = status;
+    }
+  }
+
+  // Apply date range filter if provided
+  if (startDate || endDate) {
+    filter.deliveryDate = {};
+    if (startDate) filter.deliveryDate.$gte = new Date(startDate);
+    if (endDate) filter.deliveryDate.$lte = new Date(endDate);
+  }
+
+  // Calculate pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
+  // Build sort object
+  let sort = {};
+  if (sortBy === 'deliveryDate') {
+    sort.deliveryDate = sortOrder === 'asc' ? 1 : -1;
+  } else if (sortBy === 'createdAt') {
+    sort.createdAt = sortOrder === 'asc' ? 1 : -1;
+  } else if (sortBy === 'status') {
+    sort.status = sortOrder === 'asc' ? 1 : -1;
+  } else {
+    sort.deliveryDate = -1; // default
+  }
+
+  // Execute query with population
   const deliveries = await Delivery.find(filter)
-    .populate("subscriptionId", "planName size frequency")
-    .populate("deliveryAgent", "firstName lastName phone")
-    .sort({ deliveryDate: -1 })
+    .populate('subscriptionId', 'planName size frequency status')
+    .populate('deliveryAgent', 'firstName lastName phone')
+    .sort(sort)
     .skip(skip)
     .limit(parseInt(limit));
 
+  // Get total count for pagination
   const total = await Delivery.countDocuments(filter);
+
+  // Get counts for tabs (for UI badges)
+  const counts = await getDeliveryCounts(userId);
 
   res.status(200).json({
     success: true,
     count: deliveries.length,
     total,
+    counts, // Add counts for UI tabs
     pagination: {
       page: parseInt(page),
+      limit: parseInt(limit),
       pages: Math.ceil(total / parseInt(limit)),
+      total
     },
     data: deliveries,
   });
 });
+
+// Helper function to get counts for each tab
+const getDeliveryCounts = async (userId) => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+
+  const [upcoming, delivered, overdue] = await Promise.all([
+    // Upcoming count
+    Delivery.countDocuments({
+      userId,
+      deliveryDate: { $gte: now },
+      status: { $nin: ['delivered', 'cancelled', 'failed'] }
+    }),
+    
+    // Delivered count
+    Delivery.countDocuments({
+      userId,
+      status: 'delivered'
+    }),
+    
+    // Overdue count
+    Delivery.countDocuments({
+      userId,
+      deliveryDate: { $lt: now },
+      status: { $nin: ['delivered', 'cancelled', 'failed'] }
+    })
+  ]);
+
+  return { upcoming, delivered, overdue };
+};
 
 // @desc    Get delivery statistics
 // @route   GET /api/v1/deliveries/stats
