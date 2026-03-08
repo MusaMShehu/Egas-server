@@ -527,15 +527,19 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
     session.endSession();
 
     // Send notification to customer to confirm delivery
-    await Notification.create({
-      userId: delivery.userId,
-      title: "Delivery Completed - Please Confirm",
-      message:
-        "Your gas has been delivered. Please confirm receipt in your dashboard.",
-      type: "delivery",
-      subType: "delivery_fulfilled",
-      data: { deliveryId: delivery._id },
-    });
+    try {
+      await Notification.create({
+        userId: delivery.userId,
+        title: "Delivery Completed - Please Confirm",
+        message:
+          "Your gas has been delivered. Please confirm receipt in your dashboard.",
+        type: "delivery",
+        subType: "delivery_fulfilled",
+        data: { deliveryId: delivery._id },
+      });
+    } catch (notifError) {
+      console.error("Failed to create notification:", notifError);
+    }
 
     res.status(200).json({
       success: true,
@@ -685,13 +689,15 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
       newDeliveryDate.setDate(newDeliveryDate.getDate() + 1);
     }
 
-    // Mark current delivery as failed but keep it as the same delivery record
-    delivery.status = "failed";
+    // Record failure but allow fresh delivery flow
     delivery.failedReason = reason;
     delivery.failedAt = new Date();
     delivery.agentNotes = notes;
     delivery.retryCount = (delivery.retryCount || 0) + 1;
     delivery.isRetry = true;
+
+    // Reset delivery to pending for a new attempt
+    delivery.status = "pending";
 
     // Store failure history
     if (!delivery.failureHistory) delivery.failureHistory = [];
@@ -706,7 +712,7 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
     if (isRetry) {
       delivery.deliveryDate = newDeliveryDate;
       delivery.scheduledDate = newDeliveryDate;
-      delivery.status = "assigned"; // Reset to assigned for retry
+      delivery.status = "pending";
 
       await delivery.save({ session });
 
@@ -730,32 +736,33 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
       const remnant = await Remnant.findOne({
         _id: delivery.remnantId,
       }).session(session);
+      
       if (remnant) {
-        remnant.accumulatedKg += delivery.requestedKg;
         remnant.deliveryRequests = remnant.deliveryRequests.map((request) => {
           if (request.deliveryId.toString() === delivery._id.toString()) {
-            request.status = "failed";
+            request.status = "pending"; // reset for retry
           }
           return request;
         });
 
+        // If remnant was previously completed, reopen it
         if (remnant.status === "completed") {
           remnant.status = "active";
         }
+
         await remnant.save({ session });
       }
 
-      // Mark the one-time subscription as failed instead of cancelled
+      // Do NOT fail the subscription — keep it active
       if (delivery.subscriptionId) {
-        delivery.subscriptionId.status = "failed";
-        delivery.subscriptionId.failedAt = new Date();
+        delivery.subscriptionId.status = "active";
         await delivery.subscriptionId.save({ session });
       }
-    } else {
-      // For regular deliveries: modify existing delivery with new date
+
+      // Reschedule delivery like regular delivery
       delivery.deliveryDate = newDeliveryDate;
       delivery.scheduledDate = newDeliveryDate;
-      // Keep the same delivery record, just update date
+      delivery.status = "pending";
     }
 
     await delivery.save({ session });
@@ -763,14 +770,18 @@ exports.markAsFailed = asyncHandler(async (req, res, next) => {
     session.endSession();
 
     // Send notification to customer
-    await Notification.create({
-      userId: delivery.userId,
-      title: "Delivery Failed",
-      message: `Delivery failed: ${reason}. New delivery scheduled for ${newDeliveryDate.toLocaleDateString()}`,
-      type: "delivery",
-      subType: "delivery_failed",
-      data: { deliveryId: delivery._id },
-    });
+    try {
+      await Notification.create({
+        userId: delivery.userId,
+        title: "Delivery Failed",
+        message: `Delivery failed: ${reason}. New delivery scheduled for ${newDeliveryDate.toLocaleDateString()}`,
+        type: "delivery",
+        subType: "delivery_failed",
+        data: { deliveryId: delivery._id },
+      });
+    } catch (notifError) {
+      console.error("Failed to create notification:", notifError);
+    }
 
     res.status(200).json({
       success: true,
