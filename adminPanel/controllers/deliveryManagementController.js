@@ -1054,7 +1054,6 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
 
 // controllers/deliveryController.js
 
-// Get my deliveries with proper filtering for upcoming, delivered, and overdue
 exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
   const { 
@@ -1064,30 +1063,31 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
     sortBy = 'deliveryDate',
     sortOrder = 'desc',
     tab, // 'upcoming', 'delivered', 'overdue'
-    startDate,
-    endDate
+    deliveryDate // specific date filter
   } = req.query;
 
   let filter = { userId };
 
-  // Handle tab-based filtering
+  // Handle tab-based filtering - each tab returns ONLY its specific data
   const now = new Date();
   now.setHours(0, 0, 0, 0);
 
   if (tab) {
     switch (tab) {
       case 'upcoming':
-        // Upcoming: future deliveries that are not delivered/cancelled/failed
+        // Upcoming: ONLY future deliveries that are not completed
         filter.deliveryDate = { $gte: now };
         filter.status = { $nin: ['delivered', 'cancelled', 'failed'] };
         break;
       
       case 'delivered':
+        // Delivered: ONLY deliveries with status 'delivered'
         filter.status = 'delivered';
+        // Don't filter by date for delivered - show all delivered orders
         break;
       
       case 'overdue':
-        // Overdue: past deliveries that are not delivered/cancelled/failed
+        // Overdue: ONLY past deliveries that are not completed
         filter.deliveryDate = { $lt: now };
         filter.status = { $nin: ['delivered', 'cancelled', 'failed'] };
         break;
@@ -1097,7 +1097,7 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Apply additional status filter if provided (overrides tab filter)
+  // Apply additional status filter only if provided AND not using a tab that already filters status
   if (status && status !== 'all' && !tab) {
     if (status.includes(',')) {
       filter.status = { $in: status.split(',') };
@@ -1106,27 +1106,42 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
     }
   }
 
-  // Apply date range filter if provided
-  if (startDate || endDate) {
-    filter.deliveryDate = {};
-    if (startDate) filter.deliveryDate.$gte = new Date(startDate);
-    if (endDate) filter.deliveryDate.$lte = new Date(endDate);
+  // Apply specific date filter if provided (overrides tab date filtering)
+  if (deliveryDate) {
+    const startDate = new Date(deliveryDate);
+    startDate.setHours(0, 0, 0, 0);
+    const endDate = new Date(deliveryDate);
+    endDate.setHours(23, 59, 59, 999);
+    
+    filter.deliveryDate = {
+      $gte: startDate,
+      $lte: endDate
+    };
   }
 
   // Calculate pagination
   const skip = (parseInt(page) - 1) * parseInt(limit);
 
-  // Build sort object
+  // Build sort object - FIXED sorting implementation
   let sort = {};
+  
+  // Explicitly handle different sort fields
   if (sortBy === 'deliveryDate') {
+    // For deliveryDate, we sort by the actual date
     sort.deliveryDate = sortOrder === 'asc' ? 1 : -1;
   } else if (sortBy === 'createdAt') {
     sort.createdAt = sortOrder === 'asc' ? 1 : -1;
   } else if (sortBy === 'status') {
+    // For status, we sort alphabetically
     sort.status = sortOrder === 'asc' ? 1 : -1;
   } else {
-    sort.deliveryDate = -1; // default
+    // Default sort by deliveryDate descending (newest first)
+    sort.deliveryDate = -1;
   }
+
+  console.log('Filter:', JSON.stringify(filter));
+  console.log('Sort:', sort);
+  console.log('Tab:', tab);
 
   // Execute query with population
   const deliveries = await Delivery.find(filter)
@@ -1139,30 +1154,8 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
   // Get total count for pagination
   const total = await Delivery.countDocuments(filter);
 
-  // Get counts for tabs (for UI badges)
-  const counts = await getDeliveryCounts(userId);
-
-  res.status(200).json({
-    success: true,
-    count: deliveries.length,
-    total,
-    counts, // Add counts for UI tabs
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      pages: Math.ceil(total / parseInt(limit)),
-      total
-    },
-    data: deliveries,
-  });
-});
-
-// Helper function to get counts for each tab
-const getDeliveryCounts = async (userId) => {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-
-  const [upcoming, delivered, overdue] = await Promise.all([
+  // Get counts for each tab separately (for UI badges)
+  const [upcomingCount, deliveredCount, overdueCount] = await Promise.all([
     // Upcoming count
     Delivery.countDocuments({
       userId,
@@ -1184,8 +1177,24 @@ const getDeliveryCounts = async (userId) => {
     })
   ]);
 
-  return { upcoming, delivered, overdue };
-};
+  res.status(200).json({
+    success: true,
+    count: deliveries.length,
+    total,
+    counts: {
+      upcoming: upcomingCount,
+      delivered: deliveredCount,
+      overdue: overdueCount
+    },
+    pagination: {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      pages: Math.ceil(total / parseInt(limit)),
+      total
+    },
+    data: deliveries,
+  });
+});
 
 // @desc    Get delivery statistics
 // @route   GET /api/v1/deliveries/stats
