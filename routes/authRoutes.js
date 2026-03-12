@@ -3,6 +3,7 @@ const {
   register,
   login,
   logout,
+  refreshToken,
   getProfile,
   updateProfile,
   updatePreferences,
@@ -21,6 +22,8 @@ router.post('/register', profileUpload.single('profileImage'), register);
 router.post('/login', login);
 router.get('/logout', logout);
 router.get('/me', protect, getProfile);
+
+router.post('/refresh', refreshToken);
 
 router.put('/profile', protect, profileUpload.single('image'), updateProfile);
 router.put('/profile/preferences/:id', protect, updatePreferences);

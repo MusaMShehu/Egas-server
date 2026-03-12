@@ -23,12 +23,12 @@ router.get('/:id', getPlanById);
 router.get('/type/:type', getPlansByType);
 
 // Admin routes
-router.post('/', protect, adminAuth, createPlan);
-router.put('/:id', protect, adminAuth, updatePlan);
-router.delete('/:id', protect, adminAuth, deletePlan);
-router.patch('/:id/restore', protect, adminAuth, restorePlan);
-router.patch('/:id/toggle-popular', protect, adminAuth, togglePlanPopular);
-router.get('/admin/all', protect, adminAuth, getAllPlansAdmin);
-router.put('/admin/update-order', protect, adminAuth, updatePlanOrder);
+// router.post('/', protect, adminAuth, createPlan);
+// router.put('/:id', protect, adminAuth, updatePlan);
+// router.delete('/:id', protect, adminAuth, deletePlan);
+// router.patch('/:id/restore', protect, adminAuth, restorePlan);
+// router.patch('/:id/toggle-popular', protect, adminAuth, togglePlanPopular);
+// router.get('/admin/all', protect, adminAuth, getAllPlansAdmin);
+// router.put('/admin/update-order', protect, adminAuth, updatePlanOrder);
 
 module.exports = router;

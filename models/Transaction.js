@@ -1,37 +1,75 @@
 const mongoose = require('mongoose');
 
 const transactionSchema = new mongoose.Schema({
-  reference: { 
-    type: String, 
-    // required: true, 
-    unique: true 
+  walletId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Wallet',
+    required: true,
+    index: true,
   },
-  orderId: { 
-    type: String, 
-    // required: false
-  },
-  userId: { 
-    type: mongoose.Schema.Types.ObjectId, 
-    ref: 'User', 
-    // required: false 
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true,
+    index: true,
   },
   email: { 
     type: String, 
     // required: true 
   },
-  amount: { 
-    type: Number, 
-    // required: true 
+  orderId: { 
+    type: String, 
+    // required: false
+  },
+  type: {
+    type: String,
+    enum: ['credit', 'debit', 'refund', 'transfer'],
+    required: true,
+  },
+  amount: {
+    type: Number,
+    required: true,
+    min: [0, 'Amount cannot be negative'],
+    validate: {
+      validator: Number.isFinite,
+      message: 'Amount must be a number',
+    },
+  },
+  balanceBefore: {
+    type: Number,
+    required: true,
+  },
+  balanceAfter: {
+    type: Number,
+    required: true,
+  },
+  reference: {
+    type: String,
+    required: true,
+    unique: true,
+  },
+  description: {
+    type: String,
+    trim: true,
+    maxlength: 200,
   },
   currency: { 
     type: String, 
     default: 'NGN' 
   },
-  status: { 
-    type: String, 
-    enum: ['pending', 'success', 'failed', 'abandoned'], 
-    default: 'pending' 
+  metadata: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {},
   },
+  status: {
+    type: String,
+    enum: ['pending', 'completed', 'success', 'failed', 'reversed', 'abandoned'],
+    default: 'pending',
+    index: true,
+  },
+  reversalReason: String,
+  reversedAt: Date,
+
   planName: String,
   size: String,
   frequency: String,
@@ -40,12 +78,9 @@ const transactionSchema = new mongoose.Schema({
   verifiedAt: Date,
   completedAt: Date,
   failedAt: Date
-}, { 
-  timestamps: true 
+}, {
+  timestamps: true,
 });
 
-transactionSchema.index({ userId: 1, createdAt: -1 });
-transactionSchema.index({ reference: 1 });
-transactionSchema.index({ status: 1 });
 
-module.exports = mongoose.model('Transaction', transactionSchema);
+module.exports = mongoose.models.Transaction || mongoose.model('Transaction', transactionSchema);

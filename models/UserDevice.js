@@ -53,8 +53,5 @@ const userDeviceSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes
-userDeviceSchema.index({ userId: 1, isActive: 1 });
-userDeviceSchema.index({ deviceToken: 1 });
 
 module.exports = mongoose.model('UserDevice', userDeviceSchema);

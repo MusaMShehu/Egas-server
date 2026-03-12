@@ -4,8 +4,8 @@ const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
 const NotificationService = require('../services/notificationService');
 const SendChampService = require('../services/sendchampService');
-const WebhookController = require('../controllers/webhookController');
-const SMSLog = require('../models/SMSLog');
+const WebhookController = require('../controllers/notificationWebhookController');
+const SMSLog = require('../models/SMSLogs');
 
 // Webhook endpoint (no auth required)
 router.post('/webhook/sendchamp', WebhookController.handleSendChampWebhook);

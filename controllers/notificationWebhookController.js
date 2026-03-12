@@ -1,4 +1,4 @@
-const SMSLog = require('../models/SMSLog');
+const SMSLog = require('../models/SMSLogs');
 
 class WebhookController {
     async handleSendChampWebhook(req, res) {

@@ -982,77 +982,6 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
   }
 });
 
-// exports.confirmDelivery = asyncHandler(async (req, res, next) => {
-//   const userId = req.user.id;
-//   const { notes } = req.body;
-
-//   const delivery = await Delivery.findOne({
-//     _id: req.params.id,
-//     userId: userId,
-//     status: "delivered",
-//   });
-
-//   if (!delivery) {
-//     return next(new ErrorResponse("Delivery order not found or not delivered", 404));
-//   }
-
-//   if (delivery.customerConfirmation.confirmed) {
-//     return next(new ErrorResponse("Delivery already confirmed", 400));
-//   }
-
-//   delivery.customerConfirmation = {
-//     confirmed: true,
-//     confirmedAt: new Date(),
-//     customerNotes: notes,
-//   };
-
-//   await delivery.save();
-
-//   res.status(200).json({
-//     success: true,
-//     message: "Delivery confirmed successfully",
-//     data: delivery,
-//   });
-// });
-
-// @desc    Get customer's delivery history
-// @route   GET /api/v1/deliveries/my-deliveries
-// @access  Private
-// exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
-//   const userId = req.user.id;
-//   const { status, page = 1, limit = 10 } = req.query;
-
-//   let filter = { userId };
-
-//   if (status && status !== "all") {
-//     filter.status = status;
-//   }
-
-//   const skip = (parseInt(page) - 1) * parseInt(limit);
-
-//   const deliveries = await Delivery.find(filter)
-//     .populate("subscriptionId", "planName size frequency")
-//     .populate("deliveryAgent", "firstName lastName phone")
-//     .sort({ deliveryDate: -1 })
-//     .skip(skip)
-//     .limit(parseInt(limit));
-
-//   const total = await Delivery.countDocuments(filter);
-
-//   res.status(200).json({
-//     success: true,
-//     count: deliveries.length,
-//     total,
-//     pagination: {
-//       page: parseInt(page),
-//       pages: Math.ceil(total / parseInt(limit)),
-//     },
-//     data: deliveries,
-//   });
-// });
-
-
-// controllers/deliveryController.js
 
 exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
@@ -1062,8 +991,8 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
     limit = 10,
     sortBy = 'deliveryDate',
     sortOrder = 'desc',
-    tab, // 'upcoming', 'delivered', 'overdue'
-    deliveryDate // specific date filter
+    tab, 
+    deliveryDate
   } = req.query;
 
   let filter = { userId };
