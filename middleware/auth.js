@@ -59,7 +59,7 @@
 //     if (!req.user) {
 //       return next(new ErrorResponse('Not authorized to access this route', 401));
 //     }
-    
+
 //     if (!roles.includes(req.user.role)) {
 //       return next(
 //         new ErrorResponse(
@@ -107,11 +107,11 @@
 //   try {
 //     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 //     req.user = decoded;
-    
+
 //     const currentUser = await User.findById(decoded.id);
 //     if (currentUser) {
 //       req.userDocument = currentUser;
-      
+
 //       if (req.session) {
 //         req.session.user = {
 //           id: currentUser._id,
@@ -123,7 +123,7 @@
 //         req.session.token = token;
 //       }
 //     }
-    
+
 //     next();
 //   } catch (err) {
 //     // Invalid token, but proceed without user data
@@ -154,23 +154,21 @@
 //   next();
 // });
 
-
-
-const jwt = require('jsonwebtoken');
-const { promisify } = require('util');
-const User = require('../models/User');
-const ErrorResponse = require('../utils/errorResponse');
-const asyncHandler = require('./async');
-const authService = require('../services/authService');
+const jwt = require("jsonwebtoken");
+const { promisify } = require("util");
+const User = require("../models/User");
+const ErrorResponse = require("../utils/errorResponse");
+const asyncHandler = require("./async");
+const authService = require("../services/authService");
 
 // Cookie options
 const cookieOptions = {
   httpOnly: true,
-  secure: true, 
-  sameSite: 'none',
+  secure: true,
+  sameSite: "none",
   credentials: true,
   maxAge: 7 * 24 * 60 * 60 * 1000,
-  path: '/',
+  path: "/",
 };
 
 const accessTokenCookieOptions = {
@@ -181,19 +179,19 @@ const accessTokenCookieOptions = {
 const refreshTokenCookieOptions = {
   ...cookieOptions,
   maxAge: 7 * 24 * 60 * 60 * 1000,
-  httpOnly: true
+  httpOnly: true,
 };
 
 // Helper to set cookies
 const setTokenCookies = (res, tokens) => {
-  res.cookie('accessToken', tokens.accessToken, accessTokenCookieOptions);
-  res.cookie('refreshToken', tokens.refreshToken, refreshTokenCookieOptions);
+  res.cookie("accessToken", tokens.accessToken, accessTokenCookieOptions);
+  res.cookie("refreshToken", tokens.refreshToken, refreshTokenCookieOptions);
 };
 
 // Helper to clear cookies
 const clearTokenCookies = (res) => {
-  res.clearCookie('accessToken', { path: '/' });
-  res.clearCookie('refreshToken', { path: '/' });
+  res.clearCookie("accessToken", { path: "/" });
+  res.clearCookie("refreshToken", { path: "/" });
 };
 
 // Protect routes - Verify access token from cookie or header
@@ -205,44 +203,54 @@ exports.protect = asyncHandler(async (req, res, next) => {
     token = req.cookies.accessToken;
   }
   // Fallback to Authorization header (for mobile apps)
-  else if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
+  else if (
+    req.headers.authorization &&
+    req.headers.authorization.startsWith("Bearer")
+  ) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
-    return next(new ErrorResponse('Not authorized to access this route', 401));
+    return next(new ErrorResponse("Not authorized to access this route", 401));
   }
 
   try {
     // Verify token and check blacklist
     const verification = await authService.verifyAccessToken(token);
-    
+
     if (!verification.valid) {
       // Clear invalid cookies
       clearTokenCookies(res);
-      return next(new ErrorResponse('Not authorized to access this route', 401));
+      return next(
+        new ErrorResponse("Not authorized to access this route", 401),
+      );
     }
 
     // Get user from database
     const user = await User.findById(verification.decoded.userId)
-      .select('-password -__v')
+      .select("-password -__v")
       .lean();
 
     if (!user) {
       clearTokenCookies(res);
-      return next(new ErrorResponse('User not found', 401));
+      return next(new ErrorResponse("User not found", 401));
     }
 
     if (!user.isActive) {
       clearTokenCookies(res);
-      return next(new ErrorResponse('Account deactivated', 403));
+      return next(new ErrorResponse("Account deactivated", 403));
     }
 
-    req.user = user;
+    // Ensure both id and _id are available
+    req.user = {
+      ...user,
+      id: user._id.toString(), // Explicitly add id
+      _id: user._id, // Keep _id for mongoose
+    };
     next();
   } catch (err) {
     clearTokenCookies(res);
-    return next(new ErrorResponse('Not authorized to access this route', 401));
+    return next(new ErrorResponse("Not authorized to access this route", 401));
   }
 });
 
@@ -250,15 +258,15 @@ exports.protect = asyncHandler(async (req, res, next) => {
 exports.authorize = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      return next(new ErrorResponse('Not authorized', 401));
+      return next(new ErrorResponse("Not authorized", 401));
     }
-    
+
     if (!roles.includes(req.user.role)) {
       return next(
         new ErrorResponse(
           `Role ${req.user.role} is not authorized to access this route`,
-          403
-        )
+          403,
+        ),
       );
     }
     next();
@@ -279,16 +287,16 @@ exports.refreshToken = asyncHandler(async (req, res, next) => {
   }
 
   if (!refreshToken) {
-    return next(new ErrorResponse('Refresh token required', 400));
+    return next(new ErrorResponse("Refresh token required", 400));
   }
 
   try {
     const { userId } = await authService.refreshAccessToken(refreshToken);
-    
-    const user = await User.findById(userId).select('-password -__v');
-    
+
+    const user = await User.findById(userId).select("-password -__v");
+
     if (!user || !user.isActive) {
-      return next(new ErrorResponse('User not found or inactive', 401));
+      return next(new ErrorResponse("User not found or inactive", 401));
     }
 
     // Generate new tokens
@@ -302,14 +310,14 @@ exports.refreshToken = asyncHandler(async (req, res, next) => {
 
     res.status(200).json({
       success: true,
-      message: 'Token refreshed successfully',
+      message: "Token refreshed successfully",
       // Only return access token for mobile apps
-      data: process.env.NODE_ENV === 'production' ? {} : { tokens },
+      data: process.env.NODE_ENV === "production" ? {} : { tokens },
     });
   } catch (error) {
     // Clear invalid cookies
     clearTokenCookies(res);
-    return next(new ErrorResponse('Invalid refresh token', 401));
+    return next(new ErrorResponse("Invalid refresh token", 401));
   }
 });
 
@@ -325,8 +333,8 @@ exports.logout = asyncHandler(async (req, res, next) => {
   }
 
   // Also check headers for mobile apps
-  if (!token && req.headers.authorization?.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
+  if (!token && req.headers.authorization?.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (token) {
@@ -342,7 +350,7 @@ exports.logout = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    message: 'Logged out successfully',
+    message: "Logged out successfully",
   });
 });
 
@@ -355,8 +363,8 @@ exports.optionalAuth = asyncHandler(async (req, res, next) => {
     token = req.cookies.accessToken;
   }
   // Fallback to header
-  else if (req.headers.authorization?.startsWith('Bearer')) {
-    token = req.headers.authorization.split(' ')[1];
+  else if (req.headers.authorization?.startsWith("Bearer")) {
+    token = req.headers.authorization.split(" ")[1];
   }
 
   if (!token) {
@@ -365,10 +373,10 @@ exports.optionalAuth = asyncHandler(async (req, res, next) => {
 
   try {
     const verification = await authService.verifyAccessToken(token);
-    
+
     if (verification.valid) {
       const user = await User.findById(verification.decoded.userId)
-        .select('-password -__v')
+        .select("-password -__v")
         .lean();
 
       if (user && user.isActive) {
