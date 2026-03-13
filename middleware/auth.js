@@ -166,20 +166,20 @@ const authService = require('../services/authService');
 // Cookie options
 const cookieOptions = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production', // HTTPS only in production
-  sameSite: 'strict', // CSRF protection
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days for refresh token
+  secure: process.env.NODE_ENV === 'production', 
+  sameSite: 'none',
+  maxAge: 7 * 24 * 60 * 60 * 1000,
   path: '/',
 };
 
 const accessTokenCookieOptions = {
   ...cookieOptions,
-  maxAge: 15 * 60 * 1000, // 15 minutes
+  maxAge: 15 * 60 * 1000,
 };
 
 const refreshTokenCookieOptions = {
   ...cookieOptions,
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  maxAge: 7 * 24 * 60 * 60 * 1000,
   httpOnly: true
 };
 
