@@ -13,7 +13,6 @@ const allowedOrigins = [
   process.env.ADMIN_URL,
   'http://localhost:3000',
   'http://localhost:3001',
-  'https://egas-nigeria.netlify.app',
   'https://egas-ng.onrender.com',
   'https://www.egas.com.ng'
 ].filter(Boolean);
@@ -34,7 +33,7 @@ const corsOptions = {
   credentials: true,
   optionsSuccessStatus: 200,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-api-key']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'x-api-key', "x-request-id"]
 };
 
 // ==================== Rate Limiting Factory ====================
