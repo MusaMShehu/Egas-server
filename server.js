@@ -38,10 +38,7 @@
 // const adminSubscriptionPlanManagement = require ("./adminPanel/routes/subsPlanManagementRoutes");
 // const adminSupportManagement = require ("./adminPanel/routes/supportManagementRoutes");
 
-
-
 // const app = express();
-
 
 // app.use(cors({origin:"*"}));
 // // ===============================
@@ -112,7 +109,6 @@
 // app.use("/api/v1/dashboard", dashboardOverview);
 // app.use("/api/v1/upload", uploadRoutes);
 
-
 // // ===============================
 // // ✅ ADMIN API ROUTES
 // // ===============================
@@ -150,61 +146,59 @@
 //   console.log(`🚀 Server running on port ${PORT}`);
 // });
 
-
-
-
-
-
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const compression = require('compression');
-const cookieParser = require('cookie-parser'); // Add this
-const { createServer } = require('http');
-const { Server } = require('socket.io');
-const helmet = require('helmet');
-const morgan = require('morgan');
+require("dotenv").config();
+const express = require("express");
+const mongoose = require("mongoose");
+const compression = require("compression");
+const cookieParser = require("cookie-parser"); // Add this
+const { createServer } = require("http");
+const { Server } = require("socket.io");
+const helmet = require("helmet");
+const morgan = require("morgan");
 
 // Config imports
-const database = require('./config/db');
-const { redisClient, createCacheMiddleware } = require('./config/redis');
+const database = require("./config/db");
+const { redisClient, createCacheMiddleware } = require("./config/redis");
 
 // Middleware imports
-const security = require('./middleware/security');
-const errorHandler = require('./middleware/error');
-const { protect, optionalAuth } = require('./middleware/auth');
-const { validate, validateObjectId, schemas } = require('./middleware/validation');
-const { responseMiddleware } = require('./utils/apiResponse');
-const logger = require('./utils/logger');
+const security = require("./middleware/security");
+const errorHandler = require("./middleware/error");
+const { protect, optionalAuth } = require("./middleware/auth");
+const {
+  validate,
+  validateObjectId,
+  schemas,
+} = require("./middleware/validation");
+const { responseMiddleware } = require("./utils/apiResponse");
+const logger = require("./utils/logger");
 
 // Route imports
-const authRoutes = require('./routes/authRoutes');
-const userRoutes = require('./routes/userRoutes');
-const orderRoutes = require('./routes/orderRoutes');
-const subscriptionRoutes = require('./routes/subscriptionRoutes');
-const subscriptionPlanRoutes = require('./routes/SubscriptionPlanRoutes');
-const productRoutes = require('./routes/productRoutes');
-const cartRoutes = require('./routes/cartRoutes');
-const paymentRoutes = require('./routes/PaymentRoutes');
-const supportRoutes = require('./routes/supportRoutes');
-const settingsRoutes = require('./routes/SettingsRoutes');
-const dashboardRoutes = require('./routes/userDashboardRoutes');
-const uploadRoutes = require('./routes/uploadRoutes');
-const userHistoryRoutes = require('./routes/userHistoryRoutes');
-const smsRoutes = require('./routes/smsRoutes');
-const adminRoutes = require('./routes/adminRoutes');
+const authRoutes = require("./routes/authRoutes");
+const userRoutes = require("./routes/userRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const subscriptionRoutes = require("./routes/subscriptionRoutes");
+const subscriptionPlanRoutes = require("./routes/SubscriptionPlanRoutes");
+const productRoutes = require("./routes/productRoutes");
+const cartRoutes = require("./routes/cartRoutes");
+const paymentRoutes = require("./routes/PaymentRoutes");
+const supportRoutes = require("./routes/supportRoutes");
+const settingsRoutes = require("./routes/SettingsRoutes");
+const dashboardRoutes = require("./routes/userDashboardRoutes");
+const uploadRoutes = require("./routes/uploadRoutes");
+const userHistoryRoutes = require("./routes/userHistoryRoutes");
+const smsRoutes = require("./routes/smsRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 
 // Admin panel routes
-const adminDashboard = require('./adminPanel/routes/adminDashboardRoutes');
-const adminUserManagement = require('./adminPanel/routes/userManagementRoutes');
-const adminSubscriptionManagement = require('./adminPanel/routes/subscriptionManagementRoutes');
-const adminOrderManagement = require('./adminPanel/routes/orderManagementRoutes');
-const adminReportManagement = require('./adminPanel/routes/reportManagementRoutes');
-const adminDeliveryManagement = require('./adminPanel/routes/deliveryManagementRoutes');
-const adminProductManagement = require('./adminPanel/routes/productManagementRoutes');
-const adminSubscriptionPlanManagement = require('./adminPanel/routes/subsPlanManagementRoutes');
-const adminSupportManagement = require('./adminPanel/routes/supportManagementRoutes');
-
+const adminDashboard = require("./adminPanel/routes/adminDashboardRoutes");
+const adminUserManagement = require("./adminPanel/routes/userManagementRoutes");
+const adminSubscriptionManagement = require("./adminPanel/routes/subscriptionManagementRoutes");
+const adminOrderManagement = require("./adminPanel/routes/orderManagementRoutes");
+const adminReportManagement = require("./adminPanel/routes/reportManagementRoutes");
+const adminDeliveryManagement = require("./adminPanel/routes/deliveryManagementRoutes");
+const adminProductManagement = require("./adminPanel/routes/productManagementRoutes");
+const adminSubscriptionPlanManagement = require("./adminPanel/routes/subsPlanManagementRoutes");
+const adminSupportManagement = require("./adminPanel/routes/supportManagementRoutes");
 
 // Initialize app
 const app = express();
@@ -219,7 +213,7 @@ const io = new Server(httpServer, {
     origin: security.corsOptions.origin,
     credentials: true, // Important for cookies
   },
-  transports: ['websocket', 'polling'],
+  transports: ["websocket", "polling"],
 });
 
 // Security middleware
@@ -228,14 +222,14 @@ app.use(security.cors);
 app.use(compression());
 
 // Request parsing
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: "10mb" }));
+app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 
 // Logging
-if (process.env.NODE_ENV === 'development') {
-  app.use(morgan('dev'));
+if (process.env.NODE_ENV === "development") {
+  app.use(morgan("dev"));
 } else {
-  app.use(morgan('combined', { stream: logger.stream }));
+  app.use(morgan("combined", { stream: logger.stream }));
 }
 
 // Security sanitization
@@ -245,99 +239,144 @@ if (process.env.NODE_ENV === 'development') {
 // app.use(security.sanitizeInput);
 
 // Apply rate limiting
-app.use('/api/v1/auth', security.authLimiter);
-app.use('/api/v1/payments/wallet', security.walletLimiter);
-app.use('/api/sms', security.smsLimiter);
-app.use('/api', security.apiLimiter);
+app.use("/api/v1/auth", security.authLimiter);
+app.use("/api/v1/payments/wallet", security.walletLimiter);
+app.use("/api/sms", security.smsLimiter);
+app.use("/api", security.apiLimiter);
 
 // API Response wrapper
 app.use(responseMiddleware);
 
 // Cache middleware for public GET endpoints
-app.use('/api/v1/products', createCacheMiddleware(300, 'products'));
-app.use('/api/v1/subscription-plans', createCacheMiddleware(3600, 'plans'));
+app.use("/api/v1/products", createCacheMiddleware(300, "products"));
+app.use("/api/v1/subscription-plans", createCacheMiddleware(3600, "plans"));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
+app.get("/health", (req, res) => {
   res.status(200).json({
-    status: 'healthy',
+    status: "healthy",
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
     services: {
-      database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-      redis: redisClient.isConnected ? 'connected' : 'disconnected',
+      database:
+        mongoose.connection.readyState === 1 ? "connected" : "disconnected",
+      redis: redisClient.isConnected ? "connected" : "disconnected",
     },
   });
 });
 
-app.get('/ready', (req, res) => {
+app.get("/ready", (req, res) => {
   if (mongoose.connection.readyState === 1 && redisClient.isConnected) {
-    res.status(200).json({ status: 'ready' });
+    res.status(200).json({ status: "ready" });
   } else {
-    res.status(503).json({ status: 'not ready' });
+    res.status(503).json({ status: "not ready" });
   }
 });
 
 // API Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/user/history', userHistoryRoutes);
-app.use('/api/v1/products', productRoutes);
-app.use('/api/v1/orders', orderRoutes);
-app.use('/api/v1/cart', cartRoutes);
-app.use('/api/v1/subscriptions', subscriptionRoutes);
-app.use('/api/v1/subscription-plans', subscriptionPlanRoutes);
-app.use('/api/v1/payments', paymentRoutes);
-app.use('/api/v1/support', supportRoutes);
-app.use('/api/v1/settings', settingsRoutes);
-app.use('/api/v1/dashboard', dashboardRoutes);
-app.use('/api/v1/upload', uploadRoutes);
-app.use('/api/sms', smsRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/user/history", userHistoryRoutes);
+app.use("/api/v1/products", productRoutes);
+app.use("/api/v1/orders", orderRoutes);
+app.use("/api/v1/cart", cartRoutes);
+app.use("/api/v1/subscriptions", subscriptionRoutes);
+app.use("/api/v1/subscription-plans", subscriptionPlanRoutes);
+app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/support", supportRoutes);
+app.use("/api/v1/settings", settingsRoutes);
+app.use("/api/v1/dashboard", dashboardRoutes);
+app.use("/api/v1/upload", uploadRoutes);
+app.use("/api/sms", smsRoutes);
 
 // Admin API Routes
-app.use('/api/v1/admin/dashboard', protect, security.apiKeyAuth, adminDashboard);
-app.use('/api/v1/admin/users', protect, security.apiKeyAuth, adminUserManagement);
-app.use('/api/v1/admin/subscriptions', protect, security.apiKeyAuth, adminSubscriptionManagement);
-app.use('/api/v1/admin/orders', protect, security.apiKeyAuth, adminOrderManagement);
-app.use('/api/v1/admin/products', protect, security.apiKeyAuth, adminProductManagement);
-app.use('/api/v1/admin/subscription-plans', protect, security.apiKeyAuth, adminSubscriptionPlanManagement);
-app.use('/api/v1/admin/reports', protect, security.apiKeyAuth, adminReportManagement);
-app.use('/api/v1/admin/delivery', protect, security.apiKeyAuth, adminDeliveryManagement);
-app.use('/api/v1/admin/supports', protect, security.apiKeyAuth, adminSupportManagement);
-
+app.use(
+  "/api/v1/admin/dashboard",
+  protect,
+  security.apiKeyAuth,
+  adminDashboard,
+);
+app.use(
+  "/api/v1/admin/users",
+  protect,
+  security.apiKeyAuth,
+  adminUserManagement,
+);
+app.use(
+  "/api/v1/admin/subscriptions",
+  protect,
+  security.apiKeyAuth,
+  adminSubscriptionManagement,
+);
+app.use(
+  "/api/v1/admin/orders",
+  protect,
+  security.apiKeyAuth,
+  adminOrderManagement,
+);
+app.use(
+  "/api/v1/admin/products",
+  protect,
+  security.apiKeyAuth,
+  adminProductManagement,
+);
+app.use(
+  "/api/v1/admin/subscription-plans",
+  protect,
+  security.apiKeyAuth,
+  adminSubscriptionPlanManagement,
+);
+app.use(
+  "/api/v1/admin/reports",
+  protect,
+  security.apiKeyAuth,
+  adminReportManagement,
+);
+app.use(
+  "/api/v1/admin/delivery",
+  protect,
+  security.apiKeyAuth,
+  adminDeliveryManagement,
+);
+app.use(
+  "/api/v1/admin/supports",
+  protect,
+  security.apiKeyAuth,
+  adminSupportManagement,
+);
 
 // Socket.IO authentication middleware
 io.use(async (socket, next) => {
   try {
-    const token = socket.handshake.auth.token;
+    const token = socket.handshake?.auth?.token;
     if (!token) {
-      return next(new Error('Authentication required'));
+      return next(new Error("Authentication required"));
     }
 
-    const authService = require('./services/authService');
+    const authService = require("./services/authService");
     const verification = await authService.verifyAccessToken(token);
-    
+
     if (verification.valid) {
       socket.userId = verification.decoded.userId;
       next();
     } else {
-      next(new Error('Invalid token'));
+      next(new Error("Invalid token"));
     }
   } catch (error) {
-    next(new Error('Authentication failed'));
+    next(new Error("Authentication failed"));
   }
-}).on('connection', (socket) => {
+}).on("connection", (socket) => {
   console.log(`User connected: ${socket.userId}`);
-  
+
   // Join user to personal room
   socket.join(`user:${socket.userId}`);
-  
+
   // Handle order tracking
-  socket.on('track-order', (orderId) => {
+  socket.on("track-order", (orderId) => {
     socket.join(`order:${orderId}`);
   });
 
-  socket.on('disconnect', () => {
+  socket.on("disconnect", () => {
     console.log(`User disconnected: ${socket.userId}`);
   });
 });
@@ -360,10 +399,16 @@ const startServer = async () => {
   try {
     // Connect to database
     await database.connect();
-    
+
     // Connect to Redis
-    await redisClient.connect();
-    
+    // await redisClient.connect();
+    try {
+      await redisClient.connect();
+      console.log("✅ Redis connected successfully");
+    } catch (error) {
+      console.warn("⚠️ Redis connection failed, continuing without Redis");
+    }
+
     // Start server
     httpServer.listen(PORT, () => {
       console.log(`🚀 Server running on port ${PORT}`);
@@ -372,42 +417,42 @@ const startServer = async () => {
       console.log(`🍪 HTTP-only cookies enabled for token storage`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    console.error("Failed to start server:", error);
     process.exit(1);
   }
 };
 
 startServer();
 
-// Graceful shutdown
-const gracefulShutdown = async () => {
-  console.log('Received shutdown signal, closing connections...');
-  
-  httpServer.close(async () => {
-    console.log('HTTP server closed');
-    
-    try {
-      await mongoose.connection.close();
-      console.log('MongoDB connection closed');
-      
-      await redisClient.quit();
-      console.log('Redis connection closed');
-      
-      process.exit(0);
-    } catch (error) {
-      console.error('Error during shutdown:', error);
-      process.exit(1);
-    }
-  });
+// // Graceful shutdown
+// const gracefulShutdown = async () => {
+//   console.log('Received shutdown signal, closing connections...');
 
-  // Force close after 10 seconds
-  setTimeout(() => {
-    console.error('Could not close connections in time, forcefully shutting down');
-    process.exit(1);
-  }, 10000);
-};
+//   httpServer.close(async () => {
+//     console.log('HTTP server closed');
 
-process.on('SIGTERM', gracefulShutdown);
-process.on('SIGINT', gracefulShutdown);
+//     try {
+//       await mongoose.connection.close();
+//       console.log('MongoDB connection closed');
+
+//       await redisClient.quit();
+//       console.log('Redis connection closed');
+
+//       process.exit(0);
+//     } catch (error) {
+//       console.error('Error during shutdown:', error);
+//       process.exit(1);
+//     }
+//   });
+
+//   // Force close after 10 seconds
+//   setTimeout(() => {
+//     console.error('Could not close connections in time, forcefully shutting down');
+//     process.exit(1);
+//   }, 10000);
+// };
+
+// process.on('SIGTERM', gracefulShutdown);
+// process.on('SIGINT', gracefulShutdown);
 
 module.exports = { app, io };
