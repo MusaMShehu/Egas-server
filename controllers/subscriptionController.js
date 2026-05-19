@@ -1711,6 +1711,41 @@ exports.cancelMySubscription = asyncHandler(async (req, res, next) => {
   });
 });
 
+// @desc    Get SUbscription Payment Status
+// @route   POST /api/v1/subscriptions
+// @access  Private
+exports.getSubscriptionPaymentStatus = asyncHandler(async (req, res, next) => {
+  const { reference } = req.params;
+  
+  if (!reference) {
+    return next(new ErrorResponse('Reference is required', 400));
+  }
+  
+  // Find subscription by reference
+  const subscription = await Subscription.findOne({ reference });
+  
+  if (!subscription) {
+    return next(new ErrorResponse('Subscription not found for this reference', 404));
+  }
+  
+  // Check if user is authorized
+  if (subscription.userId.toString() !== req.user.id && req.user.role !== 'admin') {
+    return next(new ErrorResponse('Not authorized to view this payment status', 403));
+  }
+  
+  res.status(200).json({
+    success: true,
+    data: {
+      status: subscription.status,
+      paymentStatus: subscription.paymentStatus,
+      isPaid: subscription.isPaid,
+      paidAt: subscription.paidAt,
+      paymentMethod: subscription.paymentMethod,
+      reference: subscription.reference,
+    },
+  });
+});
+
 // @desc    Renew subscription
 // @route   POST /api/v1/subscriptions/:id/renew
 // @access  Private

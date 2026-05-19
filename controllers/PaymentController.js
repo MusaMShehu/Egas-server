@@ -901,6 +901,60 @@ exports.verifyTopup = async (req, res) => {
 
 
 
+
+// controllers/paymentController.js
+exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
+  const { reference, trxref } = req.query;
+  const actualReference = reference || trxref;
+  const userAgent = req.headers['user-agent'] || '';
+  
+  // Detect platform
+  const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+  const isAndroid = /Android/i.test(userAgent);
+  const isExpo = /Expo|ExpoGo/i.test(userAgent);
+  
+  // Deep link URL schemes for different platforms
+  let redirectUrl;
+  
+  if (isIOS) {
+    // iOS deep link
+    redirectUrl = `yourgasapp://subscriptions/pay?reference=${actualReference}`;
+  } else if (isAndroid) {
+    // Android deep link
+    redirectUrl = `yourgasapp://subscriptions/pay?reference=${actualReference}`;
+  } else if (isExpo) {
+    // Expo Go deep link
+    redirectUrl = `exp://your-expo-host:19000/--/subscriptions/pay?reference=${actualReference}`;
+  } else {
+    // Web redirect
+    redirectUrl = `${process.env.FRONTEND_URL}/subscriptions/payment-success?reference=${actualReference}`;
+  }
+  
+  // HTML page with auto-redirect (fallback)
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Redirecting...</title>
+      <meta charset="utf-8">
+      <meta http-equiv="refresh" content="2;url=${redirectUrl}">
+      <script>
+        setTimeout(function() {
+          window.location.href = "${redirectUrl}";
+        }, 1000);
+      </script>
+    </head>
+    <body>
+      <h2>Payment Processing Complete</h2>
+      <p>Redirecting back to app...</p>
+      <p>If you are not redirected automatically, <a href="${redirectUrl}">click here</a></p>
+    </body>
+    </html>
+  `;
+  
+  res.send(html);
+});
+
 // Wallet Top-Up Webhook
 exports.handleWalletWebhook = async (req, res) => {
   try {

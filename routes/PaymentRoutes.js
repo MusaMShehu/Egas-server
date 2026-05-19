@@ -9,6 +9,7 @@ const {
   handleWalletWebhook,
   getWalletBalance,
   getPaymentHistory,
+  handlePaymentCallback,
 
   // initializeSubscriptionPayment,
   // verifySubscriptioTransaction,
@@ -26,6 +27,8 @@ const {
 const { protect } = require("../middleware/auth");
 
 
+//Handle Payment Callback
+router.get('/callback', handlePaymentCallback);
 
 // ✅ Wallet Top-up
 router.post("/wallet/topup", protect, initiateTopup);

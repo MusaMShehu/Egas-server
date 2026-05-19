@@ -15,7 +15,8 @@ const {
   getSubscriptionDeliveries,
   getAllSubscriptionDeliveries,
   pauseSubscription,
-  resumeSubscription
+  resumeSubscription,
+  getSubscriptionPaymentStatus,
 } = require('../controllers/subscriptionController');
 
 const router = express.Router();
