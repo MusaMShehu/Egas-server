@@ -1,7 +1,7 @@
 const Order = require('../models/Order');
 const User = require('../models/User');
 const Subscription = require('../models/Subscription');
-const Wallet = require('../models/wallet');
+const Wallet = require('../models/Wallet');
 const asyncHandler = require('../middleware/async');
 
 const startOfMonth = () => new Date(new Date().getFullYear(), new Date().getMonth(), 1);
