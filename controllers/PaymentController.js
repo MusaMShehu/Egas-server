@@ -918,13 +918,13 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
   
   if (isIOS) {
     // iOS deep link
-    redirectUrl = `yourgasapp://subscriptions/pay?reference=${actualReference}`;
+    redirectUrl = `Egas://subscriptions/payment-success?reference=${actualReference}`;
   } else if (isAndroid) {
     // Android deep link
-    redirectUrl = `yourgasapp://subscriptions/pay?reference=${actualReference}`;
+    redirectUrl = `Egas://subscriptions/payment-success?reference=${actualReference}`;
   } else if (isExpo) {
     // Expo Go deep link
-    redirectUrl = `exp://your-expo-host:19000/--/subscriptions/pay?reference=${actualReference}`;
+    redirectUrl = `exp://10.202.194.73:8081/--/subscriptions/payment-success?reference=${actualReference}`;
   } else {
     // Web redirect
     redirectUrl = `${process.env.FRONTEND_URL}/subscriptions/payment-success?reference=${actualReference}`;
