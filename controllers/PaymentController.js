@@ -1,115 +1,45 @@
-const axios = require('axios');
-const crypto = require('crypto');
+const axios = require("axios");
+const crypto = require("crypto");
 const Subscription = require("../models/Subscription");
 const Order = require("../models/Order");
 const User = require("../models/User");
-const Wallet = require('../models/Wallet');
-const Payment = require('../models/Payment');
-const Transaction = require('../models/Transaction');
+const Wallet = require("../models/Wallet");
+const Payment = require("../models/Payment");
+const Transaction = require("../models/Transaction");
 const SubscriptionPlan = require("../models/SubscriptionPlan");
-const asyncHandler = require('../middleware/async');
-const NotificationService = require('../services/notificationService');
-const emailService = require('../services/emailService');
-
+const asyncHandler = require("../middleware/async");
+const NotificationService = require("../services/notificationService");
+const emailService = require("../services/emailService");
 
 const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
-const PAYSTACK_BASE = 'https://api.paystack.co';
+const PAYSTACK_BASE = "https://api.paystack.co";
 const PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/";
 
+// WALLET TOPUP WALLET TOPUP
+// WALLET TOPUP WALLET TOPUP
+// WALLET TOPUP WALLET TOPUP
+// WALLET TOPUP WALLET TOPUP
 
-
-// @desc    Initialize a new transaction for subscription/purchase
-// @route   POST /api/payments/initialize
-// @access  Private
-// exports.initializeSubscriptionPayment = async (req, res) => {
+// ✅ Initiate Top-up
+// exports.initiateTopup = async (req, res) => {
 //   try {
-//     const { amount, email, planId, frequency, size, planName, reference, startDate, endDate, price } = req.body;
+//     const { amount } = req.body;
 //     const userId = req.user._id;
 
-//     console.log('Received payment initialization request:', {
-//       amount, email, planId, frequency, size, planName, reference, startDate, endDate, price, userId
-//     });
-
-//     // Validation
-//     if (!amount || !email || !userId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Amount, email, and userId are required",
-//       });
+//     if (!amount || amount <= 0) {
+//       return res.status(400).json({ success: false, message: "Invalid amount" });
 //     }
 
-//     if (amount <= 0) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "Amount must be greater than 0",
-//       });
-//     }
-
-//     // Validate user exists
 //     const user = await User.findById(userId);
 //     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "User not found",
-//       });
+//       return res.status(404).json({ success: false, message: "User not found" });
 //     }
 
-//     // Validate plan exists if planId is provided
-//     if (planId) {
-//       const plan = await SubscriptionPlan.findOne({ 
-//         _id: planId, 
-//         isActive: true 
-//       });
-//       if (!plan) {
-//         return res.status(400).json({
-//           success: false,
-//           message: 'Invalid subscription plan'
-//         });
-//       }
-//     }
+//     const paystackAmount = amount * 100;
 
-//     // Calculate dates if not provided
-//     const subscriptionDates = calculateSubscriptionDates(frequency);
-//     const finalStartDate = startDate || subscriptionDates.startDate;
-//     const finalEndDate = endDate || subscriptionDates.endDate;
-//     // const finalReference = reference;
-//     // || `sub_${userId}_${Date.now()}`;
-//     const finalPrice = price || amount;
-
-//     // Metadata
-//     const metadata = {
-//       userId: userId.toString(),
-//       planId: planId,
-//       planName: planName,
-//       size: size,
-//       frequency: frequency,
-//       userEmail: email,
-//       userName: user.name,
-//       subscriptionId: `${planId}-${userId}-${Date.now()}`,
-//       startDate: finalStartDate,
-//       endDate: finalEndDate,
-//       // reference: finalReference,
-//       price: finalPrice
-//     };
-
-//     // Paystack payload
-//     const payload = {
-//       amount: Math.round(amount * 100),
-//       email: email,
-//       callback_url: `${process.env.FRONTEND_URL}/payment/callback`,
-//       metadata: metadata,
-//     };
-
-//     console.log('Sending request to Paystack with payload:', {
-//       ...payload,
-//       amount: payload.amount,
-//       metadata: metadata
-//     });
-
-//     // Paystack request
 //     const response = await axios.post(
-//       `${PAYSTACK_BASE}/transaction/initialize`,
-//       payload,
+//       "https://api.paystack.co/transaction/initialize",
+//       { email: user.email, amount: paystackAmount },
 //       {
 //         headers: {
 //           Authorization: `Bearer ${PAYSTACK_SECRET}`,
@@ -118,588 +48,175 @@ const PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/";
 //       }
 //     );
 
-//     const { data } = response.data;
-//     console.log('Paystack response received:', data);
-
-//     // Create subscription record with all required fields
-//     const subscriptionData = {
-//       subscriptionNumber: metadata.subscriptionId,
-//       userId: userId, 
-//       planName: planName,
-//       size: size,
-//       frequency: frequency,
-//       price: finalPrice,
-//       reference: data.reference,
-//       startDate: new Date(finalStartDate),
-//       endDate: new Date(finalEndDate),
-//       items: [
-//         {
-//           planName: planName,
-//           size: size,
-//           frequency: frequency,
-//           price: finalPrice,
-//           quantity: 1,
-//         },
-//       ],
-//       amount: amount,
+//     // Save transaction as pending
+//     const transaction = await Transaction.create({
+//       userId: user._id,
+//       walletId: wallet._id,
+//       reference: response.data.data.reference,
+//       amount,
 //       status: "pending",
-//       paymentStatus: "pending",
-//       paymentReference: data.reference,
-//     };
-
-//     console.log('Creating subscription with data:', subscriptionData);
-
-//     // Database records
-//     await Transaction.create({
-//       reference: data.reference,
-//       amount: amount,
-//       email: email,
-//       userId: userId,
-//       metadata: metadata,
-//       status: "pending",
-//       planName: planName,
-//       size: size,
-//       frequency: frequency,
+//       type: "topup",
+//       callback_url: `${process.env.FRONTEND_URL}/payment/wallet-topup/verify`,
+//       webhook_url: `${process.env.BASE_URL}/api/v1/payments/wallet/webhook`
 //     });
 
-//     await Subscription.create(subscriptionData);
-
-//     console.log('Subscription and transaction created successfully');
-
-//     // Response
 //     return res.status(200).json({
 //       success: true,
-//       message: "Payment initialized successfully",
-//       authorization_url: data.authorization_url,
-//       reference: data.reference,
-//       access_code: data.access_code,
-//       data: data,
+//       authorization_url: response.data.data.authorization_url,
+//       reference: response.data.data.reference,
+//       transaction,
 //     });
-
-//   } catch (error) {
-//     console.error('Payment initialization error:', error.response?.data || error.message);
-    
-//     if (error.response?.data?.errors) {
-//       console.error('Validation errors:', error.response.data.errors);
-//     }
-
+//   } catch (err) {
+//     console.error("Top-up initiation error:", err.response?.data || err.message);
 //     return res.status(500).json({
 //       success: false,
-//       message: "Payment initialization failed",
-//       error: process.env.NODE_ENV === "development" ? error.message : "Internal server error",
+//       message: "Payment initiation failed",
+//       error: err.response?.data || err.message,
 //     });
 //   }
 // };
 
-// // @desc    Verify transaction status
-// // @route   GET /api/payments/verify/:reference
-// // @access  Private
-// // @desc    Verify transaction status
-// // @route   GET /api/payments/verify/:reference
-// // @access  Private
-// exports.verifySubscriptioTransaction = async (req, res) => {
+// // ✅ Verify Top-up
+// // ✅ Verify Top-up (updated to use Wallet collection)
+// exports.verifyTopup = async (req, res) => {
 //   try {
-//     const { reference } = req.params;
-
-//     if (!reference) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'Transaction reference is required'
-//       });
-//     }
-
-//     console.log('Verifying transaction with reference:', reference);
-
-//     // Paystack verification
-//     const paystackResponse = await axios.get(
-//       `${PAYSTACK_BASE}/transaction/verify/${encodeURIComponent(reference)}`, 
-//       {
-//         headers: { 
-//           Authorization: `Bearer ${PAYSTACK_SECRET}` 
-//         }
-//       }
-//     );
-
-//     const paystackData = paystackResponse.data.data;
-//     console.log('Paystack verification response:', paystackData);
-
-//     // Check if transaction exists in our database
-//     let transaction = await Transaction.findOne({ reference: reference });
-    
-//     if (!transaction) {
-//       // Create transaction if it doesn't exist (for direct verification)
-//       const metadata = paystackData.metadata || {};
-//       transaction = await Transaction.create({
-//         reference: reference,
-//         amount: paystackData.amount / 100,
-//         email: paystackData.customer?.email || metadata.userEmail,
-//         userId: metadata.userId,
-//         metadata: metadata,
-//         status: paystackData.status,
-//         paystackData: paystackData,
-//         verifiedAt: new Date()
-//       });
-//     } else {
-//       // Update existing transaction
-//       transaction = await Transaction.findOneAndUpdate(
-//         { reference: reference },
-//         { 
-//           status: paystackData.status,
-//           paystackData: paystackData,
-//           verifiedAt: new Date()
-//         },
-//         { new: true }
-//       );
-//     }
-
-//     // Fulfill subscription if successful
-//     if (paystackData.status === 'success') {
-//       try {
-//         await exports._fulfillSubscription(paystackData, transaction);
-//       } catch (fulfillError) {
-//         console.error('Subscription fulfillment error:', fulfillError);
-//         // Don't fail the entire verification if fulfillment fails
-//       }
-//     }
-
-//     // Response
-//     return res.json({
-//       success: true,
-//       message: 'Transaction verification completed',
-//       data: {
-//         status: paystackData.status,
-//         amount: paystackData.amount / 100,
-//         currency: paystackData.currency,
-//         transactionDate: paystackData.transaction_date,
-//         reference: paystackData.reference,
-//         metadata: paystackData.metadata
-//       },
-//       transaction: transaction
-//     });
-
-//   } catch (error) {
-//     console.error('Verify transaction error:', error.response?.data || error.message);
-    
-//     if (error.response?.status === 404) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'Transaction not found on Paystack'
-//       });
-//     }
-
-//     return res.status(500).json({
-//       success: false,
-//       message: 'Transaction verification failed',
-//       error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-//     });
-//   }
-// };
-
-// // @desc    Paystack webhook handler
-// // @route   POST /api/payments/webhook
-// // @access  Public (Paystack calls this)
-// exports.handleWebhook= async (req, res) => {
-//   try {
-//     const rawBody = req.rawBody || req.body;
-//     const signature = req.headers['x-paystack-signature'];
-
-//     if (!signature) {
-//       console.warn('Missing Paystack signature');
-//       return res.status(400).send('Missing signature');
-//     }
-
-//     const hash = crypto.createHmac('sha512', PAYSTACK_SECRET)
-//                        .update(rawBody)
-//                        .digest('hex');
-
-//     if (hash !== signature) {
-//       console.warn('Invalid webhook signature');
-//       return res.status(400).send('Invalid signature');
-//     }
-
-//     const event = JSON.parse(rawBody.toString());
-//     console.log(`Webhook received: ${event.event}`);
-
-//     res.status(200).send('Webhook received');
-
-//     process.nextTick(async () => {
-//       try {
-//         switch (event.event) {
-//           case 'charge.success':
-//             await exports._handleSuccessfulCharge(event.data);
-//             break;
-//           case 'charge.failed':
-//             await exports._handleFailedCharge(event.data);
-//             break;
-//           case 'subscription.create':
-//             await exports._handleSubscriptionCreation(event.data);
-//             break;
-//           case 'subscription.disable':
-//             await exports._handleSubscriptionDisable(event.data);
-//             break;
-//           default:
-//             console.log(`Unhandled event type: ${event.event}`);
-//         }
-//       } catch (error) {
-//         console.error('Webhook processing error:', error);
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Webhook handler error:', error);
-//     res.status(500).send('Webhook processing failed');
-//   }
-// };
-
-
-
-
-
-
-// @desc    Get transaction history for a user
-// @route   GET /api/payments/history/:userId
-// @access  Private
-// exports.getTransactionHistory = async (req, res) => {
-//   try {
-//     const { userId } = req.params;
-//     const { page = 1, limit = 10 } = req.query;
-
-//     if (!userId) {
-//       return res.status(400).json({
-//         success: false,
-//         message: 'User ID is required'
-//       });
-//     }
-
-//     const transactions = await Transaction.find({ userId })
-//       .sort({ createdAt: -1 })
-//       .limit(limit * 1)
-//       .skip((page - 1) * limit);
-
-//     const total = await Transaction.countDocuments({ userId });
-
-//     res.json({
-//       success: true,
-//       data: transactions,
-//       pagination: {
-//         current: parseInt(page),
-//         pages: Math.ceil(total / limit),
-//         total: total
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Get transaction history error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch transaction history'
-//     });
-//   }
-// };
-
-// // @desc    Get subscription details for a user
-// // @route   GET /api/payments/subscription
-// // @access  Private
-// exports.getSubscriptionDetails = async (req, res) => {
-//   try {
+//     const { reference } = req.query;
 //     const userId = req.user._id;
 
-//     const subscription = await Subscription.findOne({ 
-//       userId: userId, 
-//       status: 'active' 
-//     });
-
-//     if (!subscription) {
-//       return res.status(404).json({
-//         success: false,
-//         message: 'No active subscription found'
-//       });
+//     if (!reference) {
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Missing reference" });
 //     }
 
-//     res.json({
-//       success: true,
-//       data: subscription
-//     });
-
-//   } catch (error) {
-//     console.error('Get subscription details error:', error);
-//     res.status(500).json({
-//       success: false,
-//       message: 'Failed to fetch subscription details'
-//     });
-//   }
-// };
-
-// // ==================== HELPER FUNCTIONS ====================
-
-// // Calculate subscription dates based on frequency
-// const calculateSubscriptionDates = (frequency) => {
-//   const startDate = new Date();
-//   const endDate = new Date();
-  
-//   switch (frequency) {
-//     case "Daily":
-//       endDate.setDate(startDate.getDate() + 30);
-//       break;
-//     case "Weekly":
-//       endDate.setDate(startDate.getDate() + 30);
-//       break;
-//     case "Bi-Weekly":
-//       endDate.setDate(startDate.getDate() + 30);
-//       break;
-//     case "Monthly":
-//       endDate.setDate(startDate.getDate() + 30);
-//       break;
-//     case "One-Time":
-//       endDate.setDate(startDate.getDate() + 1);
-//       break;
-//     default:
-//       endDate.setDate(startDate.getDate() + 30);
-//   }
-  
-//   return {
-//     startDate: startDate.toISOString(),
-//     endDate: endDate.toISOString()
-//   };
-// };
-
-// // Handle successful charge
-// exports._handleSuccessfulCharge = async (data) => {
-//   try {
-//     const reference = data.reference;
-//     console.log('Handling successful charge for reference:', reference);
-    
-//     const transaction = await Transaction.findOneAndUpdate(
-//       { reference: reference },
+//     const response = await axios.get(
+//       `https://api.paystack.co/transaction/verify/${reference}`,
 //       {
-//         status: 'success',
-//         paystackData: data,
-//         completedAt: new Date()
-//       },
-//       { new: true }
-//     );
-
-//     if (transaction) {
-//       await exports._fulfillSubscription(data, transaction);
-//     } else {
-//       const metadata = data.metadata || {};
-//       await Transaction.create({
-//         reference: reference,
-//         amount: data.amount ? data.amount / 100 : 0,
-//         email: data.customer?.email,
-//         userId: metadata.userId,
-//         metadata: metadata,
-//         status: 'success',
-//         paystackData: data,
-//         completedAt: new Date()
-//       });
-
-//       await exports._fulfillSubscription(data, { metadata, reference });
-//     }
-
-//     console.log(`Successfully processed charge for reference: ${reference}`);
-//   } catch (error) {
-//     console.error('Error handling successful charge:', error);
-//   }
-// };
-
-// // Handle failed charge
-// exports._handleFailedCharge = async (data) => {
-//   try {
-//     await Transaction.findOneAndUpdate(
-//       { reference: data.reference },
-//       {
-//         status: 'failed',
-//         paystackData: data,
-//         failedAt: new Date()
+//         headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
 //       }
 //     );
 
-//     await Subscription.findOneAndUpdate(
-//       { paymentReference: data.reference },
-//       {
-//         status: 'cancelled',
-//         paymentStatus: 'failed'
-//       }
-//     );
+//     const data = response.data.data;
+//     const transaction = await Transaction.findOne({ reference });
 
-//     console.log(`Marked transaction as failed: ${data.reference}`);
-//   } catch (error) {
-//     console.error('Error handling failed charge:', error);
-//   }
-// };
+//     if (!transaction) {
+//       return res
+//         .status(404)
+//         .json({ success: false, message: "Transaction not found" });
+//     }
 
-// // Handle subscription creation
-// exports._handleSubscriptionCreation = async (data) => {
-//   try {
-//     console.log('Subscription created:', data);
-//   } catch (error) {
-//     console.error('Error handling subscription creation:', error);
-//   }
-// };
-
-// // Handle subscription disable
-// exports._handleSubscriptionDisable = async (data) => {
-//   try {
-//     const subscription = await Subscription.findOneAndUpdate(
-//       { paystackSubscriptionCode: data.subscription_code },
-//       {
-//         status: 'inactive',
-//         cancelledAt: new Date(),
-//         cancellationReason: 'disabled_via_webhook'
-//       },
-//       { new: true }
-//     );
-
-//     if (subscription) {
-//       await User.findByIdAndUpdate(subscription.userId, {
-//         $set: {
-//           'subscription.status': 'inactive',
-//           'subscription.cancelledAt': new Date()
-//         }
+//     // ✅ Find or create the user's wallet
+//     let wallet = await Wallet.findOne({ userId });
+//     if (!wallet) {
+//       wallet = await Wallet.create({
+//         userId,
+//         balance: 0,
+//         transactions: [],
 //       });
 //     }
 
-//     console.log(`Subscription disabled: ${data.subscription_code}`);
-//   } catch (error) {
-//     console.error('Error handling subscription disable:', error);
-//   }
-// };
+//     if (data.status === "success" && transaction.status !== "success") {
+//       transaction.status = "success";
+//       await transaction.save();
 
-// // Fulfill subscription after successful payment
-// exports._fulfillSubscription = async (paystackData, transaction) => {
-//   try {
-//     const amountInNaira = paystackData.amount / 100;
-//     const metadata = transaction.metadata || paystackData.metadata || {};
-//     const userId = metadata.userId || transaction.userId;
+//       // ✅ Update wallet balance
+//       wallet.balance += transaction.amount;
 
-//     console.log('Fulfilling subscription for user:', userId, 'with metadata:', metadata);
+//       // ✅ Record the transaction in wallet
+//       wallet.transactions.push({
+//         amount: transaction.amount,
+//         type: "Credit",
+//         description: `Wallet top-up via Paystack (Ref: ${reference})`,
+//         date: new Date(),
+//       });
 
-//     if (!userId) {
-//       console.warn('No userId found in transaction metadata');
-//       return;
-//     }
+//       await wallet.save();
 
-//     // Update subscription status to active
-//     const subscription = await Subscription.findOneAndUpdate(
-//       { paymentReference: transaction.reference },
-//       {
-//         status: 'active',
-//         paymentStatus: 'paid',
-//         paidAt: new Date(),
-//         amount: amountInNaira
-//       },
-//       { new: true }
-//     );
+//       // ✅ (Optional) also log it in Payment table for history
+//       await Payment.create({
+//         user: userId,
+//         reference,
+//         amount: transaction.amount,
+//         type: "credit",
+//         status: "completed",
+//         provider: "Paystack",
+//         metadata: data,
+//       });
 
-//     console.log('Found existing subscription:', subscription);
-
-//     // If subscription doesn't exist, create it with all required fields
-//     if (!subscription) {
-//       const subscriptionData = {
-//         subscriptionNumber: metadata.subscriptionId || `sub_${userId}_${Date.now()}`,
-//         userId: userId, // Use userId field
-//         planName: metadata.planName,
-//         size: metadata.size,
-//         frequency: metadata.frequency,
-//         price: amountInNaira,
-//         reference: metadata.reference || transaction.reference,
-//         startDate: new Date(metadata.startDate || new Date()),
-//         endDate: new Date(metadata.endDate || calculateSubscriptionDates(metadata.frequency).endDate),
-//         items: [
-//           {
-//             planName: metadata.planName,
-//             size: metadata.size,
-//             frequency: metadata.frequency,
-//             price: amountInNaira,
-//             quantity: 1,
-//           },
-//         ],
-//         amount: amountInNaira,
-//         status: 'active',
-//         paymentStatus: 'paid',
-//         paymentReference: transaction.reference,
-//         paidAt: new Date()
+//        // ✅ SMS NOTIFICATION: Send wallet topup success notification
+//       try {
+//         const user = await User.findById(userId);
+//         // if (user && user.phone && user.phoneVerified) {
+//           await NotificationService.sendWalletTopup({
+//             amount: transaction.amount,
+//             newBalance: newBalance,
+//             transactionId: transaction._id.toString(),
+//             reference: reference
+//           }, user);
+//         // }
+//       } catch (smsError) {
+//         console.error("Wallet topup SMS failed:", smsError);
 //       };
 
-//       console.log('Creating new subscription with data:', subscriptionData);
-//       await Subscription.create(subscriptionData);
-//     }
-
-//     // Update user subscription info
-//     if (metadata.frequency && metadata.frequency !== 'One-Time') {
-//       await User.findByIdAndUpdate(userId, {
-//         $set: {
-//           'subscription.status': 'active',
-//           'subscription.planId': metadata.planId,
-//           'subscription.planName': metadata.planName,
-//           'subscription.startDate': new Date(metadata.startDate || new Date()),
-//           'subscription.endDate': new Date(metadata.endDate || calculateSubscriptionDates(metadata.frequency).endDate)
+//        // ✅ EMAIL NOTIFICATION: Send wallet top-up success email
+//       setTimeout(async () => {
+//         try {
+//           const user = await User.findById(userId);
+//           if (user) {
+//             await emailService.sendWalletTopupSuccess(user, {
+//               id: reference,
+//               amount: transaction.amount,
+//               paymentMethod: 'Paystack',
+//               newBalance: wallet.balance,
+//               date: new Date()
+//             });
+//           }
+//         } catch (emailError) {
+//           console.error('Failed to send wallet top-up email:', emailError);
 //         }
+//       }, 0);
+
+//       return res.status(200).json({
+//         success: true,
+//         message: "Top-up successful",
+//         amount: transaction.amount,
+//         walletBalance: wallet.balance,
 //       });
 //     }
 
-//     await exports._grantUserAccess(userId, metadata.planName, metadata.size);
-//     await exports._sendPaymentNotifications(userId, subscription, transaction);
+//     // ❌ If failed
+//     else if (data.status !== "success") {
+//       transaction.status = "failed";
+//       await transaction.save();
 
-//     console.log(`Subscription fulfilled successfully for reference: ${transaction.reference}`);
-//   } catch (error) {
-//     console.error('Subscription fulfillment error:', error);
-//     throw error;
-//   }
-// };
+//       wallet.transactions.push({
+//         amount: transaction.amount,
+//         type: "Failed",
+//         description: `Failed top-up attempt (Ref: ${reference})`,
+//         date: new Date(),
+//       });
+//       await wallet.save();
 
-// // Grant user access based on purchased plan
-// exports._grantUserAccess = async (userId, planName, size = null) => {
-//   try {
-//     const accessRules = {
-//       'basic plan': { maxProjects: 3, storageLimit: '5GB', features: ['basic-support'] },
-//       'family plan': { maxProjects: 10, storageLimit: '20GB', features: ['priority-support', 'advanced-analytics'] },
-//       'business plan': { maxProjects: 50, storageLimit: '100GB', features: ['dedicated-support', 'custom-integrations'] },
-//       'custom plan': { maxProjects: 25, storageLimit: size ? `${size}` : '50GB', features: ['custom-support'] },
-//       'one-time purchase': { maxProjects: 5, storageLimit: '10GB', features: ['basic-support'] }
-//     };
+//       return res
+//         .status(400)
+//         .json({ success: false, message: "Top-up failed" });
+//     }
 
-//     const planKey = (planName || '').toLowerCase();
-//     const planConfig = accessRules[planKey] || accessRules['basic plan'];
-    
-//     await User.findByIdAndUpdate(userId, {
-//       $set: {
-//         'access.maxProjects': planConfig.maxProjects,
-//         'access.storageLimit': planConfig.storageLimit,
-//         'access.features': planConfig.features,
-//         'access.grantedAt': new Date(),
-//         'access.lastUpdated': new Date(),
-//         'access.planName': planName
-//       }
+//     // ℹ️ Already verified before
+//     return res.status(200).json({
+//       success: true,
+//       message: "Already verified",
+//       walletBalance: wallet.balance,
 //     });
-
-//     console.log(`Access granted for user ${userId} with plan: ${planName}`);
-//   } catch (error) {
-//     console.error('Error granting user access:', error);
+//   } catch (err) {
+//     console.error("Verification error:", err.response?.data || err.message);
+//     res
+//       .status(500)
+//       .json({ success: false, message: "Verification failed", error: err.message });
 //   }
 // };
 
-// // Send payment notifications
-// exports._sendPaymentNotifications = async (userId, subscription, transaction) => {
-//   try {
-//     console.log(`Payment notifications sent for subscription: ${subscription?.subscriptionNumber}`);
-//   } catch (error) {
-//     console.error('Error sending notifications:', error);
-//   }
-// };
-
-
-
-
-
-// WALLET TOPUP WALLET TOPUP
-// WALLET TOPUP WALLET TOPUP
-// WALLET TOPUP WALLET TOPUP
-// WALLET TOPUP WALLET TOPUP
-
-
-
+// WALLET TOPUP - FIXED VERSION
 
 // ✅ Initiate Top-up
 exports.initiateTopup = async (req, res) => {
@@ -708,154 +225,232 @@ exports.initiateTopup = async (req, res) => {
     const userId = req.user._id;
 
     if (!amount || amount <= 0) {
-      return res.status(400).json({ success: false, message: "Invalid amount" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid amount" });
     }
 
     const user = await User.findById(userId);
     if (!user) {
-      return res.status(404).json({ success: false, message: "User not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "User not found" });
+    }
+
+    // Find or create wallet
+    let wallet = await Wallet.findOne({ userId });
+    if (!wallet) {
+      wallet = await Wallet.create({
+        userId,
+        balance: 0,
+        currency: "NGN",
+        isActive: true,
+      });
     }
 
     const paystackAmount = amount * 100;
 
     const response = await axios.post(
       "https://api.paystack.co/transaction/initialize",
-      { email: user.email, amount: paystackAmount },
+      {
+        email: user.email,
+        amount: paystackAmount,
+        callback_url: `${process.env.FRONTEND_URL}/payment/callback`,
+        metadata: {
+          type: "wallet",
+          payment_type: "wallet",
+          user_id: userId.toString(),
+          amount: amount,
+          // reference: response.data.data.reference,
+        },
+      },
       {
         headers: {
           Authorization: `Bearer ${PAYSTACK_SECRET}`,
           "Content-Type": "application/json",
         },
-      }
+      },
     );
 
-    // Save transaction as pending
+    // Create transaction with all required fields
     const transaction = await Transaction.create({
+      walletId: wallet._id,
       userId: user._id,
-      reference: response.data.data.reference,
-      amount,
-      status: "pending",
+      email: user.email,
       type: "topup",
-      callback_url: `${process.env.FRONTEND_URL}/payment/wallet-topup/verify`,
-      webhook_url: `${process.env.BASE_URL}/api/v1/payments/wallet/webhook`
+      amount: amount,
+      balanceBefore: wallet.balance,
+      balanceAfter: wallet.balance, // Same as before since not yet credited
+      reference: response.data.data.reference,
+      description: `Wallet top-up of ₦${amount}`,
+      status: "pending",
+      metadata: {
+        paystackReference: response.data.data.reference,
+        amount: amount,
+        email: user.email,
+      },
     });
 
     return res.status(200).json({
       success: true,
+      message: "Payment initialized successfully",
       authorization_url: response.data.data.authorization_url,
       reference: response.data.data.reference,
-      transaction,
+      transaction: {
+        id: transaction._id,
+        reference: transaction.reference,
+        amount: transaction.amount,
+        status: transaction.status,
+      },
     });
   } catch (err) {
-    console.error("Top-up initiation error:", err.response?.data || err.message);
+    console.error(
+      "Top-up initiation error:",
+      err.response?.data || err.message,
+    );
     return res.status(500).json({
       success: false,
       message: "Payment initiation failed",
-      error: err.response?.data || err.message,
+      error: err.response?.data?.message || err.message,
     });
   }
 };
 
-// ✅ Verify Top-up
-// ✅ Verify Top-up (updated to use Wallet collection)
+// ✅ Verify Top-up - FIXED
 exports.verifyTopup = async (req, res) => {
   try {
     const { reference } = req.query;
     const userId = req.user._id;
 
     if (!reference) {
-      return res
-        .status(400)
-        .json({ success: false, message: "Missing reference" });
+      return res.status(400).json({
+        success: false,
+        message: "Missing transaction reference",
+      });
     }
 
+    // Find the transaction
+    let transaction = await Transaction.findOne({ reference });
+
+    if (!transaction) {
+      return res.status(404).json({
+        success: false,
+        message: "Transaction not found",
+      });
+    }
+
+    // Verify with Paystack
     const response = await axios.get(
       `https://api.paystack.co/transaction/verify/${reference}`,
       {
         headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
-      }
+      },
     );
 
-    const data = response.data.data;
-    const transaction = await Transaction.findOne({ reference });
+    const paystackData = response.data.data;
 
-    if (!transaction) {
-      return res
-        .status(404)
-        .json({ success: false, message: "Transaction not found" });
-    }
-
-    // ✅ Find or create the user's wallet
+    // Find or create wallet
     let wallet = await Wallet.findOne({ userId });
     if (!wallet) {
       wallet = await Wallet.create({
         userId,
         balance: 0,
-        transactions: [],
+        currency: "NGN",
+        isActive: true,
       });
     }
 
-    if (data.status === "success" && transaction.status !== "success") {
+    // Check if already verified
+    if (
+      transaction.status === "success" ||
+      transaction.status === "completed"
+    ) {
+      return res.status(200).json({
+        success: true,
+        message: "Transaction already verified",
+        amount: transaction.amount,
+        walletBalance: wallet.balance,
+        reference: transaction.reference,
+      });
+    }
+
+    // Handle successful payment
+    if (paystackData.status === "success") {
+      // Update transaction status
       transaction.status = "success";
+      transaction.completedAt = new Date();
+      transaction.paystackData = paystackData;
+      transaction.balanceBefore = wallet.balance;
+      transaction.balanceAfter = wallet.balance + transaction.amount;
       await transaction.save();
 
-      // ✅ Update wallet balance
+      // Update wallet balance
+      const previousBalance = wallet.balance;
       wallet.balance += transaction.amount;
+      wallet.lastTransaction = new Date();
 
-      // ✅ Record the transaction in wallet
-      wallet.transactions.push({
-        amount: transaction.amount,
-        type: "Credit",
-        description: `Wallet top-up via Paystack (Ref: ${reference})`,
-        date: new Date(),
-      });
-
+      // Add transaction to wallet transactions array if it exists
+      if (wallet.transactions && Array.isArray(wallet.transactions)) {
+        wallet.transactions.push({
+          amount: transaction.amount,
+          type: "Credit",
+          description: `Wallet top-up via Paystack (Ref: ${reference})`,
+          date: new Date(),
+        });
+      }
       await wallet.save();
 
-      // ✅ (Optional) also log it in Payment table for history
+      // Create payment record
       await Payment.create({
         user: userId,
-        reference,
+        reference: reference,
         amount: transaction.amount,
         type: "credit",
         status: "completed",
+        method: "card",
         provider: "Paystack",
-        metadata: data,
+        transactionId: transaction._id,
+        metadata: paystackData,
       });
-      
 
-
-       // ✅ SMS NOTIFICATION: Send wallet topup success notification
+      //✅ SMS NOTIFICATION: Send wallet topup success notification
       try {
         const user = await User.findById(userId);
         // if (user && user.phone && user.phoneVerified) {
-          await NotificationService.sendWalletTopup({
+        await NotificationService.sendWalletTopup(
+          {
             amount: transaction.amount,
-            newBalance: newBalance,
+            paymentMethod: "Paystack",
+            newBalance: wallet.balance,
             transactionId: transaction._id.toString(),
-            reference: reference
-          }, user);
+            reference: reference,
+            date: new Date(),
+          },
+          user,
+        );
         // }
       } catch (smsError) {
         console.error("Wallet topup SMS failed:", smsError);
-      };
+      }
 
-      
-       // ✅ EMAIL NOTIFICATION: Send wallet top-up success email
+      // Send notifications (don't await to avoid blocking response)
       setTimeout(async () => {
         try {
           const user = await User.findById(userId);
           if (user) {
-            await emailService.sendWalletTopupSuccess(user, {
-              id: reference,
-              amount: transaction.amount,
-              paymentMethod: 'Paystack',
-              newBalance: wallet.balance,
-              date: new Date()
-            });
+            // Send email notification
+            await emailService
+              .sendWalletTopupSuccess(user, {
+                id: reference,
+                amount: transaction.amount,
+                paymentMethod: "Paystack",
+                newBalance: wallet.balance,
+                date: new Date(),
+              })
+              .catch((err) => console.error("Email error:", err));
           }
-        } catch (emailError) {
-          console.error('Failed to send wallet top-up email:', emailError);
+        } catch (notifError) {
+          console.error("Notification error:", notifError);
         }
       }, 0);
 
@@ -864,45 +459,103 @@ exports.verifyTopup = async (req, res) => {
         message: "Top-up successful",
         amount: transaction.amount,
         walletBalance: wallet.balance,
+        reference: transaction.reference,
       });
     }
 
-    // ❌ If failed
-    else if (data.status !== "success") {
+    // Handle failed payment
+    else if (
+      paystackData.status === "failed" ||
+      paystackData.status === "abandoned"
+    ) {
       transaction.status = "failed";
+      transaction.failedAt = new Date();
+      transaction.paystackData = paystackData;
       await transaction.save();
 
-      wallet.transactions.push({
-        amount: transaction.amount,
-        type: "Failed",
-        description: `Failed top-up attempt (Ref: ${reference})`,
-        date: new Date(),
+      return res.status(400).json({
+        success: false,
+        message: "Payment failed or was abandoned",
+        reference: transaction.reference,
+        status: paystackData.status,
       });
-      await wallet.save();
-
-      return res
-        .status(400)
-        .json({ success: false, message: "Top-up failed" });
     }
 
-    // ℹ️ Already verified before
-    return res.status(200).json({
-      success: true,
-      message: "Already verified",
-      walletBalance: wallet.balance,
-    });
+    // Handle pending (still waiting)
+    else {
+      return res.status(202).json({
+        success: false,
+        message: "Payment is still pending",
+        reference: transaction.reference,
+        status: paystackData.status,
+      });
+    }
   } catch (err) {
     console.error("Verification error:", err.response?.data || err.message);
-    res
-      .status(500)
-      .json({ success: false, message: "Verification failed", error: err.message });
+    res.status(500).json({
+      success: false,
+      message: "Verification failed",
+      error: err.response?.data?.message || err.message,
+    });
   }
 };
 
+// // controllers/paymentController.js
+// exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
+//   const { reference, trxref } = req.query;
+//   const actualReference = reference || trxref;
+//   const userAgent = req.headers["user-agent"] || "";
+
+//   // Detect platform
+//   const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+//   const isAndroid = /Android/i.test(userAgent);
+//   const isExpo = /Expo|ExpoGo/i.test(userAgent);
+
+//   // Deep link URL schemes for different platforms
+//   let redirectUrl;
+
+//   if (isIOS) {
+//     // iOS deep link
+//     redirectUrl = `Egas://subscriptions/payment-success?reference=${actualReference}`;
+//   } else if (isAndroid) {
+//     // Android deep link
+//     redirectUrl = `Egas://subscriptions/payment-success?reference=${actualReference}`;
+//   } else if (isExpo) {
+//     // Expo Go deep link
+//     redirectUrl = `exp://10.202.194.73:8081/--/subscriptions/payment-success?reference=${actualReference}`;
+//   } else {
+//     // Web redirect
+//     redirectUrl = `${process.env.FRONTEND_URL}/subscriptions/payment-success?reference=${actualReference}`;
+//   }
+
+//   // HTML page with auto-redirect (fallback)
+//   const html = `
+//     <!DOCTYPE html>
+//     <html>
+//     <head>
+//       <title>Redirecting...</title>
+//       <meta charset="utf-8">
+//       <meta http-equiv="refresh" content="2;url=${redirectUrl}">
+//       <script>
+//         setTimeout(function() {
+//           window.location.href = "${redirectUrl}";
+//         }, 1000);
+//       </script>
+//     </head>
+//     <body>
+//       <h2>Payment Processing Complete</h2>
+//       <p>Redirecting back to app...</p>
+//       <p>If you are not redirected automatically, <a href="${redirectUrl}">click here</a></p>
+//     </body>
+//     </html>
+//   `;
+
+//   res.send(html);
+// });
 
 
+// controllers/paymentController.js - Unified handlePaymentCallback
 
-// controllers/paymentController.js
 exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
   const { reference, trxref } = req.query;
   const actualReference = reference || trxref;
@@ -912,48 +565,285 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
   const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
   const isAndroid = /Android/i.test(userAgent);
   const isExpo = /Expo|ExpoGo/i.test(userAgent);
+  const isMobile = isIOS || isAndroid || isExpo;
   
-  // Deep link URL schemes for different platforms
+  let paymentType = 'unknown';
+  let transactionData = null;
+  
+  // Determine payment type by checking transaction and metadata
+  try {
+    // First check Transaction model (for wallet topup)
+    let transaction = await Transaction.findOne({ reference: actualReference });
+    
+    if (transaction) {
+      // Found in Transaction model - this is a wallet topup
+      paymentType = 'wallet';
+      transactionData = {
+        type: transaction.type,
+        amount: transaction.amount,
+        status: transaction.status,
+      };
+    } else {
+      // Check Subscription model (for subscription payment)
+      const subscription = await Subscription.findOne({ reference: actualReference });
+      
+      if (subscription) {
+        // Found in Subscription model - this is a subscription payment
+        paymentType = 'subscription';
+        transactionData = {
+          planName: subscription.planName,
+          frequency: subscription.frequency,
+          amount: subscription.amount,
+          status: subscription.paymentStatus,
+        };
+      } else {
+        // Try to fetch from Paystack to get metadata
+        try {
+          const paystackResponse = await axios.get(
+            `https://api.paystack.co/transaction/verify/${actualReference}`,
+            {
+              headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
+            }
+          );
+          
+          const paystackData = paystackResponse.data.data;
+          const metadata = paystackData.metadata || {};
+          
+          // Determine type from metadata
+          if (metadata.type === 'subscription' || metadata.planId) {
+            paymentType = 'subscription';
+          } else if (metadata.type === 'wallet' || metadata.payment_type === 'wallet') {
+            paymentType = 'wallet';
+          } else {
+            // Default to subscription if cannot determine
+            paymentType = 'subscription';
+          }
+        } catch (error) {
+          console.error('Error fetching from Paystack:', error.message);
+          paymentType = 'subscription'; // Default fallback
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error determining payment type:', error);
+    paymentType = 'subscription'; // Default fallback
+  }
+  
+  // Build redirect path based on payment type
+  let redirectPath;
+  let appRoute;
+  
+  switch (paymentType) {
+    case 'wallet':
+      redirectPath = 'wallet/callback';
+      appRoute = 'wallet/callback';
+      break;
+    case 'subscription':
+      redirectPath = 'subscriptions/payment-success';
+      appRoute = 'subscription/callback';
+      break;
+    default:
+      redirectPath = 'payment/status';
+      appRoute = 'payment/status';
+  }
+  
+  // Build redirect URL based on platform
   let redirectUrl;
+  const baseUrl = process.env.FRONTEND_URL;
+  const expoIp = process.env.EXPO_IP || '10.202.194.73';
   
   if (isIOS) {
     // iOS deep link
-    redirectUrl = `Egas://subscriptions/payment-success?reference=${actualReference}`;
+    redirectUrl = `Egas://${appRoute}?reference=${actualReference}&type=${paymentType}`;
   } else if (isAndroid) {
     // Android deep link
-    redirectUrl = `Egas://subscriptions/payment-success?reference=${actualReference}`;
+    redirectUrl = `Egas://${appRoute}?reference=${actualReference}&type=${paymentType}`;
   } else if (isExpo) {
     // Expo Go deep link
-    redirectUrl = `exp://10.202.194.73:8081/--/subscriptions/payment-success?reference=${actualReference}`;
+    redirectUrl = `exp://${expoIp}:8081/--/${redirectPath}?reference=${actualReference}&type=${paymentType}`;
   } else {
     // Web redirect
-    redirectUrl = `${process.env.FRONTEND_URL}/subscriptions/payment-success?reference=${actualReference}`;
+    redirectUrl = `${baseUrl}/${redirectPath}?reference=${actualReference}&type=${paymentType}`;
   }
   
-  // HTML page with auto-redirect (fallback)
+  console.log(`Payment callback: Type=${paymentType}, Reference=${actualReference}, Platform=${isMobile ? 'Mobile' : 'Web'}, Redirect=${redirectUrl}`);
+  
+  // HTML page with auto-redirect and enhanced UI
   const html = `
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Redirecting...</title>
+      <title>Processing Payment...</title>
       <meta charset="utf-8">
       <meta http-equiv="refresh" content="2;url=${redirectUrl}">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+        
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          margin: 0;
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          color: white;
+        }
+        
+        .container {
+          text-align: center;
+          padding: 20px;
+          max-width: 400px;
+          width: 90%;
+        }
+        
+        .spinner {
+          border: 3px solid rgba(255,255,255,0.3);
+          border-radius: 50%;
+          border-top: 3px solid white;
+          width: 50px;
+          height: 50px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 20px;
+        }
+        
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+        
+        .icon {
+          font-size: 64px;
+          margin-bottom: 20px;
+        }
+        
+        h2 {
+          font-size: 24px;
+          margin-bottom: 10px;
+          font-weight: 600;
+        }
+        
+        .payment-type {
+          background: rgba(255,255,255,0.2);
+          padding: 6px 16px;
+          border-radius: 20px;
+          display: inline-block;
+          font-size: 13px;
+          margin: 15px 0;
+          backdrop-filter: blur(10px);
+        }
+        
+        .message {
+          font-size: 14px;
+          opacity: 0.9;
+          margin-bottom: 20px;
+          line-height: 1.5;
+        }
+        
+        .reference {
+          background: rgba(0,0,0,0.2);
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-size: 11px;
+          font-family: monospace;
+          margin-top: 15px;
+          word-break: break-all;
+        }
+        
+        a {
+          color: white;
+          text-decoration: underline;
+          opacity: 0.8;
+        }
+        
+        .button {
+          display: inline-block;
+          background: rgba(255,255,255,0.2);
+          padding: 12px 24px;
+          border-radius: 25px;
+          text-decoration: none;
+          color: white;
+          margin-top: 20px;
+          font-size: 14px;
+          font-weight: 500;
+          transition: all 0.3s ease;
+        }
+        
+        .button:hover {
+          background: rgba(255,255,255,0.3);
+          transform: translateY(-2px);
+        }
+        
+        @media (max-width: 480px) {
+          h2 { font-size: 20px; }
+          .icon { font-size: 48px; }
+        }
+      </style>
       <script>
-        setTimeout(function() {
+        let attempts = 0;
+        const maxAttempts = 3;
+        
+        function redirect() {
           window.location.href = "${redirectUrl}";
-        }, 1000);
+        }
+        
+        function checkRedirect() {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            document.getElementById('manual-link').style.display = 'inline-block';
+            document.getElementById('retry-btn').style.display = 'inline-block';
+            document.getElementById('countdown').style.display = 'none';
+          }
+        }
+        
+        // Attempt redirect after delay
+        setTimeout(function() {
+          redirect();
+        }, 2000);
+        
+        // Check after longer delay
+        setTimeout(checkRedirect, 5000);
       </script>
     </head>
     <body>
-      <h2>Payment Processing Complete</h2>
-      <p>Redirecting back to app...</p>
-      <p>If you are not redirected automatically, <a href="${redirectUrl}">click here</a></p>
+      <div class="container">
+        <div class="spinner"></div>
+        <div class="icon">
+          ${paymentType === 'wallet' ? '💰' : '📦'}
+        </div>
+        <h2>Payment Processing Complete</h2>
+        <div class="payment-type">
+          ${paymentType === 'wallet' ? 'Wallet Top-up' : 'Subscription Payment'}
+        </div>
+        <p class="message">
+          ${paymentType === 'wallet' 
+            ? 'Your wallet is being topped up. Please wait...' 
+            : 'Your subscription is being activated. Please wait...'}
+        </p>
+        <div class="reference">
+          Ref: ${actualReference}
+        </div>
+        <p id="countdown" style="margin-top: 20px; font-size: 12px;">
+          Redirecting in a few seconds...
+        </p>
+        <div style="margin-top: 20px;">
+          <a href="${redirectUrl}" id="manual-link" class="button" style="display: none;">Click here if not redirected</a>
+          <a href="#" id="retry-btn" class="button" style="display: none; margin-left: 10px;" onclick="redirect(); return false;">Try Again</a>
+        </div>
+      </div>
     </body>
     </html>
   `;
   
   res.send(html);
 });
+
+
 
 // Wallet Top-Up Webhook
 exports.handleWalletWebhook = async (req, res) => {
@@ -978,8 +868,7 @@ exports.handleWalletWebhook = async (req, res) => {
     }
 
     // ✅ 2. Parse event safely
-    const event =
-      typeof rawBody === "string" ? JSON.parse(rawBody) : req.body;
+    const event = typeof rawBody === "string" ? JSON.parse(rawBody) : req.body;
 
     console.log(`📬 Paystack Webhook received: ${event.event}`);
     res.status(200).send("Webhook received"); // respond early
@@ -1037,41 +926,38 @@ exports.handleWalletWebhook = async (req, res) => {
 
           console.log(`✅ Wallet top-up successful for ${email} (+₦${amount})`);
 
-        
-
           // ✅ EMAIL NOTIFICATION: Send wallet top-up success email via webhook
           setTimeout(async () => {
             try {
               await emailService.sendWalletTopupSuccess(user, {
                 id: reference,
                 amount: amount,
-                paymentMethod: 'Paystack',
+                paymentMethod: "Paystack",
                 newBalance: wallet.balance,
-                date: new Date()
+                date: new Date(),
               });
             } catch (emailError) {
-              console.error('Failed to send wallet top-up email:', emailError);
+              console.error("Failed to send wallet top-up email:", emailError);
             }
           }, 0);
 
-         // ✅ SMS NOTIFICATION: Send wallet topup success notification via webhook
+          // ✅ SMS NOTIFICATION: Send wallet topup success notification via webhook
           try {
             // if (user && user.phone && user.phoneVerified) {
-              await NotificationService.sendWalletTopup({
+            await NotificationService.sendWalletTopup(
+              {
                 amount: amount,
                 newBalance: newBalance,
                 transactionId: reference,
-                reference: reference
-              }, user);
+                reference: reference,
+              },
+              user,
+            );
             // }
           } catch (smsError) {
             console.error("Webhook wallet topup SMS failed:", smsError);
           }
-        }
-        
-
-
-        else if (event.event === "charge.failed") {
+        } else if (event.event === "charge.failed") {
           await Payment.create({
             user: user._id,
             reference,
@@ -1092,29 +978,25 @@ exports.handleWalletWebhook = async (req, res) => {
           await wallet.save();
 
           console.warn(`❌ Wallet top-up failed for ${email} (₦${amount})`);
-      
-          
 
-        // ✅ SMS NOTIFICATION: Send wallet topup failed notification
-  try {
-    if (user && user.phone && user.phoneVerified) {
-      await NotificationService.sendNotification(
-        user.phone,
-        `Wallet top-up of ₦${amount} failed. Please try again or contact support.`,
-        'wallet_topup_failed',
-        {
-          userId: user._id,
-          amount: amount,
-          reference: reference
-        }
-      );
-    }
-  } catch (smsError) {
-    console.error("Wallet topup failed SMS failed:", smsError);
-  }
-}
-
-        else {
+          // ✅ SMS NOTIFICATION: Send wallet topup failed notification
+          try {
+            if (user && user.phone && user.phoneVerified) {
+              await NotificationService.sendNotification(
+                user.phone,
+                `Wallet top-up of ₦${amount} failed. Please try again or contact support.`,
+                "wallet_topup_failed",
+                {
+                  userId: user._id,
+                  amount: amount,
+                  reference: reference,
+                },
+              );
+            }
+          } catch (smsError) {
+            console.error("Wallet topup failed SMS failed:", smsError);
+          }
+        } else {
           console.log(`ℹ️ Unhandled event type: ${event.event}`);
         }
       } catch (error) {
@@ -1127,46 +1009,33 @@ exports.handleWalletWebhook = async (req, res) => {
   }
 };
 
-
-// // ✅ Get Wallet Balance
-// exports.getWalletBalance = async (req, res) => {
-//   try {
-//     const user = await User.findById(req.user._id);
-//     if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-//     res.status(200).json({ success: true, balance: user.walletBalance || 0 });
-//   } catch (err) {
-//     res.status(500).json({ success: false, message: "Failed to fetch balance" });
-//   }
-// };
-
 // ✅ Get Wallet Balance - CORRECTED VERSION
 exports.getWalletBalance = async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     // Find the wallet document for this user
     let wallet = await Wallet.findOne({ userId });
-    
+
     // If wallet doesn't exist, create one with zero balance
     if (!wallet) {
       wallet = await Wallet.create({
         userId: userId,
         balance: 0,
-        currency: 'NGN',
+        currency: "NGN",
         isActive: true,
       });
     }
-    
-    res.status(200).json({ 
-      success: true, 
-      balance: wallet.balance 
+
+    res.status(200).json({
+      success: true,
+      balance: wallet.balance,
     });
   } catch (err) {
-    console.error('Get wallet balance error:', err);
-    res.status(500).json({ 
-      success: false, 
-      message: "Failed to fetch balance" 
+    console.error("Get wallet balance error:", err);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch balance",
     });
   }
 };
@@ -1214,16 +1083,10 @@ exports.getPaymentHistory = async (req, res) => {
   }
 };
 
-
-
-
-
-
 // ORDER PAYMENT ---- ORDER PAYMENT
 // ORDER PAYMENT ---- ORDER PAYMENT
 // ORDER PAYMENT ---- ORDER PAYMENT
 // ORDER PAYMENT ---- ORDER PAYMENT
-
 
 //  @desc    Pay with Wallet
 //  @route   POST /api/v1/orders/:id/pay/wallet
@@ -1256,7 +1119,6 @@ exports.getPaymentHistory = async (req, res) => {
 
 //   res.json({ message: "Payment successful via wallet", order });
 // };
-
 
 // /**
 //  * @desc    Initialize Paystack payment

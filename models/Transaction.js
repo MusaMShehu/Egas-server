@@ -23,7 +23,7 @@ const transactionSchema = new mongoose.Schema({
   },
   type: {
     type: String,
-    enum: ['credit', 'debit', 'refund', 'transfer'],
+    enum: ['credit', 'debit', 'topup', 'refund', 'transfer'],
     required: true,
   },
   amount: {
