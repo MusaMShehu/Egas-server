@@ -1128,15 +1128,46 @@ exports.handleWalletWebhook = async (req, res) => {
 };
 
 
-// ✅ Get Wallet Balance
+// // ✅ Get Wallet Balance
+// exports.getWalletBalance = async (req, res) => {
+//   try {
+//     const user = await User.findById(req.user._id);
+//     if (!user) return res.status(404).json({ success: false, message: "User not found" });
+
+//     res.status(200).json({ success: true, balance: user.walletBalance || 0 });
+//   } catch (err) {
+//     res.status(500).json({ success: false, message: "Failed to fetch balance" });
+//   }
+// };
+
+// ✅ Get Wallet Balance - CORRECTED VERSION
 exports.getWalletBalance = async (req, res) => {
   try {
-    const user = await User.findById(req.user._id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-    res.status(200).json({ success: true, balance: user.walletBalance || 0 });
+    const userId = req.user._id;
+    
+    // Find the wallet document for this user
+    let wallet = await Wallet.findOne({ userId });
+    
+    // If wallet doesn't exist, create one with zero balance
+    if (!wallet) {
+      wallet = await Wallet.create({
+        userId: userId,
+        balance: 0,
+        currency: 'NGN',
+        isActive: true,
+      });
+    }
+    
+    res.status(200).json({ 
+      success: true, 
+      balance: wallet.balance 
+    });
   } catch (err) {
-    res.status(500).json({ success: false, message: "Failed to fetch balance" });
+    console.error('Get wallet balance error:', err);
+    res.status(500).json({ 
+      success: false, 
+      message: "Failed to fetch balance" 
+    });
   }
 };
 

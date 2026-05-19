@@ -35,6 +35,8 @@ router.put('/:id/cancel-my', protect, cancelMySubscription);
 router.post('/:id/renew', protect, renewSubscription);
 router.get('/process', protect, authorize('admin'), processSubscriptions);
 router.get('/analytics', protect, authorize('admin'), getSubscriptionAnalytics);
+router.get('/payment-status/:reference', protect, getSubscriptionPaymentStatus); // Add this
+
 
 router
   .route('/:id')

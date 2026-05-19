@@ -1,4 +1,4 @@
-const Wallet = require('../models/wallet');
+const Wallet = require('../models/Wallet');
 
 exports.ensureWallet = async function (req, res, next) {
   const userId = req.user.id;
