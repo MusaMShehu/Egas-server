@@ -315,7 +315,8 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
           customPlan: plan.type === "custom" ? customPlan : undefined,
           type: "subscription",
         },
-        callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
+        // callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
+        callback_url: "https://egas-server-1.onrender.com/api/v1/payments/callback",
         webhook_url: `${process.env.BASE_URL}/api/v1/subscriptions/webhook`,
       });
 
