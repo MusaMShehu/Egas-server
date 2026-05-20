@@ -442,7 +442,7 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
       break;
     case 'subscription':
       redirectPath = 'subscriptions/payment-success';
-      appRoute = 'subscriptions/payment-success';
+      appRoute = 'subscriptions/callback';
       break;
     default:
       redirectPath = 'payment/status';
