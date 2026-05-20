@@ -12,6 +12,7 @@ const crypto = require("crypto");
 const { generateDeliverySchedules } = require("../utils/deliveryHelper");
 const NotificationService = require("../services/notificationService");
 const emailService = require("../services/emailService");
+const Transaction = require("../models/Transaction");
 
 // ✅ SIMPLIFIED: Middleware to check and update expired subscriptions
 const checkExpiredSubscriptions = asyncHandler(async (req, res, next) => {
@@ -354,141 +355,315 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
   }
 
   // ✅ FIXED: Handle Wallet payment with proper validation
-  if (paymentMethod === "wallet") {
-    const session = await mongoose.startSession();
-    session.startTransaction();
+//   if (paymentMethod === "wallet") {
+//     const session = await mongoose.startSession();
+//     session.startTransaction();
 
-    try {
-      // 1️⃣ Get user with wallet balance
-      const user = await User.findById(userId).session(session);
-      if (!user) {
-        await session.abortTransaction();
-        session.endSession();
-        return next(new ErrorResponse("User not found", 404));
-      }
+//     try {
+//       // 1️⃣ Get user with wallet balance
+//       const user = await User.findById(userId).session(session);
+//       if (!user) {
+//         await session.abortTransaction();
+//         session.endSession();
+//         return next(new ErrorResponse("User not found", 404));
+//       }
 
-      // 2️⃣ Validate wallet balance
-      if (user.walletBalance < price) {
-        await session.abortTransaction();
-        session.endSession();
-        return next(
-          new ErrorResponse(
-            `Insufficient wallet balance. Your balance: ₦${user.walletBalance}, Required: ₦${price}`,
-            400
-          )
-        );
-      }
+//       // 2️⃣ Validate wallet balance
+//       if (user.walletBalance < price) {
+//         await session.abortTransaction();
+//         session.endSession();
+//         return next(
+//           new ErrorResponse(
+//             `Insufficient wallet balance. Your balance: ₦${user.walletBalance}, Required: ₦${price}`,
+//             400
+//           )
+//         );
+//       }
 
-      // 3️⃣ Deduct from user wallet balance
-      user.walletBalance -= price;
-      await user.save({ session });
+//       // 3️⃣ Deduct from user wallet balance
+//       user.walletBalance -= price;
+//       await user.save({ session });
 
-      // 4️⃣ Update or create Wallet document with transaction
-      const wallet = await Wallet.findOneAndUpdate(
-        { userId },
-        {
-          $inc: { balance: -price },
-          $push: {
-            transactions: {
-              amount: price,
-              type: "Debit",
-              description: `Subscription payment for ${plan.name} - ${frequency}`,
-              date: new Date(),
-            },
-          },
-        },
-        { upsert: true, new: true, session, setDefaultsOnInsert: true }
-      );
+//       // 4️⃣ Update or create Wallet document with transaction
+//       const wallet = await Wallet.findOneAndUpdate(
+//         { userId },
+//         {
+//           $inc: { balance: -price },
+//           $push: {
+//             transactions: {
+//               amount: price,
+//               type: "Debit",
+//               description: `Subscription payment for ${plan.name} - ${frequency}`,
+//               date: new Date(),
+//             },
+//           },
+//         },
+//         { upsert: true, new: true, session, setDefaultsOnInsert: true }
+//       );
 
-      // 5️⃣ Generate subscription reference
-      const generateReference = () => {
-        return "SUB-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
-      };
-      const reference = generateReference();
+//       // 5️⃣ Generate subscription reference
+//       const generateReference = () => {
+//         return "SUB-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
+//       };
+//       const reference = generateReference();
 
-      // 6️⃣ Prepare subscription data
-      subscriptionData.status = "active";
-      subscriptionData.paymentStatus = "completed";
-      subscriptionData.isPaid = true;
-      subscriptionData.paidAt = new Date();
-      subscriptionData.paymentMethod = "wallet";
-      subscriptionData.reference = reference;
-      subscriptionData.paymentResult = {
-        status: "completed",
-        gateway: "wallet",
-        paidAt: new Date(),
-        walletTransactionId:
-          wallet.transactions[wallet.transactions.length - 1]._id,
-      };
+//       // 6️⃣ Prepare subscription data
+//       subscriptionData.status = "active";
+//       subscriptionData.paymentStatus = "completed";
+//       subscriptionData.isPaid = true;
+//       subscriptionData.paidAt = new Date();
+//       subscriptionData.paymentMethod = "wallet";
+//       subscriptionData.reference = reference;
+//       subscriptionData.paymentResult = {
+//         status: "completed",
+//         gateway: "wallet",
+//         paidAt: new Date(),
+//         walletTransactionId:
+//           wallet.transactions[wallet.transactions.length - 1]._id,
+//       };
 
-      // 7️⃣ Create subscription
-      const [subscription] = await Subscription.create([subscriptionData], {
-        session,
-      });
+//       // 7️⃣ Create subscription
+//       const [subscription] = await Subscription.create([subscriptionData], {
+//         session,
+//       });
 
-      // 8️⃣ Generate delivery schedules
-      try {
-        const deliveryResult = await generateDeliverySchedules(subscription, {
-          logProgress: true,
-          overrideExisting: false,
-        });
-        console.log(
-          `✅ ${deliveryResult.count} delivery schedules generated for wallet subscription:`,
-          subscription._id
-        );
-      } catch (scheduleError) {
-        console.error(
-          "❌ Delivery schedule generation failed for wallet payment:",
-          scheduleError
-        );
-      }
+//       // 8️⃣ Generate delivery schedules
+//       try {
+//         const deliveryResult = await generateDeliverySchedules(subscription, {
+//           logProgress: true,
+//           overrideExisting: false,
+//         });
+//         console.log(
+//           `✅ ${deliveryResult.count} delivery schedules generated for wallet subscription:`,
+//           subscription._id
+//         );
+//       } catch (scheduleError) {
+//         console.error(
+//           "❌ Delivery schedule generation failed for wallet payment:",
+//           scheduleError
+//         );
+//       }
 
-      // ✅ Send subscription created email for wallet payment
-      setTimeout(async () => {
-        try {
-          await emailService.sendSubscriptionCreatedEmail(subscription, user);
-        } catch (emailError) {
-          console.error(
-            "Failed to send subscription created email:",
-            emailError
-          );
-        }
-      }, 0);
+//       // ✅ Send subscription created email for wallet payment
+//       setTimeout(async () => {
+//         try {
+//           await emailService.sendSubscriptionCreatedEmail(subscription, user);
+//         } catch (emailError) {
+//           console.error(
+//             "Failed to send subscription created email:",
+//             emailError
+//           );
+//         }
+//       }, 0);
 
-      // 9️⃣ Commit transaction
-      await session.commitTransaction();
-      session.endSession();
+//       // 9️⃣ Commit transaction
+//       await session.commitTransaction();
+//       session.endSession();
 
-      // ✅ SMS NOTIFICATION: Send subscription created notification
-      try {
-        const user = await User.findById(userId);
-        // if (user && user.phone && user.phoneVerified) {
-        await NotificationService.sendSubscriptionCreated(subscription, user);
-        // }
-      } catch (smsError) {
-        console.error("Subscription creation SMS failed:", smsError);
-      }
+//       // ✅ SMS NOTIFICATION: Send subscription created notification
+//       try {
+//         const user = await User.findById(userId);
+//         // if (user && user.phone && user.phoneVerified) {
+//         await NotificationService.sendSubscriptionCreated(subscription, user);
+//         // }
+//       } catch (smsError) {
+//         console.error("Subscription creation SMS failed:", smsError);
+//       }
 
-      return res.status(200).json({
-        success: true,
-        data: subscription,
-        message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
-        walletBalance: user.walletBalance,
-      });
-    } catch (error) {
+//       return res.status(200).json({
+//         success: true,
+//         data: subscription,
+//         message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
+//         walletBalance: user.walletBalance,
+//       });
+//     } catch (error) {
+//       await session.abortTransaction();
+//       session.endSession();
+//       console.error("Wallet Payment Error for Subscription:", error);
+//       return next(
+//         new ErrorResponse(
+//           "Wallet payment failed for subscription: " + error.message,
+//           500
+//         )
+//       );
+//     }
+//   }
+// });
+
+if (paymentMethod === "wallet") {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1️⃣ Get user
+    const user = await User.findById(userId).session(session);
+    if (!user) {
       await session.abortTransaction();
       session.endSession();
-      console.error("Wallet Payment Error for Subscription:", error);
+      return next(new ErrorResponse("User not found", 404));
+    }
+
+    // 2️⃣ Get wallet and check balance (FIXED: from Wallet model, not user)
+    let wallet = await Wallet.findOne({ userId }).session(session);
+    
+    if (!wallet) {
+      await session.abortTransaction();
+      session.endSession();
       return next(
         new ErrorResponse(
-          "Wallet payment failed for subscription: " + error.message,
-          500
+          "Wallet not found. Please activate your wallet first.",
+          404
         )
       );
     }
-  }
-});
 
+    // Check wallet balance (FIXED: use wallet.balance instead of user.walletBalance)
+    if (wallet.balance < price) {
+      await session.abortTransaction();
+      session.endSession();
+      return next(
+        new ErrorResponse(
+          `Insufficient wallet balance. Your balance: ₦${wallet.balance}, Required: ₦${price}`,
+          400
+        )
+      );
+    }
+
+    // Get balance before deduction
+    const balanceBefore = wallet.balance;
+
+    // 3️⃣ Deduct from wallet balance (FIXED: update Wallet model, not User)
+    wallet.balance -= price;
+    wallet.lastTransaction = new Date();
+    
+    // Initialize transactions array if it doesn't exist
+    if (!wallet.transactions) {
+      wallet.transactions = [];
+    }
+    
+    // Add transaction record
+    wallet.transactions.push({
+      amount: price,
+      type: "Debit",
+      description: `Subscription payment for ${plan?.name || subscriptionData.planName} - ${frequency}`,
+      date: new Date(),
+    });
+    
+    await wallet.save({ session });
+
+    // 4️⃣ Create transaction record in Transaction model
+    const generateReference = () => {
+      return "SUB-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
+    };
+    const reference = generateReference();
+
+    const transaction = await Transaction.create([{
+      walletId: wallet._id,
+      userId: userId,
+      email: user.email,
+      type: "debit",
+      amount: price,
+      balanceBefore: balanceBefore,
+      balanceAfter: wallet.balance,
+      reference: reference,
+      description: `Subscription payment for ${plan?.name || subscriptionData.planName} - ${frequency}`,
+      status: "completed",
+      currency: "NGN",
+      metadata: {
+        subscriptionType: "subscription",
+        planName: plan?.name || subscriptionData.planName,
+        frequency: frequency,
+        paymentMethod: "wallet",
+      },
+      completedAt: new Date(),
+    }], { session });
+
+    // 5️⃣ Prepare subscription data
+    subscriptionData.status = "active";
+    subscriptionData.paymentStatus = "completed";
+    subscriptionData.isPaid = true;
+    subscriptionData.paidAt = new Date();
+    subscriptionData.paymentMethod = "wallet";
+    subscriptionData.reference = reference;
+    subscriptionData.paymentReference = reference;
+    subscriptionData.transactionId = transaction[0]._id;
+    subscriptionData.paymentResult = {
+      status: "completed",
+      gateway: "wallet",
+      paidAt: new Date(),
+      walletTransactionId: wallet.transactions[wallet.transactions.length - 1]._id,
+      transactionReference: reference,
+    };
+
+    // 6️⃣ Create subscription
+    const [subscription] = await Subscription.create([subscriptionData], {
+      session,
+    });
+
+    // 7️⃣ Update user's subscription reference (FIXED: don't set walletBalance)
+    user.subscription = subscription._id;
+    // user.walletBalance = wallet.balance; // REMOVE THIS - doesn't exist in schema
+    await user.save({ session });
+
+    // 8️⃣ Generate delivery schedules
+    try {
+      const deliveryResult = await generateDeliverySchedules(subscription, {
+        logProgress: true,
+        overrideExisting: false,
+      });
+      console.log(
+        `✅ ${deliveryResult.count} delivery schedules generated for wallet subscription:`,
+        subscription._id
+      );
+    } catch (scheduleError) {
+      console.error(
+        "❌ Delivery schedule generation failed for wallet payment:",
+        scheduleError
+      );
+      // Don't fail the transaction if schedule generation fails
+    }
+
+    // 9️⃣ Commit transaction
+    await session.commitTransaction();
+    session.endSession();
+
+    // ✅ Send email notification
+    setTimeout(async () => {
+      try {
+        await emailService.sendSubscriptionCreatedEmail(subscription, user);
+      } catch (emailError) {
+        console.error("Failed to send subscription created email:", emailError);
+      }
+    }, 0);
+
+    // ✅ Send SMS notification
+    try {
+      await NotificationService.sendSubscriptionCreated(subscription, user);
+    } catch (smsError) {
+      console.error("Subscription creation SMS failed:", smsError);
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: subscription,
+      message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
+      walletBalance: wallet.balance,
+      transaction: transaction[0],
+    });
+    
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+    console.error("Wallet Payment Error for Subscription:", error);
+    return next(
+      new ErrorResponse(
+        "Wallet payment failed for subscription: " + error.message,
+        500
+      )
+    );
+  }
+}
+});
 // CHANGED: Fixed Bi-weekly frequency multiplier
 // const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
 //   if (!plan) return 0;
