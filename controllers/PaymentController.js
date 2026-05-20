@@ -15,208 +15,10 @@ const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 const PAYSTACK_BASE = "https://api.paystack.co";
 const PAYSTACK_VERIFY_URL = "https://api.paystack.co/transaction/verify/";
 
+
 // WALLET TOPUP WALLET TOPUP
 // WALLET TOPUP WALLET TOPUP
 // WALLET TOPUP WALLET TOPUP
-// WALLET TOPUP WALLET TOPUP
-
-// ✅ Initiate Top-up
-// exports.initiateTopup = async (req, res) => {
-//   try {
-//     const { amount } = req.body;
-//     const userId = req.user._id;
-
-//     if (!amount || amount <= 0) {
-//       return res.status(400).json({ success: false, message: "Invalid amount" });
-//     }
-
-//     const user = await User.findById(userId);
-//     if (!user) {
-//       return res.status(404).json({ success: false, message: "User not found" });
-//     }
-
-//     const paystackAmount = amount * 100;
-
-//     const response = await axios.post(
-//       "https://api.paystack.co/transaction/initialize",
-//       { email: user.email, amount: paystackAmount },
-//       {
-//         headers: {
-//           Authorization: `Bearer ${PAYSTACK_SECRET}`,
-//           "Content-Type": "application/json",
-//         },
-//       }
-//     );
-
-//     // Save transaction as pending
-//     const transaction = await Transaction.create({
-//       userId: user._id,
-//       walletId: wallet._id,
-//       reference: response.data.data.reference,
-//       amount,
-//       status: "pending",
-//       type: "topup",
-//       callback_url: `${process.env.FRONTEND_URL}/payment/wallet-topup/verify`,
-//       webhook_url: `${process.env.BASE_URL}/api/v1/payments/wallet/webhook`
-//     });
-
-//     return res.status(200).json({
-//       success: true,
-//       authorization_url: response.data.data.authorization_url,
-//       reference: response.data.data.reference,
-//       transaction,
-//     });
-//   } catch (err) {
-//     console.error("Top-up initiation error:", err.response?.data || err.message);
-//     return res.status(500).json({
-//       success: false,
-//       message: "Payment initiation failed",
-//       error: err.response?.data || err.message,
-//     });
-//   }
-// };
-
-// // ✅ Verify Top-up
-// // ✅ Verify Top-up (updated to use Wallet collection)
-// exports.verifyTopup = async (req, res) => {
-//   try {
-//     const { reference } = req.query;
-//     const userId = req.user._id;
-
-//     if (!reference) {
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "Missing reference" });
-//     }
-
-//     const response = await axios.get(
-//       `https://api.paystack.co/transaction/verify/${reference}`,
-//       {
-//         headers: { Authorization: `Bearer ${PAYSTACK_SECRET}` },
-//       }
-//     );
-
-//     const data = response.data.data;
-//     const transaction = await Transaction.findOne({ reference });
-
-//     if (!transaction) {
-//       return res
-//         .status(404)
-//         .json({ success: false, message: "Transaction not found" });
-//     }
-
-//     // ✅ Find or create the user's wallet
-//     let wallet = await Wallet.findOne({ userId });
-//     if (!wallet) {
-//       wallet = await Wallet.create({
-//         userId,
-//         balance: 0,
-//         transactions: [],
-//       });
-//     }
-
-//     if (data.status === "success" && transaction.status !== "success") {
-//       transaction.status = "success";
-//       await transaction.save();
-
-//       // ✅ Update wallet balance
-//       wallet.balance += transaction.amount;
-
-//       // ✅ Record the transaction in wallet
-//       wallet.transactions.push({
-//         amount: transaction.amount,
-//         type: "Credit",
-//         description: `Wallet top-up via Paystack (Ref: ${reference})`,
-//         date: new Date(),
-//       });
-
-//       await wallet.save();
-
-//       // ✅ (Optional) also log it in Payment table for history
-//       await Payment.create({
-//         user: userId,
-//         reference,
-//         amount: transaction.amount,
-//         type: "credit",
-//         status: "completed",
-//         provider: "Paystack",
-//         metadata: data,
-//       });
-
-//        // ✅ SMS NOTIFICATION: Send wallet topup success notification
-//       try {
-//         const user = await User.findById(userId);
-//         // if (user && user.phone && user.phoneVerified) {
-//           await NotificationService.sendWalletTopup({
-//             amount: transaction.amount,
-//             newBalance: newBalance,
-//             transactionId: transaction._id.toString(),
-//             reference: reference
-//           }, user);
-//         // }
-//       } catch (smsError) {
-//         console.error("Wallet topup SMS failed:", smsError);
-//       };
-
-//        // ✅ EMAIL NOTIFICATION: Send wallet top-up success email
-//       setTimeout(async () => {
-//         try {
-//           const user = await User.findById(userId);
-//           if (user) {
-//             await emailService.sendWalletTopupSuccess(user, {
-//               id: reference,
-//               amount: transaction.amount,
-//               paymentMethod: 'Paystack',
-//               newBalance: wallet.balance,
-//               date: new Date()
-//             });
-//           }
-//         } catch (emailError) {
-//           console.error('Failed to send wallet top-up email:', emailError);
-//         }
-//       }, 0);
-
-//       return res.status(200).json({
-//         success: true,
-//         message: "Top-up successful",
-//         amount: transaction.amount,
-//         walletBalance: wallet.balance,
-//       });
-//     }
-
-//     // ❌ If failed
-//     else if (data.status !== "success") {
-//       transaction.status = "failed";
-//       await transaction.save();
-
-//       wallet.transactions.push({
-//         amount: transaction.amount,
-//         type: "Failed",
-//         description: `Failed top-up attempt (Ref: ${reference})`,
-//         date: new Date(),
-//       });
-//       await wallet.save();
-
-//       return res
-//         .status(400)
-//         .json({ success: false, message: "Top-up failed" });
-//     }
-
-//     // ℹ️ Already verified before
-//     return res.status(200).json({
-//       success: true,
-//       message: "Already verified",
-//       walletBalance: wallet.balance,
-//     });
-//   } catch (err) {
-//     console.error("Verification error:", err.response?.data || err.message);
-//     res
-//       .status(500)
-//       .json({ success: false, message: "Verification failed", error: err.message });
-//   }
-// };
-
-// WALLET TOPUP - FIXED VERSION
 
 // ✅ Initiate Top-up
 exports.initiateTopup = async (req, res) => {
@@ -640,7 +442,7 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
       break;
     case 'subscription':
       redirectPath = 'subscriptions/payment-success';
-      appRoute = 'subscription/callback';
+      appRoute = 'subscriptions/payment-success';
       break;
     default:
       redirectPath = 'payment/status';
@@ -691,7 +493,7 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
           align-items: center;
           min-height: 100vh;
           margin: 0;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          background: linear-gradient(135deg, #add1f0 0%, #9dbfef 100%);
           color: white;
         }
         
