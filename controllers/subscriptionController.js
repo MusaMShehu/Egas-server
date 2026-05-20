@@ -649,6 +649,17 @@ if (paymentMethod === "wallet") {
       message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
       walletBalance: wallet.balance,
       transaction: transaction[0],
+      redirect: {
+        to: "/wallet/callback",
+        params: {
+          type: "subscription",
+          reference: reference,
+          amount: price,
+          subscriptionId: subscription._id,
+          planName: plan?.name || subscriptionData.planName,
+          status: "success"
+        }
+      }
     });
     
   } catch (error) {
