@@ -441,7 +441,7 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
       appRoute = 'wallet/callback';
       break;
     case 'subscription':
-      redirectPath = 'subscriptions/payment-success';
+      redirectPath = 'subscriptions/callback';
       appRoute = 'subscriptions/callback';
       break;
     default:
@@ -455,13 +455,10 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
   const expoIp = process.env.EXPO_IP || '10.202.194.73';
   
   if (isIOS) {
-    // iOS deep link
     redirectUrl = `egas://${appRoute}?reference=${actualReference}&type=${paymentType}`;
   } else if (isAndroid) {
-    // Android deep link
     redirectUrl = `egas://${appRoute}?reference=${actualReference}&type=${paymentType}`;
   } else if (isExpo) {
-    // Expo Go deep link
     redirectUrl = `exp://${expoIp}:8081/--/${redirectPath}?reference=${actualReference}&type=${paymentType}`;
   } else {
     // Web redirect
