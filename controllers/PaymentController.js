@@ -456,10 +456,10 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
   
   if (isIOS) {
     // iOS deep link
-    redirectUrl = `Egas://${appRoute}?reference=${actualReference}&type=${paymentType}`;
+    redirectUrl = `egas://${appRoute}?reference=${actualReference}&type=${paymentType}`;
   } else if (isAndroid) {
     // Android deep link
-    redirectUrl = `Egas://${appRoute}?reference=${actualReference}&type=${paymentType}`;
+    redirectUrl = `egas://${appRoute}?reference=${actualReference}&type=${paymentType}`;
   } else if (isExpo) {
     // Expo Go deep link
     redirectUrl = `exp://${expoIp}:8081/--/${redirectPath}?reference=${actualReference}&type=${paymentType}`;
