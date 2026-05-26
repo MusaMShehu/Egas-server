@@ -37,11 +37,11 @@ const transactionSchema = new mongoose.Schema({
   },
   balanceBefore: {
     type: Number,
-    required: true,
+    // required: true,
   },
   balanceAfter: {
     type: Number,
-    required: true,
+    // required: true,
   },
   reference: {
     type: String,
