@@ -20,8 +20,8 @@ const setTokenCookies = (res, tokens) => {
   // Access token cookie (short-lived)
   res.cookie("accessToken", tokens.accessToken, {
     httpOnly: true,
-    secure: false,
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 15 * 60 * 1000, // 15 minutes
     path: "/",
   });
@@ -29,8 +29,8 @@ const setTokenCookies = (res, tokens) => {
   // Refresh token cookie (long-lived)
   res.cookie("refreshToken", tokens.refreshToken, {
     httpOnly: true,
-    secure: false,
-    sameSite: "lax",
+    secure: true,
+    sameSite: "none",
     maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
     path: "/",
   });
