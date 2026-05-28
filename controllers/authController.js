@@ -643,8 +643,8 @@ exports.registerMobile = asyncHandler(async (req, res, next) => {
           emailVerified: newUser.emailVerified,
           phoneVerified: newUser.phoneVerified,
         },
-        accessToken,
-        refreshToken,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
     });
   } catch (err) {
@@ -759,8 +759,8 @@ exports.loginMobile = asyncHandler(async (req, res, next) => {
         emailVerified: user.emailVerified,
         phoneVerified: user.phoneVerified,
       },
-      accessToken,
-      refreshToken,
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     },
   });
 });
@@ -805,8 +805,8 @@ exports.refreshTokenMobile = asyncHandler(async (req, res, next) => {
       message: "Token refreshed successfully",
       data: {
         user,
-        accessToken,
-        refreshToken,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
       },
     });
   } catch (error) {
