@@ -593,7 +593,7 @@ exports.registerMobile = asyncHandler(async (req, res, next) => {
     const tokens = authService.generateTokens(newUser);
 
     // Set HTTP-only cookies
-    setTokenCookies(res, tokens);
+    // setTokenCookies(res, tokens);
 
     // Send welcome email (async)
     if (emailService.sendAccountCreatedEmail) {
@@ -643,8 +643,10 @@ exports.registerMobile = asyncHandler(async (req, res, next) => {
           emailVerified: newUser.emailVerified,
           phoneVerified: newUser.phoneVerified,
         },
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        tokens: {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
       },
     });
   } catch (err) {
@@ -738,7 +740,7 @@ exports.loginMobile = asyncHandler(async (req, res, next) => {
   const tokens = authService.generateTokens(user);
 
   // Set HTTP-only cookies - NOW setTokenCookies IS DEFINED ✓
-  setTokenCookies(res, tokens);
+  // setTokenCookies(res, tokens);
 
   // Remove sensitive data
   user.password = undefined;
@@ -759,8 +761,10 @@ exports.loginMobile = asyncHandler(async (req, res, next) => {
         emailVerified: user.emailVerified,
         phoneVerified: user.phoneVerified,
       },
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
+      tokens: {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      },
     },
   });
 });
@@ -798,15 +802,17 @@ exports.refreshTokenMobile = asyncHandler(async (req, res, next) => {
 
     const tokens = await authService.generateTokens(user);
 
-    setTokenCookies(res, tokens);
+    // setTokenCookies(res, tokens);
 
     res.status(200).json({
       success: true,
       message: "Token refreshed successfully",
       data: {
         user,
-        accessToken: tokens.accessToken,
-        refreshToken: tokens.refreshToken,
+        tokens: {
+          accessToken: tokens.accessToken,
+          refreshToken: tokens.refreshToken,
+        },
       },
     });
   } catch (error) {
@@ -815,7 +821,6 @@ exports.refreshTokenMobile = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Invalid refresh token", 401));
   }
 });
-
 
 // @desc    Logout user
 // @route   POST /api/v1/auth/logout
