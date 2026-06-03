@@ -164,9 +164,9 @@ const authService = require("../services/authService");
 // Cookie options
 const cookieOptions = {
   httpOnly: true,
-  secure: false,
+  secure: true,
   // process.env.NODE_ENV === "production",
-  sameSite: "lax",
+  sameSite: "none",
   // process.env.NODE_ENV === "production" ? "none" : "lax",
   credentials: true,
   maxAge: 7 * 24 * 60 * 60 * 1000,
