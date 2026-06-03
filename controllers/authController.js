@@ -22,7 +22,8 @@ const setTokenCookies = (res, tokens) => {
     httpOnly: true,
     secure: false,
     sameSite: "lax",
-    maxAge: 15 * 60 * 1000, // 15 minutes
+    maxAge: 7 * 24 * 60 * 60 * 1000,
+    // 15 * 60 * 1000, // 15 minutes
     path: "/",
   });
 

@@ -295,55 +295,55 @@ app.use("/api/sms", smsRoutes);
 app.use(
   "/api/v1/admin/dashboard",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminDashboard,
 );
 app.use(
   "/api/v1/admin/users",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminUserManagement,
 );
 app.use(
   "/api/v1/admin/subscriptions",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminSubscriptionManagement,
 );
 app.use(
   "/api/v1/admin/orders",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminOrderManagement,
 );
 app.use(
   "/api/v1/admin/products",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminProductManagement,
 );
 app.use(
   "/api/v1/admin/subscription-plans",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminSubscriptionPlanManagement,
 );
 app.use(
   "/api/v1/admin/reports",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminReportManagement,
 );
 app.use(
   "/api/v1/admin/delivery",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminDeliveryManagement,
 );
 app.use(
   "/api/v1/admin/supports",
   protect,
-  security.apiKeyAuth,
+  // security.apiKeyAuth,
   adminSupportManagement,
 );
 
