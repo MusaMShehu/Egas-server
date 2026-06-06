@@ -437,11 +437,11 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
   
   switch (paymentType) {
     case 'wallet':
-      redirectPath = 'payment/wallet-topup/verify';
+      redirectPath = 'payment/wallet-success';
       appRoute = 'wallet/callback';
       break;
     case 'subscription':
-      redirectPath = 'subscriptions/success';
+      redirectPath = 'subscriptions/payment-success';
       appRoute = 'subscriptions/callback';
       break;
     default:
