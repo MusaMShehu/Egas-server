@@ -468,178 +468,178 @@ exports.handlePaymentCallback = asyncHandler(async (req, res, next) => {
   console.log(`Payment callback: Type=${paymentType}, Reference=${actualReference}, Platform=${isMobile ? 'Mobile' : 'Web'}, Redirect=${redirectUrl}`);
   
   // HTML page with auto-redirect and enhanced UI
-  // const html = `
-  //   <!DOCTYPE html>
-  //   <html>
-  //   <head>
-  //     <title>Processing Payment...</title>
-  //     <meta charset="utf-8">
-  //     <meta http-equiv="refresh" content="2;url=${redirectUrl}">
-  //     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  //     <style>
-  //       * {
-  //         margin: 0;
-  //         padding: 0;
-  //         box-sizing: border-box;
-  //       }
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Processing Payment...</title>
+      <meta charset="utf-8">
+      <meta http-equiv="refresh" content="2;url=${redirectUrl}">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+      <style>
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
         
-  //       body {
-  //         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  //         display: flex;
-  //         justify-content: center;
-  //         align-items: center;
-  //         min-height: 100vh;
-  //         margin: 0;
-  //         background: white;
-  //         color: black;
-  //       }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          min-height: 100vh;
+          margin: 0;
+          background: white;
+          color: black;
+        }
         
-  //       .container {
-  //         text-align: center;
-  //         padding: 20px;
-  //         max-width: 400px;
-  //         width: 90%;
-  //       }
+        .container {
+          text-align: center;
+          padding: 20px;
+          max-width: 400px;
+          width: 90%;
+        }
         
-  //       .spinner {
-  //         border: 3px solid rgba(255,255,255,0.3);
-  //         border-radius: 50%;
-  //         border-top: 3px solid white;
-  //         width: 50px;
-  //         height: 50px;
-  //         animation: spin 1s linear infinite;
-  //         margin: 0 auto 20px;
-  //       }
+        .spinner {
+          border: 3px solid rgba(255,255,255,0.3);
+          border-radius: 50%;
+          border-top: 3px solid white;
+          width: 50px;
+          height: 50px;
+          animation: spin 1s linear infinite;
+          margin: 0 auto 20px;
+        }
         
-  //       @keyframes spin {
-  //         0% { transform: rotate(0deg); }
-  //         100% { transform: rotate(360deg); }
-  //       }
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
         
-  //       .icon {
-  //         font-size: 64px;
-  //         margin-bottom: 20px;
-  //       }
+        .icon {
+          font-size: 64px;
+          margin-bottom: 20px;
+        }
         
-  //       h2 {
-  //         font-size: 24px;
-  //         margin-bottom: 10px;
-  //         font-weight: 600;
-  //       }
+        h2 {
+          font-size: 24px;
+          margin-bottom: 10px;
+          font-weight: 600;
+        }
         
-  //       .payment-type {
-  //         background: rgba(255,255,255,0.2);
-  //         padding: 6px 16px;
-  //         border-radius: 20px;
-  //         display: inline-block;
-  //         font-size: 13px;
-  //         margin: 15px 0;
-  //         backdrop-filter: blur(10px);
-  //       }
+        .payment-type {
+          background: rgba(255,255,255,0.2);
+          padding: 6px 16px;
+          border-radius: 20px;
+          display: inline-block;
+          font-size: 13px;
+          margin: 15px 0;
+          backdrop-filter: blur(10px);
+        }
         
-  //       .message {
-  //         font-size: 14px;
-  //         opacity: 0.9;
-  //         margin-bottom: 20px;
-  //         line-height: 1.5;
-  //       }
+        .message {
+          font-size: 14px;
+          opacity: 0.9;
+          margin-bottom: 20px;
+          line-height: 1.5;
+        }
         
-  //       .reference {
-  //         background: rgba(0,0,0,0.2);
-  //         padding: 8px 12px;
-  //         border-radius: 8px;
-  //         font-size: 11px;
-  //         font-family: monospace;
-  //         margin-top: 15px;
-  //         word-break: break-all;
-  //       }
+        .reference {
+          background: rgba(0,0,0,0.2);
+          padding: 8px 12px;
+          border-radius: 8px;
+          font-size: 11px;
+          font-family: monospace;
+          margin-top: 15px;
+          word-break: break-all;
+        }
         
-  //       a {
-  //         color: white;
-  //         text-decoration: underline;
-  //         opacity: 0.8;
-  //       }
+        a {
+          color: white;
+          text-decoration: underline;
+          opacity: 0.8;
+        }
         
-  //       .button {
-  //         display: inline-block;
-  //         background: rgba(255,255,255,0.2);
-  //         padding: 12px 24px;
-  //         border-radius: 25px;
-  //         text-decoration: none;
-  //         color: white;
-  //         margin-top: 20px;
-  //         font-size: 14px;
-  //         font-weight: 500;
-  //         transition: all 0.3s ease;
-  //       }
+        .button {
+          display: inline-block;
+          background: rgba(255,255,255,0.2);
+          padding: 12px 24px;
+          border-radius: 25px;
+          text-decoration: none;
+          color: white;
+          margin-top: 20px;
+          font-size: 14px;
+          font-weight: 500;
+          transition: all 0.3s ease;
+        }
         
-  //       .button:hover {
-  //         background: rgba(255,255,255,0.3);
-  //         transform: translateY(-2px);
-  //       }
+        .button:hover {
+          background: rgba(255,255,255,0.3);
+          transform: translateY(-2px);
+        }
         
-  //       @media (max-width: 480px) {
-  //         h2 { font-size: 20px; }
-  //         .icon { font-size: 48px; }
-  //       }
-  //     </style>
-  //     <script>
-  //       let attempts = 0;
-  //       const maxAttempts = 3;
+        @media (max-width: 480px) {
+          h2 { font-size: 20px; }
+          .icon { font-size: 48px; }
+        }
+      </style>
+      <script>
+        let attempts = 0;
+        const maxAttempts = 3;
         
-  //       function redirect() {
-  //         window.location.href = "${redirectUrl}";
-  //       }
+        function redirect() {
+          window.location.href = "${redirectUrl}";
+        }
         
-  //       function checkRedirect() {
-  //         attempts++;
-  //         if (attempts >= maxAttempts) {
-  //           document.getElementById('manual-link').style.display = 'inline-block';
-  //           document.getElementById('retry-btn').style.display = 'inline-block';
-  //           document.getElementById('countdown').style.display = 'none';
-  //         }
-  //       }
+        function checkRedirect() {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            document.getElementById('manual-link').style.display = 'inline-block';
+            document.getElementById('retry-btn').style.display = 'inline-block';
+            document.getElementById('countdown').style.display = 'none';
+          }
+        }
         
-  //       // Attempt redirect after delay
-  //       setTimeout(function() {
-  //         redirect();
-  //       }, 2000);
+        // Attempt redirect after delay
+        setTimeout(function() {
+          redirect();
+        }, 2000);
         
-  //       // Check after longer delay
-  //       setTimeout(checkRedirect, 5000);
-  //     </script>
-  //   </head>
-  //   <body>
-  //     <div class="container">
-  //       <div class="spinner"></div>
-  //       <div class="icon">
-  //         ${paymentType === 'wallet' ? '💰' : '📦'}
-  //       </div>
-  //       <h2>Payment Processing Complete</h2>
-  //       <div class="payment-type">
-  //         ${paymentType === 'wallet' ? 'Wallet Top-up' : 'Subscription Payment'}
-  //       </div>
-  //       <p class="message">
-  //         ${paymentType === 'wallet' 
-  //           ? 'Your wallet is being topped up. Please wait...' 
-  //           : 'Your subscription is being activated. Please wait...'}
-  //       </p>
-  //       <div class="reference">
-  //         Ref: ${actualReference}
-  //       </div>
-  //       <p id="countdown" style="margin-top: 20px; font-size: 12px;">
-  //         Redirecting in a few seconds...
-  //       </p>
-  //       <div style="margin-top: 20px;">
-  //         <a href="${redirectUrl}" id="manual-link" class="button" style="display: none;">Click here if not redirected</a>
-  //         <a href="#" id="retry-btn" class="button" style="display: none; margin-left: 10px;" onclick="redirect(); return false;">Try Again</a>
-  //       </div>
-  //     </div>
-  //   </body>
-  //   </html>
-  // `;
+        // Check after longer delay
+        setTimeout(checkRedirect, 5000);
+      </script>
+    </head>
+    <body>
+      <div class="container">
+        <div class="spinner"></div>
+        <div class="icon">
+          ${paymentType === 'wallet' ? '💰' : '📦'}
+        </div>
+        <h2>Payment Processing Complete</h2>
+        <div class="payment-type">
+          ${paymentType === 'wallet' ? 'Wallet Top-up' : 'Subscription Payment'}
+        </div>
+        <p class="message">
+          ${paymentType === 'wallet' 
+            ? 'Your wallet is being topped up. Please wait...' 
+            : 'Your subscription is being activated. Please wait...'}
+        </p>
+        <div class="reference">
+          Ref: ${actualReference}
+        </div>
+        <p id="countdown" style="margin-top: 20px; font-size: 12px;">
+          Redirecting in a few seconds...
+        </p>
+        <div style="margin-top: 20px;">
+          <a href="${redirectUrl}" id="manual-link" class="button" style="display: none;">Click here if not redirected</a>
+          <a href="#" id="retry-btn" class="button" style="display: none; margin-left: 10px;" onclick="redirect(); return false;">Try Again</a>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
   
-  // res.send(html);
+  res.send(html);
 });
 
 
