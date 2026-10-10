@@ -267,32 +267,88 @@ const securityHeaders = (req, res, next) => {
 };
 
 // ==================== Export Middlewares ====================
+// module.exports = {
+//   // CORS
+//   cors: cors(corsOptions),
+//   corsOptions,
+  
+//   // Rate Limiters
+//   authLimiter,
+//   apiLimiter,
+//   smsLimiter,
+//   walletLimiter,
+//   adminLimiter,
+  
+//   // Security
+//   helmet: helmetConfig,
+//   securityHeaders,
+  
+//   // Sanitization
+
+ 
+//   // mongoSanitize: mongoSanitize({
+//   //   replaceWith: '_',
+//   //   onSanitize: ({ req, key }) => {
+//   //     console.warn(`⚠️ Potential NoSQL injection detected at ${req.path}`);
+//   //   },
+//   //   reqQuery: false
+//   // }),
+//   xss: xss(),
+//   hpp: hpp({
+//     whitelist: [
+//       'price',
+//       'rating',
+//       'createdAt',
+//       'limit',
+//       'page',
+//       'sort',
+//       'fields',
+//       'category',
+//       'status'
+//     ],
+//   }),
+//   sanitizeInput,
+  
+//   // Authentication
+//   apiKeyAuth,
+  
+//   // Utility
+//   requestSizeLimiter,
+  
+//   // Export the factory function for custom rate limiters
+//   createRateLimiter,
+// };
+
+
+
+
+// ==================== Export Middlewares ====================
 module.exports = {
   // CORS
   cors: cors(corsOptions),
   corsOptions,
-  
+
   // Rate Limiters
   authLimiter,
   apiLimiter,
   smsLimiter,
   walletLimiter,
   adminLimiter,
-  
+
   // Security
   helmet: helmetConfig,
   securityHeaders,
-  
-  // Sanitization
 
- 
-  // mongoSanitize: mongoSanitize({
-  //   replaceWith: '_',
-  //   onSanitize: ({ req, key }) => {
-  //     console.warn(`⚠️ Potential NoSQL injection detected at ${req.path}`);
-  //   },
-  //   reqQuery: false
-  // }),
+  // Sanitization
+  // ✅ FIXED: mongoSanitize enabled with safe config
+  mongoSanitize: mongoSanitize({
+    replaceWith: '_',
+    onSanitize: ({ req, key }) => {
+      console.warn(`⚠️ NoSQL injection attempt sanitized at ${req.path} [key: ${key}]`);
+    },
+    // Do not sanitize req.query — we allow operators like $gt, $in
+    // Middleware will only sanitize req.body and req.params
+  }),
   xss: xss(),
   hpp: hpp({
     whitelist: [
@@ -304,17 +360,20 @@ module.exports = {
       'sort',
       'fields',
       'category',
-      'status'
+      'status',
+      'role',
+      'city',
+      'state',
     ],
   }),
   sanitizeInput,
-  
+
   // Authentication
   apiKeyAuth,
-  
+
   // Utility
   requestSizeLimiter,
-  
-  // Export the factory function for custom rate limiters
+
+  // Factory
   createRateLimiter,
 };

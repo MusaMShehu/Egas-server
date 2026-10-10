@@ -13,6 +13,13 @@ const {
   auditLog,
   rateLimiter,
 } = require("../middleware/security");
+const {
+  customerDeliveryDTO,
+  customerDeliveryTimeline,
+  customerDeliveryListItemDTO,
+} = require('../middleware/dtoSanitizer');
+const RemnantLedgerService = require('../services/remnantLedgerService');
+const Cylinder = require('../models/Cylinder');
 
 
 
@@ -405,6 +412,25 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
     })
   ]);
 
+  // res.status(200).json({
+  //   success: true,
+  //   count: deliveries.length,
+  //   total,
+  //   counts: {
+  //     upcoming: upcomingCount,
+  //     delivered: deliveredCount,
+  //     overdue: overdueCount
+  //   },
+  //   pagination: {
+  //     page: parseInt(page),
+  //     limit: parseInt(limit),
+  //     pages: Math.ceil(total / parseInt(limit)),
+  //     total
+  //   },
+  //   data: deliveries,
+  // });
+  // Inside getMyDeliveries, replace the final res.status(200).json({...}) block with:
+
   res.status(200).json({
     success: true,
     count: deliveries.length,
@@ -412,15 +438,57 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
     counts: {
       upcoming: upcomingCount,
       delivered: deliveredCount,
-      overdue: overdueCount
+      overdue: overdueCount,
     },
     pagination: {
       page: parseInt(page),
       limit: parseInt(limit),
       pages: Math.ceil(total / parseInt(limit)),
-      total
+      total,
     },
-    data: deliveries,
+    data: deliveries.map(customerDeliveryListItemDTO),
+  });
+});
+
+// ================================================================
+// @desc    Get customer-facing delivery timeline (sanitized)
+// @route   GET /api/v1/deliveries/:id
+// @access  Private
+// ================================================================
+exports.getDeliveryDetail = asyncHandler(async (req, res, next) => {
+  const userId = req.user._id;
+
+  const delivery = await Delivery.findOne({
+    _id: req.params.id,
+    userId,
+  })
+    .populate('subscriptionId', 'planName size frequency status')
+    .populate('deliveryAgent', 'firstName lastName phone');
+
+  if (!delivery) {
+    return next(new ErrorResponse('Delivery not found', 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: {
+      ...customerDeliveryDTO(delivery),
+      timeline: customerDeliveryTimeline(delivery),
+      deliveryAgent: delivery.deliveryAgent
+        ? {
+            firstName: delivery.deliveryAgent.firstName,
+            lastName: delivery.deliveryAgent.lastName,
+            phone: delivery.deliveryAgent.phone,
+          }
+        : null,
+      subscription: delivery.subscriptionId
+        ? {
+            planName: delivery.subscriptionId.planName,
+            size: delivery.subscriptionId.size,
+            frequency: delivery.subscriptionId.frequency,
+          }
+        : null,
+    },
   });
 });
 

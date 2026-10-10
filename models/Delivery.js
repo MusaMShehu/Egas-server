@@ -198,6 +198,63 @@ const deliverySchema = new mongoose.Schema(
       default: false,
     },
 
+        // ==================== CYLINDER DOMAIN (NEW) ====================
+    cylinderId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Cylinder',
+      default: null,
+      index: true,
+    },
+    cylinderTag: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: null,
+    },
+    cylinderTareWeight: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    measuredWeight: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    calculatedRemnant: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+
+    // ==================== PLANT WORKFLOW (NEW) ====================
+    plantRefillRequestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'PlantRefillRequest',
+      default: null,
+      index: true,
+    },
+
+    plantWorkflowStatus: {
+      type: String,
+      enum: [
+        'not_started',                 // default — no plant workflow yet
+        'plant_selected',
+        'request_created',
+        'at_plant',
+        'inspection_pending',
+        'inspection_approved',
+        'inspection_rejected',
+        'refilling',
+        'plant_confirmed',
+        'cylinder_collected_from_plant',
+        'completed',
+        'escalated',
+      ],
+      default: 'not_started',
+      index: true,
+    },
+
     // New fields for requirements
     failureHistory: [{
       attemptedAt: Date,
@@ -278,6 +335,9 @@ deliverySchema.index({ "partialDelivery.isPartial": 1 });
 deliverySchema.index({ subscriptionId: 1, status: 1 });
 deliverySchema.index({ pausedAt: 1 });
 deliverySchema.index({ deliveryDate: 1, status: 1 });
+
+deliverySchema.index({ plantWorkflowStatus: 1 });
+deliverySchema.index({ cylinderId: 1 });
 
 // Virtual to check if delivery can be paused
 deliverySchema.virtual("canBePaused").get(function () {

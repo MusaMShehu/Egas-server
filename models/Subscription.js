@@ -1,10 +1,159 @@
 const mongoose = require("mongoose");
 
+// const subscriptionSchema = new mongoose.Schema(
+//   {
+//     userId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "User",
+//       required: true,
+//     },
+//     planName: {
+//       type: String,
+//       required: true,
+//     },
+//     planType: {
+//       type: String,
+//       enum: ["custom", "one-time", "emergency", "preset"],
+//       // required: true, // Commented out as per your schema
+//     },
+//     size: String,
+//     frequency: {
+//       type: String,
+//       required: true,
+//       enum: [
+//         "Daily",
+//         "Weekly",
+//         "Bi-weekly",
+//         "Monthly",
+//         "One-Time",
+//         "Emergency",
+//       ],
+//     },
+//     subscriptionPeriod: {
+//       type: Number,
+//       required: true,
+//       default: 1,
+//       min: 1,
+//       max: 12,
+//     },
+//     price: {
+//       type: Number,
+//       required: true,
+//     },
+//     reference: {
+//       type: String,
+//       required: true,
+//     },
+//     order: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Order",
+//     },
+//     status: {
+//       type: String,
+//       enum: ["active", "paused", "cancelled", "expired", "pending"],
+//       default: "pending",
+//     },
+
+//     paymentStatus: {
+//       type: String,
+//       enum: ["pending", "completed", "failed"],
+//       default: "pending",
+//     },
+//     isPaid: {
+//       type: Boolean,
+//       default: false,
+//     },
+//     paidAt: Date,
+//     paymentMethod: {
+//       type: String,
+//       enum: ["wallet", "paystack", "remnant"],
+//     },
+
+//     customPlanDetails: {
+//       size: String,
+//       frequency: String,
+//       subscriptionPeriod: Number,
+//     },
+//     deliveries: [
+//       {
+//         type: mongoose.Schema.Types.ObjectId,
+//         ref: "Delivery",
+//       },
+//     ],
+
+//     startDate: {
+//       type: Date,
+//       required: true,
+//     },
+//     endDate: {
+//       type: Date,
+//       required: true,
+//     },
+//     cancelledAt: { type: Date },
+//     expiredAt: {
+//       type: Date,
+//     },
+//     lastExpirationCheck: {
+//       type: Date,
+//     },
+
+//     pausedAt: {
+//       type: Date,
+//       default: null,
+//     },
+
+//     resumedAt: {
+//       type: Date,
+//       default: null,
+//     },
+
+//     remainingDuration: {
+//       type: Number,
+//       default: null,
+//     },
+
+//     remainingDays: {
+//       type: Number,
+//       default: null,
+//     },
+
+//     // In your Subscription model
+//     isRemnantSubscription: {
+//       type: Boolean,
+//       default: false,
+//     },
+//     remnantId: {
+//       type: mongoose.Schema.Types.ObjectId,
+//       ref: "Remnant",
+//       default: null,
+//     },
+
+//     // Fixed: Combined pauseHistory schema to avoid duplicate field
+//     pauseHistory: [
+//       {
+//         pausedAt: { type: Date, required: true },
+//         resumedAt: { type: Date },
+//         durationMs: { type: Number },
+//         reason: { type: String },
+//         deliveryUpdates: {
+//           pausedCount: { type: Number, default: 0 },
+//           resumedCount: { type: Number, default: 0 },
+//           extendedCount: { type: Number, default: 0 }
+//         }
+//       }
+//     ],
+//   },
+//   {
+//     timestamps: true,
+//   }
+// );
+
+
 const subscriptionSchema = new mongoose.Schema(
   {
     userId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "User",
+      ref: 'User',
       required: true,
     },
     planName: {
@@ -13,21 +162,13 @@ const subscriptionSchema = new mongoose.Schema(
     },
     planType: {
       type: String,
-      enum: ["custom", "one-time", "emergency", "preset"],
-      // required: true, // Commented out as per your schema
+      enum: ['custom', 'one-time', 'emergency', 'preset'],
     },
     size: String,
     frequency: {
       type: String,
       required: true,
-      enum: [
-        "Daily",
-        "Weekly",
-        "Bi-weekly",
-        "Monthly",
-        "One-Time",
-        "Emergency",
-      ],
+      enum: ['Daily', 'Weekly', 'Bi-weekly', 'Monthly', 'One-Time', 'Emergency'],
     },
     subscriptionPeriod: {
       type: Number,
@@ -46,18 +187,17 @@ const subscriptionSchema = new mongoose.Schema(
     },
     order: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Order",
+      ref: 'Order',
     },
     status: {
       type: String,
-      enum: ["active", "paused", "cancelled", "expired", "pending"],
-      default: "pending",
+      enum: ['active', 'paused', 'cancelled', 'expired', 'pending'],
+      default: 'pending',
     },
-
     paymentStatus: {
       type: String,
-      enum: ["pending", "completed", "failed"],
-      default: "pending",
+      enum: ['pending', 'completed', 'failed'],
+      default: 'pending',
     },
     isPaid: {
       type: Boolean,
@@ -66,9 +206,8 @@ const subscriptionSchema = new mongoose.Schema(
     paidAt: Date,
     paymentMethod: {
       type: String,
-      enum: ["wallet", "paystack", "remnant"],
+      enum: ['wallet', 'paystack', 'remnant'],
     },
-
     customPlanDetails: {
       size: String,
       frequency: String,
@@ -77,10 +216,9 @@ const subscriptionSchema = new mongoose.Schema(
     deliveries: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "Delivery",
+        ref: 'Delivery',
       },
     ],
-
     startDate: {
       type: Date,
       required: true,
@@ -89,46 +227,67 @@ const subscriptionSchema = new mongoose.Schema(
       type: Date,
       required: true,
     },
-    cancelledAt: { type: Date },
-    expiredAt: {
+
+    // ✅ FIXED: Added missing fields for notification/reminder logic
+    nextDeliveryDate: {
+      type: Date,
+      index: true,
+    },
+    originalStartDate: {
       type: Date,
     },
-    lastExpirationCheck: {
+    originalEndDate: {
       type: Date,
     },
 
+    cancelledAt: { type: Date },
+    expiredAt: { type: Date },
+    lastExpirationCheck: { type: Date },
     pausedAt: {
       type: Date,
       default: null,
     },
-
     resumedAt: {
       type: Date,
       default: null,
     },
-
     remainingDuration: {
       type: Number,
       default: null,
     },
-
     remainingDays: {
       type: Number,
       default: null,
     },
-
-    // In your Subscription model
     isRemnantSubscription: {
       type: Boolean,
       default: false,
     },
     remnantId: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Remnant",
+      ref: 'Remnant',
       default: null,
     },
 
-    // Fixed: Combined pauseHistory schema to avoid duplicate field
+        // NEW: Cylinder domain references
+    cylinderIds: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Cylinder',
+      },
+    ],
+
+    // NEW: Snapshot of remnant consumed at subscription creation
+    remnantConsumedAtCreation: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    remnantLedgerEntryAtCreation: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CylinderRemnantLedger',
+      default: null,
+    },
     pauseHistory: [
       {
         pausedAt: { type: Date, required: true },
@@ -138,9 +297,9 @@ const subscriptionSchema = new mongoose.Schema(
         deliveryUpdates: {
           pausedCount: { type: Number, default: 0 },
           resumedCount: { type: Number, default: 0 },
-          extendedCount: { type: Number, default: 0 }
-        }
-      }
+          extendedCount: { type: Number, default: 0 },
+        },
+      },
     ],
   },
   {
@@ -153,6 +312,8 @@ subscriptionSchema.index({ userId: 1 });
 subscriptionSchema.index({ status: 1 });
 subscriptionSchema.index({ endDate: 1 });
 subscriptionSchema.index({ subscriptionPeriod: 1 });
+subscriptionSchema.index({ nextDeliveryDate: 1, status: 1 });
+subscriptionSchema.index({ cylinderIds: 1 });
 
 // Enhanced virtual for checking if subscription is active
 subscriptionSchema.virtual("isActive").get(function () {

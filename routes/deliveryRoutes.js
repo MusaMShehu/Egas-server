@@ -3,6 +3,7 @@ const express = require("express");
 const {
   confirmDelivery,
   getMyDeliveries,
+  getDeliveryDetail,
   confirmRemnantEntry,
   requestRemnantDelivery,
   getMyRemnant,
@@ -24,6 +25,7 @@ router.post("/:id/sync-subscription", protect, syncDeliveryWithSubscription);
 router.get("/my-deliveries", protect, getMyDeliveries);
 router.put("/:id/confirm", protect, confirmDelivery);
 router.get('/next-delivery', protect, getNextDelivery);
+router.get('/:id', protect, getDeliveryDetail);
 
 
 // New remnant routes

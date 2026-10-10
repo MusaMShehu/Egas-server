@@ -1,5 +1,12 @@
+// const mongoose = require('mongoose');
+// const { Wallet, Transaction } = require('../models/Wallet');
+// const { redisClient } = require('../config/redis');
+// const ErrorResponse = require('../utils/errorResponse');
+
 const mongoose = require('mongoose');
-const { Wallet, Transaction } = require('../models/Wallet');
+const crypto = require('crypto'); // ✅ FIXED: Added missing import
+const Wallet = require('../models/Wallet'); // ✅ FIXED: Wallet is default export
+const Transaction = require('../models/Transaction'); // ✅ FIXED: Separate import
 const { redisClient } = require('../config/redis');
 const ErrorResponse = require('../utils/errorResponse');
 
@@ -298,14 +305,37 @@ class WalletService {
     return `${prefix}-${timestamp}-${random}`;
   }
 
+  // async getTodaySpent(userId, session = null) {
+  //   const startOfDay = new Date();
+  //   startOfDay.setHours(0, 0, 0, 0);
+
+  //   const result = await Transaction.aggregate([
+  //     {
+  //       $match: {
+  //         userId: mongoose.Types.ObjectId(userId),
+  //         type: 'debit',
+  //         status: 'completed',
+  //         createdAt: { $gte: startOfDay },
+  //       },
+  //     },
+  //     {
+  //       $group: {
+  //         _id: null,
+  //         total: { $sum: '$amount' },
+  //       },
+  //     },
+  //   ]).session(session);
+
+  //   return result.length > 0 ? result[0].total : 0;
+  // }
   async getTodaySpent(userId, session = null) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
 
-    const result = await Transaction.aggregate([
+    const pipeline = [
       {
         $match: {
-          userId: mongoose.Types.ObjectId(userId),
+          userId: new mongoose.Types.ObjectId(userId),
           type: 'debit',
           status: 'completed',
           createdAt: { $gte: startOfDay },
@@ -317,7 +347,12 @@ class WalletService {
           total: { $sum: '$amount' },
         },
       },
-    ]).session(session);
+    ];
+
+    const query = Transaction.aggregate(pipeline);
+    if (session) query.session(session);
+
+    const result = await query;
 
     return result.length > 0 ? result[0].total : 0;
   }
