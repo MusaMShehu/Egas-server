@@ -11,6 +11,7 @@ const morgan = require("morgan");
 // Config imports
 const database = require("./config/db");
 const { redisClient, createCacheMiddleware } = require("./config/redis");
+const { queue, connection } = require("./services/notifications/notificationQueue");
 
 // Middleware imports
 const security = require("./middleware/security");
@@ -412,11 +413,19 @@ const startServer = async () => {
   }
 };
 
+require("./services/notifications/notificationWorker");
+
 startServer();
 
 // // Graceful shutdown
 // const gracefulShutdown = async () => {
 //   console.log('Received shutdown signal, closing connections...');
+
+// Optional: clean up on shutdown
+// const { queue, connection } = require("./services/notificationQueue");
+// process.on("SIGTERM", async () => {
+//   try { await queue.close(); await connection.quit(); } catch {}
+// });
 
 //   httpServer.close(async () => {
 //     console.log('HTTP server closed');

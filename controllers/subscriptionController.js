@@ -9,10 +9,13 @@ const ErrorResponse = require("../utils/errorResponse");
 const asyncHandler = require("../middleware/async");
 const paystack = require("../utils/paystack");
 const crypto = require("crypto");
-const { generateDeliverySchedules } = require("../utils/deliveryHelper");
-const NotificationService = require("../services/notificationService");
-const emailService = require("../services/emailService");
+const {
+  generateDeliverySchedules,
+  pauseDeliveries,
+  resumeDeliveries,
+} = require("../utils/deliveryHelper");
 const Transaction = require("../models/Transaction");
+const dispatcher = require("../services/notifications/notificationDispatcher"); // NEW
 
 // ✅ SIMPLIFIED: Middleware to check and update expired subscriptions
 const checkExpiredSubscriptions = asyncHandler(async (req, res, next) => {
@@ -52,7 +55,7 @@ const checkExpiredSubscriptions = asyncHandler(async (req, res, next) => {
       } catch (error) {
         console.error(
           `❌ Failed to expire subscription ${subscription._id}:`,
-          error
+          error,
         );
         errorCount++;
 
@@ -63,7 +66,7 @@ const checkExpiredSubscriptions = asyncHandler(async (req, res, next) => {
         } catch (saveError) {
           console.error(
             `❌ Failed to update lastExpirationCheck for ${subscription._id}:`,
-            saveError
+            saveError,
           );
         }
       }
@@ -71,7 +74,7 @@ const checkExpiredSubscriptions = asyncHandler(async (req, res, next) => {
 
     if (expiredCount > 0) {
       console.log(
-        `✅ Marked ${expiredCount} subscriptions as expired (deliveries preserved)`
+        `✅ Marked ${expiredCount} subscriptions as expired (deliveries preserved)`,
       );
     }
   } catch (error) {
@@ -117,7 +120,7 @@ exports.getSubscription = asyncHandler(async (req, res, next) => {
 
   if (!subscription) {
     return next(
-      new ErrorResponse(`No subscription with the id of ${req.params.id}`, 404)
+      new ErrorResponse(`No subscription with the id of ${req.params.id}`, 404),
     );
   }
 
@@ -129,8 +132,8 @@ exports.getSubscription = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         `User ${req.user.id} is not authorized to access this subscription`,
-        401
-      )
+        401,
+      ),
     );
   }
 
@@ -165,7 +168,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
   // Validate required fields
   if (!planId || !size || !frequency) {
     return next(
-      new ErrorResponse("Plan, size, and frequency are required", 400)
+      new ErrorResponse("Plan, size, and frequency are required", 400),
     );
   }
 
@@ -174,8 +177,8 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         "Payment method is required and must be either 'wallet' or 'paystack'",
-        400
-      )
+        400,
+      ),
     );
   }
 
@@ -200,8 +203,8 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         "You already have an active subscription for this plan",
-        400
-      )
+        400,
+      ),
     );
   }
 
@@ -213,7 +216,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
         plan,
         customPlan.size,
         customPlan.frequency,
-        customPlan.subscriptionPeriod
+        customPlan.subscriptionPeriod,
       );
     } else if (plan.type === "one-time") {
       price = calculatePrice(plan, size, "One-Time", 1);
@@ -224,7 +227,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     }
   } catch (error) {
     return next(
-      new ErrorResponse("Error calculating price: " + error.message, 400)
+      new ErrorResponse("Error calculating price: " + error.message, 400),
     );
   }
 
@@ -234,7 +237,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
   const calculateEndDate = (
     frequency,
     subscriptionPeriod = 1,
-    planType = "standard"
+    planType = "standard",
   ) => {
     const endDate = new Date(startDate);
     const periodMonths = subscriptionPeriod || 1;
@@ -276,7 +279,7 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
   const endDate = calculateEndDate(
     frequencyForEndDate,
     subscriptionPeriod,
-    plan.type
+    plan.type,
   );
 
   // Build subscription data
@@ -317,7 +320,8 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
           type: "subscription",
         },
         // callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
-        callback_url: "https://egas-server-1.onrender.com/api/v1/payments/callback",
+        callback_url:
+          "https://egas-server-1.onrender.com/api/v1/payments/callback",
         webhook_url: `${process.env.BASE_URL}/api/v1/subscriptions/webhook`,
       });
 
@@ -342,338 +346,346 @@ exports.createSubscription = asyncHandler(async (req, res, next) => {
     } catch (error) {
       console.error(
         "Paystack Subscription Error:",
-        error.response?.data || error.message
+        error.response?.data || error.message,
       );
       return next(
         new ErrorResponse(
           "Payment initialization failed: " +
             (error.response?.data?.message || error.message),
-          500
-        )
+          500,
+        ),
       );
     }
   }
 
   // ✅ FIXED: Handle Wallet payment with proper validation
-//   if (paymentMethod === "wallet") {
-//     const session = await mongoose.startSession();
-//     session.startTransaction();
+  //   if (paymentMethod === "wallet") {
+  //     const session = await mongoose.startSession();
+  //     session.startTransaction();
 
-//     try {
-//       // 1️⃣ Get user with wallet balance
-//       const user = await User.findById(userId).session(session);
-//       if (!user) {
-//         await session.abortTransaction();
-//         session.endSession();
-//         return next(new ErrorResponse("User not found", 404));
-//       }
+  //     try {
+  //       // 1️⃣ Get user with wallet balance
+  //       const user = await User.findById(userId).session(session);
+  //       if (!user) {
+  //         await session.abortTransaction();
+  //         session.endSession();
+  //         return next(new ErrorResponse("User not found", 404));
+  //       }
 
-//       // 2️⃣ Validate wallet balance
-//       if (user.walletBalance < price) {
-//         await session.abortTransaction();
-//         session.endSession();
-//         return next(
-//           new ErrorResponse(
-//             `Insufficient wallet balance. Your balance: ₦${user.walletBalance}, Required: ₦${price}`,
-//             400
-//           )
-//         );
-//       }
+  //       // 2️⃣ Validate wallet balance
+  //       if (user.walletBalance < price) {
+  //         await session.abortTransaction();
+  //         session.endSession();
+  //         return next(
+  //           new ErrorResponse(
+  //             `Insufficient wallet balance. Your balance: ₦${user.walletBalance}, Required: ₦${price}`,
+  //             400
+  //           )
+  //         );
+  //       }
 
-//       // 3️⃣ Deduct from user wallet balance
-//       user.walletBalance -= price;
-//       await user.save({ session });
+  //       // 3️⃣ Deduct from user wallet balance
+  //       user.walletBalance -= price;
+  //       await user.save({ session });
 
-//       // 4️⃣ Update or create Wallet document with transaction
-//       const wallet = await Wallet.findOneAndUpdate(
-//         { userId },
-//         {
-//           $inc: { balance: -price },
-//           $push: {
-//             transactions: {
-//               amount: price,
-//               type: "Debit",
-//               description: `Subscription payment for ${plan.name} - ${frequency}`,
-//               date: new Date(),
-//             },
-//           },
-//         },
-//         { upsert: true, new: true, session, setDefaultsOnInsert: true }
-//       );
+  //       // 4️⃣ Update or create Wallet document with transaction
+  //       const wallet = await Wallet.findOneAndUpdate(
+  //         { userId },
+  //         {
+  //           $inc: { balance: -price },
+  //           $push: {
+  //             transactions: {
+  //               amount: price,
+  //               type: "Debit",
+  //               description: `Subscription payment for ${plan.name} - ${frequency}`,
+  //               date: new Date(),
+  //             },
+  //           },
+  //         },
+  //         { upsert: true, new: true, session, setDefaultsOnInsert: true }
+  //       );
 
-//       // 5️⃣ Generate subscription reference
-//       const generateReference = () => {
-//         return "SUB-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
-//       };
-//       const reference = generateReference();
+  //       // 5️⃣ Generate subscription reference
+  //       const generateReference = () => {
+  //         return "SUB-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
+  //       };
+  //       const reference = generateReference();
 
-//       // 6️⃣ Prepare subscription data
-//       subscriptionData.status = "active";
-//       subscriptionData.paymentStatus = "completed";
-//       subscriptionData.isPaid = true;
-//       subscriptionData.paidAt = new Date();
-//       subscriptionData.paymentMethod = "wallet";
-//       subscriptionData.reference = reference;
-//       subscriptionData.paymentResult = {
-//         status: "completed",
-//         gateway: "wallet",
-//         paidAt: new Date(),
-//         walletTransactionId:
-//           wallet.transactions[wallet.transactions.length - 1]._id,
-//       };
+  //       // 6️⃣ Prepare subscription data
+  //       subscriptionData.status = "active";
+  //       subscriptionData.paymentStatus = "completed";
+  //       subscriptionData.isPaid = true;
+  //       subscriptionData.paidAt = new Date();
+  //       subscriptionData.paymentMethod = "wallet";
+  //       subscriptionData.reference = reference;
+  //       subscriptionData.paymentResult = {
+  //         status: "completed",
+  //         gateway: "wallet",
+  //         paidAt: new Date(),
+  //         walletTransactionId:
+  //           wallet.transactions[wallet.transactions.length - 1]._id,
+  //       };
 
-//       // 7️⃣ Create subscription
-//       const [subscription] = await Subscription.create([subscriptionData], {
-//         session,
-//       });
+  //       // 7️⃣ Create subscription
+  //       const [subscription] = await Subscription.create([subscriptionData], {
+  //         session,
+  //       });
 
-//       // 8️⃣ Generate delivery schedules
-//       try {
-//         const deliveryResult = await generateDeliverySchedules(subscription, {
-//           logProgress: true,
-//           overrideExisting: false,
-//         });
-//         console.log(
-//           `✅ ${deliveryResult.count} delivery schedules generated for wallet subscription:`,
-//           subscription._id
-//         );
-//       } catch (scheduleError) {
-//         console.error(
-//           "❌ Delivery schedule generation failed for wallet payment:",
-//           scheduleError
-//         );
-//       }
+  //       // 8️⃣ Generate delivery schedules
+  //       try {
+  //         const deliveryResult = await generateDeliverySchedules(subscription, {
+  //           logProgress: true,
+  //           overrideExisting: false,
+  //         });
+  //         console.log(
+  //           `✅ ${deliveryResult.count} delivery schedules generated for wallet subscription:`,
+  //           subscription._id
+  //         );
+  //       } catch (scheduleError) {
+  //         console.error(
+  //           "❌ Delivery schedule generation failed for wallet payment:",
+  //           scheduleError
+  //         );
+  //       }
 
-//       // ✅ Send subscription created email for wallet payment
-//       setTimeout(async () => {
-//         try {
-//           await emailService.sendSubscriptionCreatedEmail(subscription, user);
-//         } catch (emailError) {
-//           console.error(
-//             "Failed to send subscription created email:",
-//             emailError
-//           );
-//         }
-//       }, 0);
+  //       // ✅ Send subscription created email for wallet payment
+  //       setTimeout(async () => {
+  //         try {
+  //           await emailService.sendSubscriptionCreatedEmail(subscription, user);
+  //         } catch (emailError) {
+  //           console.error(
+  //             "Failed to send subscription created email:",
+  //             emailError
+  //           );
+  //         }
+  //       }, 0);
 
-//       // 9️⃣ Commit transaction
-//       await session.commitTransaction();
-//       session.endSession();
+  //       // 9️⃣ Commit transaction
+  //       await session.commitTransaction();
+  //       session.endSession();
 
-//       // ✅ SMS NOTIFICATION: Send subscription created notification
-//       try {
-//         const user = await User.findById(userId);
-//         // if (user && user.phone && user.phoneVerified) {
-//         await NotificationService.sendSubscriptionCreated(subscription, user);
-//         // }
-//       } catch (smsError) {
-//         console.error("Subscription creation SMS failed:", smsError);
-//       }
+  //       // ✅ SMS NOTIFICATION: Send subscription created notification
+  //       try {
+  //         const user = await User.findById(userId);
+  //         // if (user && user.phone && user.phoneVerified) {
+  //         await NotificationService.sendSubscriptionCreated(subscription, user);
+  //         // }
+  //       } catch (smsError) {
+  //         console.error("Subscription creation SMS failed:", smsError);
+  //       }
 
-//       return res.status(200).json({
-//         success: true,
-//         data: subscription,
-//         message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
-//         walletBalance: user.walletBalance,
-//       });
-//     } catch (error) {
-//       await session.abortTransaction();
-//       session.endSession();
-//       console.error("Wallet Payment Error for Subscription:", error);
-//       return next(
-//         new ErrorResponse(
-//           "Wallet payment failed for subscription: " + error.message,
-//           500
-//         )
-//       );
-//     }
-//   }
-// });
+  //       return res.status(200).json({
+  //         success: true,
+  //         data: subscription,
+  //         message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
+  //         walletBalance: user.walletBalance,
+  //       });
+  //     } catch (error) {
+  //       await session.abortTransaction();
+  //       session.endSession();
+  //       console.error("Wallet Payment Error for Subscription:", error);
+  //       return next(
+  //         new ErrorResponse(
+  //           "Wallet payment failed for subscription: " + error.message,
+  //           500
+  //         )
+  //       );
+  //     }
+  //   }
+  // });
 
-if (paymentMethod === "wallet") {
-  const session = await mongoose.startSession();
-  session.startTransaction();
+  if (paymentMethod === "wallet") {
+    const session = await mongoose.startSession();
+    session.startTransaction();
 
-  try {
-    // 1️⃣ Get user
-    const user = await User.findById(userId).session(session);
-    if (!user) {
-      await session.abortTransaction();
-      session.endSession();
-      return next(new ErrorResponse("User not found", 404));
-    }
-
-    // 2️⃣ Get wallet and check balance (FIXED: from Wallet model, not user)
-    let wallet = await Wallet.findOne({ userId }).session(session);
-    
-    if (!wallet) {
-      await session.abortTransaction();
-      session.endSession();
-      return next(
-        new ErrorResponse(
-          "Wallet not found. Please activate your wallet first.",
-          404
-        )
-      );
-    }
-
-    // Check wallet balance (FIXED: use wallet.balance instead of user.walletBalance)
-    if (wallet.balance < price) {
-      await session.abortTransaction();
-      session.endSession();
-      return next(
-        new ErrorResponse(
-          `Insufficient wallet balance. Your balance: ₦${wallet.balance}, Required: ₦${price}`,
-          400
-        )
-      );
-    }
-
-    // Get balance before deduction
-    const balanceBefore = wallet.balance;
-
-    // 3️⃣ Deduct from wallet balance (FIXED: update Wallet model, not User)
-    wallet.balance -= price;
-    wallet.lastTransaction = new Date();
-    
-    // Initialize transactions array if it doesn't exist
-    if (!wallet.transactions) {
-      wallet.transactions = [];
-    }
-    
-    // Add transaction record
-    wallet.transactions.push({
-      amount: price,
-      type: "Debit",
-      description: `Subscription payment for ${plan?.name || subscriptionData.planName} - ${frequency}`,
-      date: new Date(),
-    });
-    
-    await wallet.save({ session });
-
-    // 4️⃣ Create transaction record in Transaction model
-    const generateReference = () => {
-      return "SUB-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
-    };
-    const reference = generateReference();
-
-    const transaction = await Transaction.create([{
-      walletId: wallet._id,
-      userId: userId,
-      email: user.email,
-      type: "debit",
-      amount: price,
-      balanceBefore: balanceBefore,
-      balanceAfter: wallet.balance,
-      reference: reference,
-      description: `Subscription payment for ${plan?.name || subscriptionData.planName} - ${frequency}`,
-      status: "completed",
-      currency: "NGN",
-      metadata: {
-        subscriptionType: "subscription",
-        planName: plan?.name || subscriptionData.planName,
-        frequency: frequency,
-        paymentMethod: "wallet",
-      },
-      completedAt: new Date(),
-    }], { session });
-
-    // 5️⃣ Prepare subscription data
-    subscriptionData.status = "active";
-    subscriptionData.paymentStatus = "completed";
-    subscriptionData.isPaid = true;
-    subscriptionData.paidAt = new Date();
-    subscriptionData.paymentMethod = "wallet";
-    subscriptionData.reference = reference;
-    subscriptionData.paymentReference = reference;
-    subscriptionData.transactionId = transaction[0]._id;
-    subscriptionData.paymentResult = {
-      status: "completed",
-      gateway: "wallet",
-      paidAt: new Date(),
-      walletTransactionId: wallet.transactions[wallet.transactions.length - 1]._id,
-      transactionReference: reference,
-    };
-
-    // 6️⃣ Create subscription
-    const [subscription] = await Subscription.create([subscriptionData], {
-      session,
-    });
-
-    // 7️⃣ Update user's subscription reference (FIXED: don't set walletBalance)
-    user.subscription = subscription._id;
-    // user.walletBalance = wallet.balance; // REMOVE THIS - doesn't exist in schema
-    await user.save({ session });
-
-    // 8️⃣ Generate delivery schedules
     try {
-      const deliveryResult = await generateDeliverySchedules(subscription, {
-        logProgress: true,
-        overrideExisting: false,
+      // 1️⃣ Get user
+      const user = await User.findById(userId).session(session);
+      if (!user) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(new ErrorResponse("User not found", 404));
+      }
+
+      // 2️⃣ Get wallet and check balance (FIXED: from Wallet model, not user)
+      let wallet = await Wallet.findOne({ userId }).session(session);
+
+      if (!wallet) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(
+          new ErrorResponse(
+            "Wallet not found. Please activate your wallet first.",
+            404,
+          ),
+        );
+      }
+
+      // Check wallet balance (FIXED: use wallet.balance instead of user.walletBalance)
+      if (wallet.balance < price) {
+        await session.abortTransaction();
+        session.endSession();
+        return next(
+          new ErrorResponse(
+            `Insufficient wallet balance. Your balance: ₦${wallet.balance}, Required: ₦${price}`,
+            400,
+          ),
+        );
+      }
+
+      // Get balance before deduction
+      const balanceBefore = wallet.balance;
+
+      // 3️⃣ Deduct from wallet balance (FIXED: update Wallet model, not User)
+      wallet.balance -= price;
+      wallet.lastTransaction = new Date();
+
+      // Initialize transactions array if it doesn't exist
+      if (!wallet.transactions) {
+        wallet.transactions = [];
+      }
+
+      // Add transaction record
+      wallet.transactions.push({
+        amount: price,
+        type: "Debit",
+        description: `Subscription payment for ${plan?.name || subscriptionData.planName} - ${frequency}`,
+        date: new Date(),
       });
-      console.log(
-        `✅ ${deliveryResult.count} delivery schedules generated for wallet subscription:`,
-        subscription._id
-      );
-    } catch (scheduleError) {
-      console.error(
-        "❌ Delivery schedule generation failed for wallet payment:",
-        scheduleError
-      );
-      // Don't fail the transaction if schedule generation fails
-    }
 
-    // 9️⃣ Commit transaction
-    await session.commitTransaction();
-    session.endSession();
+      await wallet.save({ session });
 
-    // ✅ Send email notification
-    setTimeout(async () => {
+      // 4️⃣ Create transaction record in Transaction model
+      const generateReference = () => {
+        return "SUB-" + Date.now() + "-" + Math.floor(Math.random() * 100000);
+      };
+      const reference = generateReference();
+
+      const transaction = await Transaction.create(
+        [
+          {
+            walletId: wallet._id,
+            userId: userId,
+            email: user.email,
+            type: "debit",
+            amount: price,
+            balanceBefore: balanceBefore,
+            balanceAfter: wallet.balance,
+            reference: reference,
+            description: `Subscription payment for ${plan?.name || subscriptionData.planName} - ${frequency}`,
+            status: "completed",
+            currency: "NGN",
+            metadata: {
+              subscriptionType: "subscription",
+              planName: plan?.name || subscriptionData.planName,
+              frequency: frequency,
+              paymentMethod: "wallet",
+            },
+            completedAt: new Date(),
+          },
+        ],
+        { session },
+      );
+
+      // 5️⃣ Prepare subscription data
+      subscriptionData.status = "active";
+      subscriptionData.paymentStatus = "completed";
+      subscriptionData.isPaid = true;
+      subscriptionData.paidAt = new Date();
+      subscriptionData.paymentMethod = "wallet";
+      subscriptionData.reference = reference;
+      subscriptionData.paymentReference = reference;
+      subscriptionData.transactionId = transaction[0]._id;
+      subscriptionData.paymentResult = {
+        status: "completed",
+        gateway: "wallet",
+        paidAt: new Date(),
+        walletTransactionId:
+          wallet.transactions[wallet.transactions.length - 1]._id,
+        transactionReference: reference,
+      };
+
+      // 6️⃣ Create subscription
+      const [subscription] = await Subscription.create([subscriptionData], {
+        session,
+      });
+
+      // 7️⃣ Update user's subscription reference (FIXED: don't set walletBalance)
+      user.subscription = subscription._id;
+      // user.walletBalance = wallet.balance; // REMOVE THIS - doesn't exist in schema
+      await user.save({ session });
+
+      // 8️⃣ Generate delivery schedules
       try {
-        await emailService.sendSubscriptionCreatedEmail(subscription, user);
-      } catch (emailError) {
-        console.error("Failed to send subscription created email:", emailError);
+        const deliveryResult = await generateDeliverySchedules(subscription, {
+          logProgress: true,
+          overrideExisting: false,
+        });
+        console.log(
+          `✅ ${deliveryResult.count} delivery schedules generated for wallet subscription:`,
+          subscription._id,
+        );
+      } catch (scheduleError) {
+        console.error(
+          "❌ Delivery schedule generation failed for wallet payment:",
+          scheduleError,
+        );
+        // Don't fail the transaction if schedule generation fails
       }
-    }, 0);
 
-    // ✅ Send SMS notification
-    try {
-      await NotificationService.sendSubscriptionCreated(subscription, user);
-    } catch (smsError) {
-      console.error("Subscription creation SMS failed:", smsError);
+      // 9️⃣ Commit transaction
+      await session.commitTransaction();
+      session.endSession();
+
+      // // ✅ Send email notification
+      // setTimeout(async () => {
+      //   try {
+      //     await emailService.sendSubscriptionCreatedEmail(subscription, user);
+      //   } catch (emailError) {
+      //     console.error("Failed to send subscription created email:", emailError);
+      //   }
+      // }, 0);
+
+      // // ✅ Send SMS notification
+      // try {
+      //   await NotificationService.sendSubscriptionCreated(subscription, user);
+      // } catch (smsError) {
+      //   console.error("Subscription creation SMS failed:", smsError);
+      // }
+
+      // FIX: dispatcher, fire-and-forget
+      dispatcher.subscriptionCreated(subscription, user);
+
+      return res.status(200).json({
+        success: true,
+        data: subscription,
+        message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
+        walletBalance: wallet.balance,
+        transaction: transaction[0],
+        redirect: {
+          to: "/wallet/callback",
+          params: {
+            type: "subscription",
+            reference: reference,
+            amount: price,
+            subscriptionId: subscription._id,
+            planName: plan?.name || subscriptionData.planName,
+            status: "success",
+          },
+        },
+      });
+    } catch (error) {
+      await session.abortTransaction();
+      session.endSession();
+      console.error("Wallet Payment Error for Subscription:", error);
+      return next(
+        new ErrorResponse(
+          "Wallet payment failed for subscription: " + error.message,
+          500,
+        ),
+      );
     }
-
-    return res.status(200).json({
-      success: true,
-      data: subscription,
-      message: `Subscription created and paid successfully with wallet. ₦${price} deducted from your wallet.`,
-      walletBalance: wallet.balance,
-      transaction: transaction[0],
-      redirect: {
-        to: "/wallet/callback",
-        params: {
-          type: "subscription",
-          reference: reference,
-          amount: price,
-          subscriptionId: subscription._id,
-          planName: plan?.name || subscriptionData.planName,
-          status: "success"
-        }
-      }
-    });
-    
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-    console.error("Wallet Payment Error for Subscription:", error);
-    return next(
-      new ErrorResponse(
-        "Wallet payment failed for subscription: " + error.message,
-        500
-      )
-    );
   }
-}
 });
 // CHANGED: Fixed Bi-weekly frequency multiplier
 // const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
@@ -714,13 +726,13 @@ if (paymentMethod === "wallet") {
 //   return Math.round(totalAmount);
 // };
 
-
 // CHANGED: Updated with correct delivery counts
 const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
   if (!plan) return 0;
 
   // Extract numeric size value
-  const sizeKg = parseInt(String(size).replace("kg", ""), 10) || parseInt(size, 10);
+  const sizeKg =
+    parseInt(String(size).replace("kg", ""), 10) || parseInt(size, 10);
 
   // Calculate base price
   let baseAmount = sizeKg * (plan.pricePerKg || 0);
@@ -731,9 +743,9 @@ const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
   // Bi-weekly: 2 deliveries per month + 1 initial delivery = 3 for first month
   // Monthly: 1 delivery per month + 1 initial delivery = 2 for first month
   // One-Time/Emergency: 1 delivery total
-  
+
   let deliveriesPerMonth = 0;
-  
+
   switch (frequency) {
     case "Daily":
       deliveriesPerMonth = 30;
@@ -758,7 +770,7 @@ const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
   // For first month: add 1 extra delivery
   // For subsequent months: use regular delivery count
   let totalDeliveries = 0;
-  
+
   if (frequency === "One-Time" || frequency === "Emergency") {
     totalDeliveries = 1; // Only one delivery for one-time/emergency
   } else {
@@ -768,7 +780,8 @@ const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
     } else {
       // First month: deliveries per month + 1 extra
       // Subsequent months: deliveries per month each
-      totalDeliveries = (deliveriesPerMonth + 1) + (deliveriesPerMonth * (subscriptionPeriod - 1));
+      totalDeliveries =
+        deliveriesPerMonth + 1 + deliveriesPerMonth * (subscriptionPeriod - 1);
     }
   }
 
@@ -799,14 +812,13 @@ const calculatePrice = (plan, size, frequency, subscriptionPeriod = 1) => {
 //   return calculatePrice(plan, size, "One-Time", 1);
 // };
 
-
 const getCustomPlanPrice = (plan, customPlanData) => {
   if (!plan) return 0;
   return calculatePrice(
     plan,
     customPlanData.size,
     customPlanData.frequency,
-    customPlanData.subscriptionPeriod
+    customPlanData.subscriptionPeriod,
   );
 };
 
@@ -834,7 +846,7 @@ exports.verifySubscriptionPayment = asyncHandler(async (req, res, next) => {
   } catch (error) {
     console.error(
       "Paystack Verification Error:",
-      error.response?.data || error.message
+      error.response?.data || error.message,
     );
     return next(new ErrorResponse("Payment verification failed", 500));
   }
@@ -856,18 +868,8 @@ exports.verifySubscriptionPayment = asyncHandler(async (req, res, next) => {
 
   if (!subscription) {
     return next(
-      new ErrorResponse("Subscription not found after verification", 404)
+      new ErrorResponse("Subscription not found after verification", 404),
     );
-  }
-
-  // ✅ SMS NOTIFICATION: Send subscription confirmation
-  try {
-    const user = await User.findById(subscription.userId);
-    // if (user && user.phone && user.phoneVerified) {
-    await NotificationService.sendSubscriptionCreated(subscription, user);
-    // }
-  } catch (smsError) {
-    console.error("Subscription confirmation SMS failed:", smsError);
   }
 
   // ✅ Always respond with JSON to avoid CORS redirect issues
@@ -911,7 +913,7 @@ exports.handleWebhook = asyncHandler(async (req, res, next) => {
     "Webhook received:",
     event.event,
     "Reference:",
-    event.data?.reference
+    event.data?.reference,
   );
 
   // Immediately respond to Paystack to prevent timeout
@@ -1000,7 +1002,7 @@ const processSuccessfulPayment = async (data) => {
   if (!subscription) {
     console.error(
       "Subscription not found for ID or reference:",
-      subscriptionId || reference
+      subscriptionId || reference,
     );
     return;
   }
@@ -1012,15 +1014,9 @@ const processSuccessfulPayment = async (data) => {
 
   console.log("Subscription activated successfully:", subscription._id);
 
-  // ✅ SMS NOTIFICATION: Send subscription confirmation via webhook
-  try {
-    const user = await User.findById(subscription.userId);
-    // if (user && user.phone && user.phoneVerified) {
-    await NotificationService.sendSubscriptionCreated(subscription, user);
-    // }
-  } catch (smsError) {
-    console.error("Webhook subscription confirmation SMS failed:", smsError);
-  }
+  // FIX: dispatcher
+  const user = await User.findById(subscription.userId);
+  dispatcher.subscriptionCreated(subscription, user);
 
   // ✅ CHANGED: Use delivery helper instead of inline function
   try {
@@ -1031,7 +1027,7 @@ const processSuccessfulPayment = async (data) => {
 
     console.log(
       `✅ ${deliveryResult.count} delivery schedules generated for subscription:`,
-      subscription._id
+      subscription._id,
     );
   } catch (scheduleError) {
     console.error("❌ Delivery schedule generation failed:", scheduleError);
@@ -1089,7 +1085,7 @@ const processSuccessfulPayment = async (data) => {
     } catch (emailError) {
       console.error(
         "Failed to send subscription confirmation email:",
-        emailError
+        emailError,
       );
     }
   }, 0);
@@ -1120,7 +1116,7 @@ const processRenewalPayment = async (subscriptionId, reference) => {
 
       console.log(
         `✅ ${deliveryResult.count} delivery schedules generated for subscription:`,
-        subscription._id
+        subscription._id,
       );
     } catch (scheduleError) {
       console.error("❌ Delivery schedule generation failed:", scheduleError);
@@ -1166,10 +1162,10 @@ const processRenewalPayment = async (subscriptionId, reference) => {
       console.error("Renewal order creation error:", orderError);
     }
 
-    console.log("Subscription renewed successfully:", subscription._id);
+    const user = await User.findById(subscription.userId);
+    dispatcher.subscriptionCreated(subscription, user);
 
-    // Send renewal confirmation
-    // await sendRenewalConfirmation(subscription);
+    console.log("Subscription renewed successfully:", subscription._id);
   } catch (error) {
     console.error("Renewal processing failed:", error);
     throw error;
@@ -1235,37 +1231,6 @@ const handleTransferReversed = async (data) => {
     console.error("Error handling transfer reversed:", error);
   }
 };
-// Send subscription confirmation (placeholder)
-// const sendSubscriptionConfirmation = async (subscription) => {
-//   try {
-//     // Implement email sending logic here
-//     console.log('Sending subscription confirmation for:', subscription._id);
-//     // await sendEmail({
-//     //   to: subscription.userId.email,
-//     //   subject: 'Subscription Confirmed',
-//     //   template: 'subscription-confirmation',
-//     //   data: { subscription }
-//     // });
-//   } catch (error) {
-//     console.error('Error sending confirmation email:', error);
-//   }
-// };
-
-// Send renewal confirmation (placeholder)
-// const sendRenewalConfirmation = async (subscription) => {
-//   try {
-//     // Implement email sending logic here
-//     console.log('Sending renewal confirmation for:', subscription._id);
-//     // await sendEmail({
-//     //   to: subscription.userId.email,
-//     //   subject: 'Subscription Renewed',
-//     //   template: 'subscription-renewal',
-//     //   data: { subscription }
-//     // });
-//   } catch (error) {
-//     console.error('Error sending renewal email:', error);
-//   }
-// };
 
 // @desc    Update subscription
 // @route   PUT /api/v1/subscriptions/:id
@@ -1275,7 +1240,7 @@ exports.updateSubscription = asyncHandler(async (req, res, next) => {
 
   if (!subscription) {
     return next(
-      new ErrorResponse(`No subscription with the id of ${req.params.id}`, 404)
+      new ErrorResponse(`No subscription with the id of ${req.params.id}`, 404),
     );
   }
 
@@ -1287,15 +1252,15 @@ exports.updateSubscription = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         `User ${req.user.id} is not authorized to update this subscription`,
-        401
-      )
+        401,
+      ),
     );
   }
 
   // Don't allow updating active subscriptions to pending
   if (req.body.status === "pending" && subscription.status === "active") {
     return next(
-      new ErrorResponse("Cannot change active subscription to pending", 400)
+      new ErrorResponse("Cannot change active subscription to pending", 400),
     );
   }
 
@@ -1303,7 +1268,7 @@ exports.updateSubscription = asyncHandler(async (req, res, next) => {
   const allowedUpdates = ["status", "frequency", "size"];
   const updates = Object.keys(req.body);
   const isValidOperation = updates.every((update) =>
-    allowedUpdates.includes(update)
+    allowedUpdates.includes(update),
   );
 
   if (!isValidOperation) {
@@ -1326,91 +1291,6 @@ exports.updateSubscription = asyncHandler(async (req, res, next) => {
 // @desc    Pause a subscription
 // @route   PUT /api/v1/subscriptions/:id/pause
 // @access  Private
-// exports.pauseSubscription = asyncHandler(async (req, res, next) => {
-//   const subscription = await Subscription.findOne({
-//     _id: req.params.id,
-//     userId: req.user.id,
-//   });
-
-//   if (!subscription) {
-//     return next(
-//       new ErrorResponse(
-//         `No subscription found with id of ${req.params.id}`,
-//         404
-//       )
-//     );
-//   }
-
-//   if (subscription.status !== "active") {
-//     return next(
-//       new ErrorResponse("Only active subscriptions can be paused", 400)
-//     );
-//   }
-
-//   const now = new Date();
-//   const remainingTimeMs = subscription.endDate - now;
-
-//   // ✅ Calculate remaining time in days (rounded down)
-//   const remainingDays = Math.max(
-//     Math.floor(remainingTimeMs / (1000 * 60 * 60 * 24)),
-//     0
-//   );
-
-//   subscription.remainingDuration = Math.max(remainingTimeMs, 0); // keep milliseconds for accuracy
-//   subscription.remainingDays = remainingDays; // store in days for frontend
-//   subscription.pausedAt = now;
-//   subscription.status = "paused";
-
-//   // ✅ Ensure planType is set before saving (prevents validation error)
-//   if (!subscription.planType && subscription.plan?.type) {
-//     subscription.planType = subscription.plan.type;
-//   }
-
-//   await subscription.save({ validateBeforeSave: false }); // skip validation for missing fields
-
-//   // ✅ Pause all future deliveries
-//   try {
-//     await pauseDeliveries(subscription._id, now);
-//   } catch (pauseError) {
-//     console.error("Failed to pause deliveries:", pauseError);
-//   }
-
-
-//   // ✅ SMS NOTIFICATION: Send subscription paused notification
-//   try {
-//     const user = await User.findById(subscription.userId);
-//     // if (user && user.phone && user.phoneVerified) {
-//     await NotificationService.sendSubscriptionPaused(subscription, user);
-//     // }
-//   } catch (smsError) {
-//     console.error("Subscription paused SMS failed:", smsError);
-//   }
-
-//   // ✅ ADDED: Send subscription paused email
-//   setTimeout(async () => {
-//     try {
-//       const user = await User.findById(subscription.userId);
-//       if (user) {
-//         await emailService.sendSubscriptionPausedEmail(subscription, user);
-//       }
-//     } catch (emailError) {
-//       console.error("Failed to send subscription paused email:", emailError);
-//     }
-//   }, 0);
-
-//   res.status(200).json({
-//     success: true,
-//     message: `Subscription paused successfully with ${remainingDays} day(s) remaining.`,
-//     data: {
-//       id: subscription._id,
-//       status: subscription.status,
-//       remainingDays,
-//       pausedAt: subscription.pausedAt,
-//       endDate: subscription.endDate,
-//     },
-//   });
-// });
-
 exports.pauseSubscription = asyncHandler(async (req, res, next) => {
   const subscription = await Subscription.findOne({
     _id: req.params.id,
@@ -1421,14 +1301,14 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         `No subscription found with id of ${req.params.id}`,
-        404
-      )
+        404,
+      ),
     );
   }
 
   if (subscription.status !== "active") {
     return next(
-      new ErrorResponse("Only active subscriptions can be paused", 400)
+      new ErrorResponse("Only active subscriptions can be paused", 400),
     );
   }
 
@@ -1438,7 +1318,7 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
   // ✅ Calculate remaining time in days (rounded down)
   const remainingDays = Math.max(
     Math.floor(remainingTimeMs / (1000 * 60 * 60 * 24)),
-    0
+    0,
   );
 
   subscription.remainingDuration = Math.max(remainingTimeMs, 0); // keep milliseconds for accuracy
@@ -1461,25 +1341,8 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
     console.error("Failed to pause deliveries:", pauseError);
   }
 
-  // ✅ SMS NOTIFICATION
-  try {
-    const user = await User.findById(subscription.userId);
-    await NotificationService.sendSubscriptionPaused(subscription, user);
-  } catch (smsError) {
-    console.error("Subscription paused SMS failed:", smsError);
-  }
-
-  // ✅ Email notification
-  setTimeout(async () => {
-    try {
-      const user = await User.findById(subscription.userId);
-      if (user) {
-        await emailService.sendSubscriptionPausedEmail(subscription, user);
-      }
-    } catch (emailError) {
-      console.error("Failed to send subscription paused email:", emailError);
-    }
-  }, 0);
+  const user = await User.findById(subscription.userId);
+  dispatcher.subscriptionPaused(subscription, user);
 
   res.status(200).json({
     success: true,
@@ -1495,154 +1358,9 @@ exports.pauseSubscription = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 // @desc    Resume a paused subscription
 // @route   PUT /api/v1/subscriptions/:id/resume
 // @access  Private
-// exports.resumeSubscription = asyncHandler(async (req, res, next) => {
-//   const subscription = await Subscription.findOne({
-//     _id: req.params.id,
-//     userId: req.user.id,
-//   });
-
-//   if (!subscription) {
-//     return next(
-//       new ErrorResponse(
-//         `No subscription found with id of ${req.params.id}`,
-//         404
-//       )
-//     );
-//   }
-
-//   if (subscription.status !== "paused") {
-//     return next(
-//       new ErrorResponse("Only paused subscriptions can be resumed", 400)
-//     );
-//   }
-
-//   if (!subscription.remainingDuration) {
-//     return next(
-//       new ErrorResponse("No remaining duration stored. Cannot resume.", 400)
-//     );
-//   }
-
-//   const now = new Date();
-//   const pausedDurationMs = now - subscription.pausedAt;
-
-//   // Calculate the total time the subscription was paused since its start
-//   let totalPausedDurationMs = pausedDurationMs;
-
-//   // Add any previous pause durations from pauseHistory
-//   if (subscription.pauseHistory && subscription.pauseHistory.length > 0) {
-//     subscription.pauseHistory.forEach((pause) => {
-//       if (pause.durationMs) {
-//         totalPausedDurationMs += pause.durationMs;
-//       }
-//     });
-//   }
-
-//   // Preserve the original startDate
-//   const originalStartDate =
-//     subscription.originalStartDate || subscription.startDate;
-
-//   // Calculate new endDate by:
-//   // 1. Starting from original startDate
-//   // 2. Adding the total subscription duration (including remaining duration)
-//   // 3. Adding the total time the subscription was paused
-//   const totalSubscriptionDurationMs =
-//     subscription.remainingDuration + totalPausedDurationMs;
-//   const newEndDate = new Date(
-//     originalStartDate.getTime() + totalSubscriptionDurationMs
-//   );
-
-//   // Record this pause/resume cycle in history
-//   if (!subscription.pauseHistory) subscription.pauseHistory = [];
-//   subscription.pauseHistory.push({
-//     pausedAt: subscription.pausedAt,
-//     resumedAt: now,
-//     durationMs: pausedDurationMs,
-//   });
-
-//   // Update subscription status and dates
-//   subscription.status = "active";
-//   subscription.pausedAt = null;
-//   subscription.remainingDuration = null;
-//   subscription.remainingDays = null;
-
-//   // Preserve the original startDate - do NOT reset it
-//   subscription.startDate = originalStartDate;
-//   subscription.endDate = newEndDate;
-
-//   // Store original startDate if not already stored
-//   if (!subscription.originalStartDate) {
-//     subscription.originalStartDate = originalStartDate;
-//   }
-
-//   // ✅ Ensure planType is set before saving
-//   if (!subscription.planType && subscription.plan?.type) {
-//     subscription.planType = subscription.plan.type;
-//   }
-
-//   await subscription.save({ validateBeforeSave: false });
-
-//   // ✅ Resume all paused deliveries
-//   try {
-//     await resumeDeliveries(subscription, now);
-//   } catch (resumeError) {
-//     console.error("Failed to resume deliveries:", resumeError);
-//   }
-
-//   // ✅ SMS NOTIFICATION: Send subscription resumed notification
-//   try {
-//     const user = await User.findById(subscription.userId);
-//     // if (user && user.phone && user.phoneVerified) {
-//     await NotificationService.sendSubscriptionResumed(subscription, user);
-//     // }
-//   } catch (smsError) {
-//     console.error("Subscription resumed SMS failed:", smsError);
-//   }
-
-//   // Calculate remaining days from NOW (not from original start)
-//   const daysRemaining = Math.max(
-//     Math.ceil((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
-//     0
-//   );
-
-//   // Also calculate the total subscription duration in days for context
-//   const totalSubscriptionDays = Math.ceil(
-//     (subscription.endDate - subscription.startDate) / (1000 * 60 * 60 * 24)
-//   );
-
-//   // ✅ EMAIL NOTIFICATION: Send subscription resumed email
-//   setTimeout(async () => {
-//     try {
-//       const user = await User.findById(subscription.userId);
-//       if (user) {
-//         await emailService.sendSubscriptionResumedEmail(subscription, user);
-//       }
-//     } catch (emailError) {
-//       console.error("Failed to send subscription resumed email:", emailError);
-//     }
-//   }, 0);
-
-//   res.status(200).json({
-//     success: true,
-//     message: `Subscription resumed successfully. ${daysRemaining} day(s) remaining.`,
-//     data: {
-//       id: subscription._id,
-//       status: subscription.status,
-//       originalStartDate: subscription.originalStartDate,
-//       startDate: subscription.startDate,
-//       endDate: subscription.endDate,
-//       totalSubscriptionDays: totalSubscriptionDays,
-//       remainingDays: daysRemaining,
-//       pausedDurationDays: Math.floor(
-//         totalPausedDurationMs / (1000 * 60 * 60 * 24)
-//       ),
-//     },
-//   });
-// });
-
 exports.resumeSubscription = asyncHandler(async (req, res, next) => {
   const subscription = await Subscription.findOne({
     _id: req.params.id,
@@ -1653,20 +1371,20 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         `No subscription found with id of ${req.params.id}`,
-        404
-      )
+        404,
+      ),
     );
   }
 
   if (subscription.status !== "paused") {
     return next(
-      new ErrorResponse("Only paused subscriptions can be resumed", 400)
+      new ErrorResponse("Only paused subscriptions can be resumed", 400),
     );
   }
 
   if (!subscription.remainingDuration) {
     return next(
-      new ErrorResponse("No remaining duration stored. Cannot resume.", 400)
+      new ErrorResponse("No remaining duration stored. Cannot resume.", 400),
     );
   }
 
@@ -1693,7 +1411,7 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
   const totalSubscriptionDurationMs =
     subscription.remainingDuration + totalPausedDurationMs;
   const newEndDate = new Date(
-    originalStartDate.getTime() + totalSubscriptionDurationMs
+    originalStartDate.getTime() + totalSubscriptionDurationMs,
   );
 
   // Record this pause/resume cycle in history
@@ -1726,37 +1444,27 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
 
   // ✅ Enhanced: Resume all paused deliveries with date extension
   try {
-    const resumeResult = await resumeDeliveries(subscription, now, totalPausedDurationMs);
-    console.log(`✅ Resumed deliveries for subscription ${subscription._id}:`, resumeResult);
+    const resumeResult = await resumeDeliveries(
+      subscription,
+      now,
+      totalPausedDurationMs,
+    );
+    console.log(
+      `✅ Resumed deliveries for subscription ${subscription._id}:`,
+      resumeResult,
+    );
   } catch (resumeError) {
     console.error("Failed to resume deliveries:", resumeError);
   }
 
-  // ✅ SMS NOTIFICATION
-  try {
-    const user = await User.findById(subscription.userId);
-    await NotificationService.sendSubscriptionResumed(subscription, user);
-  } catch (smsError) {
-    console.error("Subscription resumed SMS failed:", smsError);
-  }
+  const user = await User.findById(subscription.userId);
+  dispatcher.subscriptionResumed(subscription, user);
 
   // Calculate remaining days from NOW
   const daysRemaining = Math.max(
     Math.ceil((subscription.endDate - now) / (1000 * 60 * 60 * 24)),
-    0
+    0,
   );
-
-  // ✅ EMAIL NOTIFICATION
-  setTimeout(async () => {
-    try {
-      const user = await User.findById(subscription.userId);
-      if (user) {
-        await emailService.sendSubscriptionResumedEmail(subscription, user);
-      }
-    } catch (emailError) {
-      console.error("Failed to send subscription resumed email:", emailError);
-    }
-  }, 0);
 
   res.status(200).json({
     success: true,
@@ -1770,7 +1478,7 @@ exports.resumeSubscription = asyncHandler(async (req, res, next) => {
       remainingDays: daysRemaining,
       deliveryUpdate: "All paused deliveries have been rescheduled",
       pausedDurationDays: Math.floor(
-        totalPausedDurationMs / (1000 * 60 * 60 * 24)
+        totalPausedDurationMs / (1000 * 60 * 60 * 24),
       ),
     },
   });
@@ -1784,7 +1492,7 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
 
   if (!subscription) {
     return next(
-      new ErrorResponse(`No subscription with the id of ${req.params.id}`, 404)
+      new ErrorResponse(`No subscription with the id of ${req.params.id}`, 404),
     );
   }
 
@@ -1796,27 +1504,8 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
   subscription.cancelledAt = new Date();
   await subscription.save();
 
-  // ✅ SMS NOTIFICATION: Send subscription cancelled notification
-  try {
-    const user = await User.findById(subscription.userId);
-    // if (user && user.phone && user.phoneVerified) {
-    await NotificationService.sendSubscriptionCancelled(subscription, user);
-    // }
-  } catch (smsError) {
-    console.error("Subscription cancelled SMS failed:", smsError);
-  }
-
-  // ✅ ADDED: Send subscription cancelled email
-  setTimeout(async () => {
-    try {
-      const user = await User.findById(subscription.userId);
-      if (user) {
-        await emailService.sendSubscriptionCancelledEmail(subscription, user);
-      }
-    } catch (emailError) {
-      console.error("Failed to send subscription cancelled email:", emailError);
-    }
-  }, 0);
+  const user = await User.findById(subscription.userId);
+  dispatcher.subscriptionCancelled(subscription, user);
 
   res.status(200).json({
     success: true,
@@ -1829,12 +1518,16 @@ exports.cancelSubscription = asyncHandler(async (req, res, next) => {
 // @route   GET /api/v1/subscriptions/my-subscriptions
 // @access  Private
 exports.getMySubscriptions = asyncHandler(async (req, res, next) => {
-  const subscriptions = await Subscription.find({
-    userId: req.user.id,
-    status: { $in: ["active", "paused"] }, // ✅ Fetch only active and paused subscriptions
-  })
-    // .populate('plan')
-    .sort({ createdAt: -1 });
+  const { status } = req.query;
+
+  const filter = { userId: req.user.id };
+
+  // If a specific status is requested, filter by it. Otherwise return all.
+  if (status && status !== "all") {
+    filter.status = status;
+  }
+
+  const subscriptions = await Subscription.find(filter).sort({ createdAt: -1 });
 
   res.status(200).json({
     success: true,
@@ -1856,8 +1549,8 @@ exports.cancelMySubscription = asyncHandler(async (req, res, next) => {
     return next(
       new ErrorResponse(
         `No subscription found with id of ${req.params.id}`,
-        404
-      )
+        404,
+      ),
     );
   }
 
@@ -1869,27 +1562,8 @@ exports.cancelMySubscription = asyncHandler(async (req, res, next) => {
   subscription.cancelledAt = new Date();
   await subscription.save();
 
-  // ✅ SMS NOTIFICATION: Send subscription cancelled notification
-  try {
-    const user = await User.findById(subscription.userId);
-    // if (user && user.phone && user.phoneVerified) {
-    await NotificationService.sendSubscriptionCancelled(subscription, user);
-    // }
-  } catch (smsError) {
-    console.error("Subscription cancelled SMS failed:", smsError);
-  }
-
-  // ✅ ADDED: Send subscription cancelled email
-  setTimeout(async () => {
-    try {
-      const user = await User.findById(subscription.userId);
-      if (user) {
-        await emailService.sendSubscriptionCancelledEmail(subscription, user);
-      }
-    } catch (emailError) {
-      console.error("Failed to send subscription cancelled email:", emailError);
-    }
-  }, 0);
+  const user = await User.findById(subscription.userId);
+  dispatcher.subscriptionCancelled(subscription, user);
 
   res.status(200).json({
     success: true,
@@ -1903,23 +1577,30 @@ exports.cancelMySubscription = asyncHandler(async (req, res, next) => {
 // @access  Private
 exports.getSubscriptionPaymentStatus = asyncHandler(async (req, res, next) => {
   const { reference } = req.params;
-  
+
   if (!reference) {
-    return next(new ErrorResponse('Reference is required', 400));
+    return next(new ErrorResponse("Reference is required", 400));
   }
-  
+
   // Find subscription by reference
   const subscription = await Subscription.findOne({ reference });
-  
+
   if (!subscription) {
-    return next(new ErrorResponse('Subscription not found for this reference', 404));
+    return next(
+      new ErrorResponse("Subscription not found for this reference", 404),
+    );
   }
-  
+
   // Check if user is authorized
-  if (subscription.userId.toString() !== req.user.id && req.user.role !== 'admin') {
-    return next(new ErrorResponse('Not authorized to view this payment status', 403));
+  if (
+    subscription.userId.toString() !== req.user.id &&
+    req.user.role !== "admin"
+  ) {
+    return next(
+      new ErrorResponse("Not authorized to view this payment status", 403),
+    );
   }
-  
+
   res.status(200).json({
     success: true,
     data: {
@@ -1936,40 +1617,135 @@ exports.getSubscriptionPaymentStatus = asyncHandler(async (req, res, next) => {
 // @desc    Renew subscription
 // @route   POST /api/v1/subscriptions/:id/renew
 // @access  Private
+// exports.renewSubscription = asyncHandler(async (req, res, next) => {
+//   const oldSubscription = await Subscription.findOne({
+//     _id: req.params.id,
+//     userId: req.user.id,
+//   }).populate("plan");
+
+//   if (!oldSubscription) {
+//     return next(
+//       new ErrorResponse(
+//         `No subscription found with id of ${req.params.id}`,
+//         404
+//       )
+//     );
+//   }
+
+//   if (!["cancelled", "expired"].includes(oldSubscription.status)) {
+//     return next(
+//       new ErrorResponse(
+//         "Only cancelled or expired subscriptions can be renewed",
+//         400
+//       )
+//     );
+//   }
+
+//   // Check if plan is still active
+//   if (!oldSubscription.plan.isActive) {
+//     return next(new ErrorResponse("This plan is no longer available", 400));
+//   }
+
+//   const startDate = new Date();
+//   const endDate = new Date(startDate);
+//   endDate.setMonth(endDate.getMonth() + 1); // Default to 1 month renewal
+
+//   // Create new subscription based on old one
+//   const newSubscription = await Subscription.create({
+//     userId: req.user.id,
+//     planName: oldSubscription.planName,
+//     plan: oldSubscription.plan._id,
+//     size: oldSubscription.size,
+//     frequency: oldSubscription.frequency,
+//     price: oldSubscription.price,
+//     status: "pending", // Will be activated after payment
+//     startDate,
+//     endDate,
+//   });
+
+//   // Initialize payment for renewal
+//   let response;
+//   try {
+//     response = await paystack.post("/transaction/initialize", {
+//       email: req.user.email,
+//       amount: Math.round(oldSubscription.price * 100),
+//       metadata: {
+//         userId: req.user.id,
+//         planId: oldSubscription.plan._id,
+//         subscriptionId: newSubscription._id,
+//         type: "renewal",
+//       },
+//       callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
+//       webhook_url: `${process.env.BASE_URL}/api/v1/subscriptions/webhook`,
+//     });
+//   } catch (error) {
+//     console.error(
+//       "Paystack Renewal Error:",
+//       error.response?.data || error.message
+//     );
+//     // Delete the pending subscription if payment fails
+//     await Subscription.findByIdAndDelete(newSubscription._id);
+//     return next(
+//       new ErrorResponse(
+//         "Renewal payment initialization failed: " +
+//           (error.response?.data?.message || error.message),
+//         500
+//       )
+//     );
+//   }
+
+//   const { authorization_url, reference } = response.data.data;
+
+//   // Update subscription with payment reference
+//   newSubscription.reference = reference;
+//   await newSubscription.save();
+
+//   // ✅ SMS NOTIFICATION: Send subscription renewed notification
+//   try {
+//     const user = await User.findById(subscription.userId);
+//     // if (user && user.phone && user.phoneVerified) {
+//     await NotificationService.sendSubscriptionCreated(subscription, user); // Use same as creation
+//     // }
+//   } catch (smsError) {
+//     console.error("Subscription renewal SMS failed:", smsError);
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     authorization_url,
+//     reference,
+//     data: newSubscription,
+//     message: "Subscription renewal initiated",
+//   });
+// });
 exports.renewSubscription = asyncHandler(async (req, res, next) => {
   const oldSubscription = await Subscription.findOne({
     _id: req.params.id,
     userId: req.user.id,
   }).populate("plan");
 
-  if (!oldSubscription) {
+  if (!oldSubscription)
     return next(
-      new ErrorResponse(
-        `No subscription found with id of ${req.params.id}`,
-        404
-      )
+      new ErrorResponse(`No subscription with id ${req.params.id}`, 404),
     );
-  }
 
   if (!["cancelled", "expired"].includes(oldSubscription.status)) {
     return next(
       new ErrorResponse(
         "Only cancelled or expired subscriptions can be renewed",
-        400
-      )
+        400,
+      ),
     );
   }
 
-  // Check if plan is still active
-  if (!oldSubscription.plan.isActive) {
+  if (!oldSubscription.plan?.isActive) {
     return next(new ErrorResponse("This plan is no longer available", 400));
   }
 
   const startDate = new Date();
   const endDate = new Date(startDate);
-  endDate.setMonth(endDate.getMonth() + 1); // Default to 1 month renewal
+  endDate.setMonth(endDate.getMonth() + 1);
 
-  // Create new subscription based on old one
   const newSubscription = await Subscription.create({
     userId: req.user.id,
     planName: oldSubscription.planName,
@@ -1977,12 +1753,11 @@ exports.renewSubscription = asyncHandler(async (req, res, next) => {
     size: oldSubscription.size,
     frequency: oldSubscription.frequency,
     price: oldSubscription.price,
-    status: "pending", // Will be activated after payment
+    status: "pending",
     startDate,
     endDate,
   });
 
-  // Initialize payment for renewal
   let response;
   try {
     response = await paystack.post("/transaction/initialize", {
@@ -1995,39 +1770,26 @@ exports.renewSubscription = asyncHandler(async (req, res, next) => {
         type: "renewal",
       },
       callback_url: `${process.env.FRONTEND_URL}/subscriptions/verify`,
-      webhook_url: `${process.env.BASE_URL}/api/v1/subscriptions/webhook`,
+      // FIX: removed invalid webhook_url
     });
   } catch (error) {
-    console.error(
-      "Paystack Renewal Error:",
-      error.response?.data || error.message
-    );
-    // Delete the pending subscription if payment fails
     await Subscription.findByIdAndDelete(newSubscription._id);
     return next(
       new ErrorResponse(
         "Renewal payment initialization failed: " +
           (error.response?.data?.message || error.message),
-        500
-      )
+        500,
+      ),
     );
   }
 
   const { authorization_url, reference } = response.data.data;
-
-  // Update subscription with payment reference
   newSubscription.reference = reference;
   await newSubscription.save();
 
-  // ✅ SMS NOTIFICATION: Send subscription renewed notification
-  try {
-    const user = await User.findById(subscription.userId);
-    // if (user && user.phone && user.phoneVerified) {
-    await NotificationService.sendSubscriptionCreated(subscription, user); // Use same as creation
-    // }
-  } catch (smsError) {
-    console.error("Subscription renewal SMS failed:", smsError);
-  }
+  // FIX: notify about the NEW subscription (was referencing undefined `subscription`)
+  const user = await User.findById(req.user.id);
+  dispatcher.subscriptionCreated(newSubscription, user);
 
   res.status(200).json({
     success: true,
@@ -2087,7 +1849,7 @@ exports.processSubscriptions = asyncHandler(async (req, res, next) => {
     } catch (error) {
       console.error(
         `Error processing subscription ${subscription._id}:`,
-        error.message
+        error.message,
       );
       errors.push({
         subscription: subscription._id,
@@ -2095,18 +1857,6 @@ exports.processSubscriptions = asyncHandler(async (req, res, next) => {
       });
     }
   }
-
-  // ✅ ADDED: Send delivery reminder email (day before delivery)
-  setTimeout(async () => {
-    try {
-      const user = await User.findById(subscription.userId);
-      if (user) {
-        await emailService.sendSubscriptionDeliveryReminder(subscription, user);
-      }
-    } catch (emailError) {
-      console.error("Failed to send delivery reminder email:", emailError);
-    }
-  }, 0);
 
   res.status(200).json({
     success: true,
@@ -2123,13 +1873,60 @@ exports.processSubscriptions = asyncHandler(async (req, res, next) => {
 /**
  * Creates an order for a given subscription delivery and records it in the subscription's delivery history.
  */
+// const createOrderForSubscription = async (subscription) => {
+//   const order = await Order.create({
+//     user: subscription.userId._id,
+//     products: [
+//       {
+//         product: subscription.plan._id,
+//         productName: subscription.plan.planName || subscription.plan.name,
+//         quantity: 1,
+//         price: subscription.price,
+//       },
+//     ],
+//     deliveryAddress: subscription.userId.address || "Address not specified",
+//     deliveryOption: "standard",
+//     totalAmount: subscription.price,
+//     paymentMethod: "wallet",
+//     paymentStatus: "completed",
+//     orderStatus: "processing",
+//     subscription: subscription._id,
+//     isSubscriptionOrder: true,
+//   });
+
+//   // 🔁 Record this delivery in subscription history
+//   subscription.deliveries = subscription.deliveries || [];
+//   subscription.deliveries.push(order._id);
+//   await subscription.save();
+
+//   console.log(
+//     `✅ Created order ${order._id} for subscription ${subscription._id}`
+//   );
+
+//   // ✅ SMS NOTIFICATION: Send subscription delivery fulfilled notification
+//   try {
+//     const user = await User.findById(subscription.userId._id);
+//     // if (user && user.phone && user.phoneVerified) {
+//     await NotificationService.sendSubscriptionFulfilled(
+//       subscription,
+//       user,
+//       order._id
+//     );
+//     // }
+//   } catch (smsError) {
+//     console.error("Subscription delivery SMS failed:", smsError);
+//   }
+
+//   return order;
+// };
+
 const createOrderForSubscription = async (subscription) => {
   const order = await Order.create({
     user: subscription.userId._id,
     products: [
       {
-        product: subscription.plan._id,
-        productName: subscription.plan.planName || subscription.plan.name,
+        product: subscription.plan._id || subscription.plan,
+        productName: subscription.planName, // FIX: was subscription.plan.planName
         quantity: 1,
         price: subscription.price,
       },
@@ -2144,29 +1941,16 @@ const createOrderForSubscription = async (subscription) => {
     isSubscriptionOrder: true,
   });
 
-  // 🔁 Record this delivery in subscription history
   subscription.deliveries = subscription.deliveries || [];
   subscription.deliveries.push(order._id);
   await subscription.save();
 
+  const user = await User.findById(subscription.userId._id);
+  dispatcher.subscriptionDeliveryFulfilled(subscription, user, order._id);
+
   console.log(
-    `✅ Created order ${order._id} for subscription ${subscription._id}`
+    `✅ Created order ${order._id} for subscription ${subscription._id}`,
   );
-
-  // ✅ SMS NOTIFICATION: Send subscription delivery fulfilled notification
-  try {
-    const user = await User.findById(subscription.userId._id);
-    // if (user && user.phone && user.phoneVerified) {
-    await NotificationService.sendSubscriptionFulfilled(
-      subscription,
-      user,
-      order._id
-    );
-    // }
-  } catch (smsError) {
-    console.error("Subscription delivery SMS failed:", smsError);
-  }
-
   return order;
 };
 
@@ -2178,11 +1962,65 @@ const createOrderForSubscription = async (subscription) => {
  * Checks whether a delivery is due for a given subscription today.
  * Skips paused subscriptions and ignores paused duration in calculations.
  */
+// const checkDeliveryDue = async (subscription, today) => {
+//   // ⛔ Skip paused subscriptions
+//   if (subscription.status === "paused") return false;
+
+//   // Get last delivery date (from subscription history or last order)
+//   let lastOrder;
+//   if (subscription.deliveries?.length > 0) {
+//     lastOrder = await Order.findById(subscription.deliveries.at(-1));
+//   } else {
+//     lastOrder = await Order.findOne({ subscription: subscription._id }).sort({
+//       createdAt: -1,
+//     });
+//   }
+
+//   const lastDeliveryDate = lastOrder
+//     ? lastOrder.createdAt
+//     : subscription.startDate;
+//   let effectiveLastDeliveryDate = new Date(lastDeliveryDate);
+
+//   // 🧠 Exclude paused durations
+//   if (subscription.pauseHistory && subscription.pauseHistory.length > 0) {
+//     subscription.pauseHistory.forEach((pause) => {
+//       if (pause.pausedAt >= effectiveLastDeliveryDate) {
+//         const resumedAt = pause.resumedAt || today; // if still paused
+//         const pauseDuration = resumedAt - pause.pausedAt;
+//         effectiveLastDeliveryDate = new Date(
+//           effectiveLastDeliveryDate.getTime() + pauseDuration
+//         );
+//       }
+//     });
+//   }
+
+//   // 🔁 Determine frequency interval
+//   let frequencyDays = 7; // default weekly
+//   switch (subscription.plan.frequency) {
+//     case "daily":
+//       frequencyDays = 1;
+//       break;
+//     case "weekly":
+//       frequencyDays = 7;
+//       break;
+//     case "bi-weekly":
+//       frequencyDays = 14;
+//       break;
+//     case "monthly":
+//       frequencyDays = 30;
+//       break;
+//   }
+
+//   const nextDeliveryDate = new Date(effectiveLastDeliveryDate);
+//   nextDeliveryDate.setDate(nextDeliveryDate.getDate() + frequencyDays);
+
+//   // ✅ Delivery is due if today >= next scheduled date
+//   return today >= nextDeliveryDate;
+// };
+
 const checkDeliveryDue = async (subscription, today) => {
-  // ⛔ Skip paused subscriptions
   if (subscription.status === "paused") return false;
 
-  // Get last delivery date (from subscription history or last order)
   let lastOrder;
   if (subscription.deliveries?.length > 0) {
     lastOrder = await Order.findById(subscription.deliveries.at(-1));
@@ -2195,24 +2033,22 @@ const checkDeliveryDue = async (subscription, today) => {
   const lastDeliveryDate = lastOrder
     ? lastOrder.createdAt
     : subscription.startDate;
-  let effectiveLastDeliveryDate = new Date(lastDeliveryDate);
+  let effectiveLast = new Date(lastDeliveryDate);
 
-  // 🧠 Exclude paused durations
-  if (subscription.pauseHistory && subscription.pauseHistory.length > 0) {
+  if (subscription.pauseHistory?.length) {
     subscription.pauseHistory.forEach((pause) => {
-      if (pause.pausedAt >= effectiveLastDeliveryDate) {
-        const resumedAt = pause.resumedAt || today; // if still paused
-        const pauseDuration = resumedAt - pause.pausedAt;
-        effectiveLastDeliveryDate = new Date(
-          effectiveLastDeliveryDate.getTime() + pauseDuration
+      if (pause.pausedAt >= effectiveLast) {
+        const resumedAt = pause.resumedAt || today;
+        effectiveLast = new Date(
+          effectiveLast.getTime() + (resumedAt - pause.pausedAt),
         );
       }
     });
   }
 
-  // 🔁 Determine frequency interval
-  let frequencyDays = 7; // default weekly
-  switch (subscription.plan.frequency) {
+  // FIX: read subscription.frequency (plan is an ObjectId, not populated)
+  let frequencyDays = 7;
+  switch ((subscription.frequency || "").toLowerCase()) {
     case "daily":
       frequencyDays = 1;
       break;
@@ -2227,11 +2063,9 @@ const checkDeliveryDue = async (subscription, today) => {
       break;
   }
 
-  const nextDeliveryDate = new Date(effectiveLastDeliveryDate);
-  nextDeliveryDate.setDate(nextDeliveryDate.getDate() + frequencyDays);
-
-  // ✅ Delivery is due if today >= next scheduled date
-  return today >= nextDeliveryDate;
+  const nextDate = new Date(effectiveLast);
+  nextDate.setDate(nextDate.getDate() + frequencyDays);
+  return today >= nextDate;
 };
 
 // @desc    Get all deliveries (orders) for a subscription
@@ -2253,7 +2087,7 @@ exports.getSubscriptionDeliveries = asyncHandler(async (req, res, next) => {
     subscription.userId.toString() !== req.user.id
   ) {
     return next(
-      new ErrorResponse("Not authorized to view this subscription", 403)
+      new ErrorResponse("Not authorized to view this subscription", 403),
     );
   }
 
@@ -2330,24 +2164,22 @@ exports.adminPauseSubscription = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Subscription not found", 404));
   if (subscription.status !== "active")
     return next(
-      new ErrorResponse("Only active subscriptions can be paused", 400)
+      new ErrorResponse("Only active subscriptions can be paused", 400),
     );
 
   subscription.remainingDuration = Math.max(
     subscription.endDate - new Date(),
-    0
+    0,
   );
   subscription.pausedAt = new Date();
   subscription.status = "paused";
   await subscription.save();
 
-  res
-    .status(200)
-    .json({
-      success: true,
-      message: "Subscription paused by admin",
-      data: subscription,
-    });
+  res.status(200).json({
+    success: true,
+    message: "Subscription paused by admin",
+    data: subscription,
+  });
 });
 
 // @desc    Resume subscription (admin)
@@ -2359,25 +2191,23 @@ exports.adminResumeSubscription = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Subscription not found", 404));
   if (subscription.status !== "paused")
     return next(
-      new ErrorResponse("Only paused subscriptions can be resumed", 400)
+      new ErrorResponse("Only paused subscriptions can be resumed", 400),
     );
 
   const now = new Date();
   subscription.endDate = new Date(
-    now.getTime() + subscription.remainingDuration
+    now.getTime() + subscription.remainingDuration,
   );
   subscription.status = "active";
   subscription.pausedAt = null;
   subscription.remainingDuration = null;
   await subscription.save();
 
-  res
-    .status(200)
-    .json({
-      success: true,
-      message: "Subscription resumed by admin",
-      data: subscription,
-    });
+  res.status(200).json({
+    success: true,
+    message: "Subscription resumed by admin",
+    data: subscription,
+  });
 });
 
 // @desc    Admin: Get all subscription deliveries (orders)

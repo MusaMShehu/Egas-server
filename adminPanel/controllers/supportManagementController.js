@@ -2,8 +2,8 @@ const SupportTicket = require("../../models/SupportTicket");
 const User = require("../../models/User");
 const asyncHandler = require("../../middleware/async");
 const ErrorResponse = require("../../utils/errorResponse");
-const NotificationService = require("../../services/notificationService");
-const emailService = require("../../services/emailService");
+const NotificationService = require("../../services/notifications/notificationService");
+const emailService = require("../../services/notifications/emailService");
 const cloudinary = require('../../config/cloudinary');
 
 // @desc    Get all support tickets with filtering, sorting, and pagination

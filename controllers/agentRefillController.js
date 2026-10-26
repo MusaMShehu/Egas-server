@@ -272,21 +272,38 @@ exports.collectFromPlant = asyncHandler(async (req, res, next) => {
   });
 
   // Emit to plant
+  // try {
+  //   const io = req.app.get('io');
+  //   if (io && result.request?.plantId) {
+  //     io.to(`plant:${result.request.plantId}`).emit('cylinder.collected', {
+  //       requestId: result.request._id,
+  //       requestNumber: result.request.requestNumber,
+  //       collectedAt: new Date(),
+  //     });
+  //   }
+  //   io.to('admin:ops').emit('cylinder.collected', {
+  //     requestId: result.request._id,
+  //   });
+  // } catch (socketErr) {
+  //   console.error('Socket emit failed (collect):', socketErr.message);
+  // }
   try {
-    const io = req.app.get('io');
-    if (io && result.request?.plantId) {
-      io.to(`plant:${result.request.plantId}`).emit('cylinder.collected', {
+  const io = req.app.get("io");
+  if (io) {
+    if (result.request?.plantId) {
+      io.to(`plant:${result.request.plantId}`).emit("cylinder.collected", {
         requestId: result.request._id,
         requestNumber: result.request.requestNumber,
         collectedAt: new Date(),
       });
     }
-    io.to('admin:ops').emit('cylinder.collected', {
+    io.to("admin:ops").emit("cylinder.collected", {
       requestId: result.request._id,
     });
-  } catch (socketErr) {
-    console.error('Socket emit failed (collect):', socketErr.message);
   }
+} catch (socketErr) {
+  console.error("Socket emit failed (collect):", socketErr.message);
+}
 
   res.status(200).json({
     success: true,
@@ -326,18 +343,33 @@ exports.escalateRequest = asyncHandler(async (req, res, next) => {
   await request.save();
 
   // Emit to admin ops
+  // try {
+  //   const io = req.app.get('io');
+  //   io.to('admin:ops').emit('delivery.escalated', {
+  //     requestId: request._id,
+  //     deliveryId: request.deliveryId,
+  //     reason,
+  //     agentId: req.user._id,
+  //     at: new Date(),
+  //   });
+  // } catch (socketErr) {
+  //   console.error('Socket emit failed (escalate):', socketErr.message);
+  // }
+
   try {
-    const io = req.app.get('io');
-    io.to('admin:ops').emit('delivery.escalated', {
+  const io = req.app.get("io");
+  if (io) {
+    io.to("admin:ops").emit("delivery.escalated", {
       requestId: request._id,
       deliveryId: request.deliveryId,
       reason,
       agentId: req.user._id,
       at: new Date(),
     });
-  } catch (socketErr) {
-    console.error('Socket emit failed (escalate):', socketErr.message);
   }
+} catch (socketErr) {
+  console.error("Socket emit failed (escalate):", socketErr.message);
+}
 
   res.status(200).json({
     success: true,

@@ -2,7 +2,7 @@
 const Order = require('../../models/Order');
 const User = require('../../models/User');
 const Product = require('../../models/Product');
-const emailService = require('../../services/emailService');
+const emailService = require('../../services/notifications/emailService');
 
 
 // Get all orders with filtering and pagination

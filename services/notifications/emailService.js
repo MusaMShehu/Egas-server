@@ -1,21 +1,21 @@
 // services/emailService.js
-const sgMail = require("@sendgrid/mail");
+const { Resend } = require("resend");
 
 class EmailService {
   constructor() {
-    this.companyName = "E-Gas Nigeria Limited";
-    this.fromEmail =
-      process.env.SENDGRID_FROM_EMAIL || "musamohammedshehu@gmail.com";
+    this.companyName = "E-Gas Online Limited";
+    this.fromEmail = process.env.RESEND_FROM_EMAIL || "onboarding@resend.dev";
+    // FIX: these two were used in templates but never set
+    this.supportEmail =
+      process.env.SUPPORT_EMAIL || "egas.onlinelimited@gmail.com";
+    this.appUrl = process.env.APP_URL || "https://egas.com.ng";
 
-    // Initialize SendGrid
-    if (process.env.SENDGRID_API_KEY) {
-      sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+    if (process.env.RESEND_API_KEY) {
+      this.resend = new Resend(process.env.RESEND_API_KEY);
       this.isEnabled = true;
-      console.log("✅ SendGrid email service initialized");
+      console.log("✅ Resend email service initialized");
     } else {
-      console.warn(
-        "⚠️ SENDGRID_API_KEY not found. Emails will be logged but not sent."
-      );
+      console.warn("⚠️ RESEND_API_KEY not found. Emails will be logged.");
       this.isEnabled = false;
     }
   }
@@ -23,9 +23,73 @@ class EmailService {
   /**
    * Core email sending method
    */
-  async sendEmail({ to, subject, html, text = null }) {
+  // async sendEmail({ to, subject, html, text = null }) {
+  //   try {
+  //     // If Resend is not configured, log and return mock response
+  //     if (!this.isEnabled) {
+  //       console.log("📧 [MOCK] Email would be sent:", { to, subject });
+  //       return {
+  //         success: true,
+  //         messageId: `mock-${Date.now()}`,
+  //         status: "logged_only",
+  //       };
+  //     }
+
+  //     const payload = {
+  //       from: `${this.companyName} <${this.fromEmail}>`,
+  //       to: Array.isArray(to) ? to : [to],
+  //       subject,
+  //       html,
+  //     };
+
+  //     // Resend accepts a plain-text `text` field as well
+  //     if (text) payload.text = text;
+
+  //     const { data, error } = await this.resend.emails.send(payload);
+
+  //     if (error) {
+  //       console.error("❌ Resend API error:", {
+  //         to,
+  //         subject,
+  //         name: error.name,
+  //         message: error.message,
+  //       });
+
+  //       if (process.env.NODE_ENV === "production") {
+  //         return { success: false, error: error.message };
+  //       }
+  //       throw new Error(error.message);
+  //     }
+
+  //     console.log("✅ Email sent successfully to:", to);
+
+  //     return {
+  //       success: true,
+  //       messageId: data.id,
+  //       data,
+  //     };
+  //   } catch (error) {
+  //     console.error("❌ Error sending email:", {
+  //       to,
+  //       subject,
+  //       error: error.message,
+  //     });
+
+  //     // Don't throw in production to avoid breaking the main flow
+  //     if (process.env.NODE_ENV === "production") {
+  //       return { success: false, error: error.message };
+  //     }
+  //     throw error;
+  //   }
+  // }
+
+  // htmlToText(html) {
+  //   return html.replace(/<[^>]*>/g, "");
+  // }
+
+  // Add this flag to sendEmail:
+  async sendEmail({ to, subject, html, text = null, __throwOnError = false }) {
     try {
-      // If SendGrid is not configured, log and return mock response
       if (!this.isEnabled) {
         console.log("📧 [MOCK] Email would be sent:", { to, subject });
         return {
@@ -34,52 +98,45 @@ class EmailService {
           status: "logged_only",
         };
       }
-
-      const msg = {
-        to,
-        from: {
-          email: this.fromEmail,
-          name: this.companyName,
-        },
+      const payload = {
+        from: `${this.companyName} <${this.fromEmail}>`,
+        to: Array.isArray(to) ? to : [to],
         subject,
         html,
-        text: text || this.htmlToText(html),
       };
+      if (text) payload.text = text;
 
-      const response = await sgMail.send(msg);
-      console.log("✅ Email sent successfully to:", to);
-
-      return {
-        success: true,
-        messageId: response[0].headers["x-message-id"],
-        response: response[0],
-      };
+      const { data, error } = await this.resend.emails.send(payload);
+      if (error) {
+        console.error("❌ Resend API error:", {
+          to,
+          subject,
+          error: error.message,
+        });
+        if (__throwOnError) throw new Error(error.message);
+        if (process.env.NODE_ENV === "production")
+          return { success: false, error: error.message };
+        throw new Error(error.message);
+      }
+      console.log("✅ Email sent:", to);
+      return { success: true, messageId: data.id, data };
     } catch (error) {
       console.error("❌ Error sending email:", {
         to,
         subject,
         error: error.message,
-        response: error.response?.body,
       });
-
-      // Don't throw in production to avoid breaking the main flow
-      if (process.env.NODE_ENV === "production") {
-        return {
-          success: false,
-          error: error.message,
-        };
-      }
+      if (__throwOnError) throw error;
+      if (process.env.NODE_ENV === "production")
+        return { success: false, error: error.message };
       throw error;
     }
   }
 
-  htmlToText(html) {
-    return html.replace(/<[^>]*>/g, "");
-  }
-
   // ==================== EMAIL TEMPLATES ====================
+  // (all template methods below stay IDENTICAL to your original file —
+  //  only the underlying transport changed, not the HTML/subject logic.)
 
-  // Account Created
   async sendAccountCreatedEmail(user) {
     const subject = `Welcome to ${this.companyName}! Your Account is Ready`;
     const html = `
@@ -112,23 +169,16 @@ class EmailService {
           </div>
           <div class="footer">
             <p>Thank you for choosing ${this.companyName}</p>
-            <p>© ${new Date().getFullYear()} ${
-      this.companyName
-    }. All rights reserved.</p>
+            <p>© ${new Date().getFullYear()} ${this.companyName}. All rights reserved.</p>
           </div>
         </div>
       </body>
       </html>
     `;
 
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Order Created
   async sendOrderCreatedEmail(order, user) {
     const subject = `Order Confirmed - #${order.orderId}`;
     const html = `
@@ -151,15 +201,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Order Confirmation
   async sendOrderConfirmationEmail(order, user) {
     const subject = `Order Processing - #${order.orderId}`;
     const html = `
@@ -179,15 +223,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Order Out for Delivery
   async sendOrderOutForDeliveryEmail(order, user) {
     const subject = `🚚 Your Order is Out for Delivery - #${order.orderId}`;
     const html = `
@@ -208,15 +246,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Order Delivered Success
   async sendOrderDeliveredEmail(order, user) {
     const subject = `✅ Delivery Successful - #${order.orderId}`;
     const html = `
@@ -237,15 +269,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Subscription Created
   async sendSubscriptionCreatedEmail(subscription, user) {
     const subject = `🔄 Subscription Activated - ${subscription.planName}`;
     const html = `
@@ -268,15 +294,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Subscription Delivery Reminder (1 day before)
   async sendSubscriptionDeliveryReminder(subscription, user) {
     const subject = `🔔 Delivery Reminder - Tomorrow ${subscription.deliveryDate}`;
     const html = `
@@ -298,15 +318,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Subscription Delivery Fulfilled
   async sendSubscriptionDeliveryFulfilled(subscription, user) {
     const subject = `✅ Subscription Delivery Completed`;
     const html = `
@@ -327,15 +341,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Wallet Top-up Success
   async sendWalletTopupSuccess(user, transaction) {
     const subject = `💰 Wallet Top-up Successful`;
     const html = `
@@ -357,15 +365,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Subscription Ending Alert
   async sendSubscriptionEndingAlert(subscription, user, daysLeft) {
     const subject = `⚠️ Subscription Ending in ${daysLeft} days`;
     const html = `
@@ -383,21 +385,13 @@ class EmailService {
             <p><strong>Days Remaining:</strong> ${daysLeft}</p>
           </div>
           <p>Renew your subscription to continue enjoying uninterrupted gas delivery service.</p>
-          <a href="${
-            process.env.APP_URL || "https://egas.com"
-          }/subscriptions/renew" style="background: #2E8B57; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Renew Subscription</a>
+          <a href="${this.appUrl}/subscriptions/renew" style="background: #2E8B57; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block; margin-top: 10px;">Renew Subscription</a>
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Subscription Paused
   async sendSubscriptionPausedEmail(subscription, user) {
     const subject = `⏸️ Subscription Paused`;
     const html = `
@@ -418,15 +412,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Subscription Resumed
   async sendSubscriptionResumedEmail(subscription, user) {
     const subject = `▶️ Subscription Resumed`;
     const html = `
@@ -447,15 +435,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Subscription Cancelled
   async sendSubscriptionCancelledEmail(subscription, user) {
     const subject = `❌ Subscription Cancelled`;
     const html = `
@@ -469,27 +451,17 @@ class EmailService {
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h3>Cancellation Details:</h3>
             <p><strong>Plan:</strong> ${subscription.planName}</p>
-            <p><strong>Cancellation Date:</strong> ${
-              subscription.cancellationDate
-            }</p>
-            <p><strong>Refund Amount (if applicable):</strong> ₦${
-              subscription.refundAmount || 0
-            }</p>
+            <p><strong>Cancellation Date:</strong> ${subscription.cancellationDate}</p>
+            <p><strong>Refund Amount (if applicable):</strong> ₦${subscription.refundAmount || 0}</p>
           </div>
           <p>We're sorry to see you go. If you change your mind, you can always create a new subscription anytime.</p>
           <p>Thank you for being our valued customer.</p>
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-  // Support Resolved
   async sendSupportResolvedEmail(ticket, user) {
     const subject = `✅ Support Ticket Resolved - #${ticket.ticketNumber}`;
     const html = `
@@ -515,16 +487,9 @@ class EmailService {
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 
-
-  // Password Reset Request
   async sendPasswordResetEmail(userData) {
     const subject = `🔐 Password Reset Request - ${this.companyName}`;
     const html = `
@@ -534,46 +499,30 @@ class EmailService {
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
           <h2>Hello ${userData.name},</h2>
-          <p>We received a request to reset the password for your ${
-            this.companyName
-          } account.</p>
+          <p>We received a request to reset the password for your ${this.companyName} account.</p>
           <p>Click the button below to create a new password:</p>
-          
           <div style="text-align: center; margin: 25px 0;">
-            <a href="${
-              userData.resetUrl
-            }" style="background: #2E8B57; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+            <a href="${userData.resetUrl}" style="background: #2E8B57; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
               🔑 Reset Your Password
             </a>
           </div>
-          
           <div style="background: white; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <p><strong>Or copy this link:</strong></p>
-            <p style="word-break: break-all; color: #666; font-size: 14px;">${
-              userData.resetUrl
-            }</p>
+            <p style="word-break: break-all; color: #666; font-size: 14px;">${userData.resetUrl}</p>
           </div>
-          
           <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h4 style="color: #856404;">⚠️ Important Security Notice:</h4>
             <ul style="color: #856404; font-size: 14px;">
-              <li>This link will expire in ${
-                userData.expiryTime || "10 minutes"
-              }</li>
+              <li>This link will expire in ${userData.expiryTime || "10 minutes"}</li>
               <li>If you didn't request this, please ignore this email</li>
               <li>Never share your password reset link with anyone</li>
               <li>Our team will never ask for your password</li>
             </ul>
           </div>
-          
-          <p>If you need help, contact our support team at <a href="mailto:${
-            this.supportEmail
-          }">${this.supportEmail}</a></p>
+          <p>If you need help, contact our support team at <a href="mailto:${this.supportEmail}">${this.supportEmail}</a></p>
         </div>
         <div style="padding: 20px; text-align: center; color: #666; font-size: 14px;">
-          <p>© ${new Date().getFullYear()} ${
-      this.companyName
-    }. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} ${this.companyName}. All rights reserved.</p>
           <p>This is an automated message, please do not reply.</p>
         </div>
       </div>
@@ -583,9 +532,7 @@ class EmailService {
 
 Hello ${userData.name},
 
-We received a request to reset the password for your ${
-      this.companyName
-    } account.
+We received a request to reset the password for your ${this.companyName} account.
 
 Reset your password by clicking this link:
 ${userData.resetUrl}
@@ -603,15 +550,9 @@ The ${this.companyName} Team
 © ${new Date().getFullYear()} ${this.companyName}. All rights reserved.
 This is an automated message, please do not reply.`;
 
-    return this.sendEmail({
-      to: userData.email,
-      subject,
-      html,
-      text,
-    });
+    return this.sendEmail({ to: userData.email, subject, html, text });
   }
 
-  // Password Reset Success
   async sendPasswordResetSuccessEmail(userData) {
     const subject = `✅ Password Successfully Reset - ${this.companyName}`;
     const html = `
@@ -621,48 +562,32 @@ This is an automated message, please do not reply.`;
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
           <h2>Hello ${userData.name},</h2>
-          <p>Your ${
-            this.companyName
-          } account password has been successfully reset!</p>
-          
+          <p>Your ${this.companyName} account password has been successfully reset!</p>
           <div style="background: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 15px; margin: 15px 0;">
             <h4 style="color: #155724;">🔒 Security Update:</h4>
             <p style="color: #155724;">
-              Password changed on ${
-                userData.resetDate || new Date().toLocaleDateString()
-              } at 
+              Password changed on ${userData.resetDate || new Date().toLocaleDateString()} at 
               ${userData.resetTime || new Date().toLocaleTimeString()}
             </p>
           </div>
-          
           <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h4 style="color: #856404;">🔐 Security Recommendations:</h4>
             <ul style="color: #856404; font-size: 14px;">
               <li>Your new password is now active across all devices</li>
-              <li>Use a unique password for your ${
-                this.companyName
-              } account</li>
+              <li>Use a unique password for your ${this.companyName} account</li>
               <li>Consider enabling two-factor authentication</li>
               <li>If you didn't make this change, contact us immediately</li>
             </ul>
           </div>
-          
           <div style="text-align: center; margin: 25px 0;">
-            <a href="${
-              this.appUrl
-            }/login" style="background: #32CD32; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+            <a href="${this.appUrl}/login" style="background: #32CD32; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
               🚀 Log In to Your Account
             </a>
           </div>
-          
-          <p>If you have any questions or didn't reset your password, please contact our support team immediately at <a href="mailto:${
-            this.supportEmail
-          }">${this.supportEmail}</a></p>
+          <p>If you have any questions or didn't reset your password, please contact our support team immediately at <a href="mailto:${this.supportEmail}">${this.supportEmail}</a></p>
         </div>
         <div style="padding: 20px; text-align: center; color: #666; font-size: 14px;">
-          <p>© ${new Date().getFullYear()} ${
-      this.companyName
-    }. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} ${this.companyName}. All rights reserved.</p>
           <p>This is an automated security notification.</p>
         </div>
       </div>
@@ -687,9 +612,7 @@ ${userData.resetTime || new Date().toLocaleTimeString()}
 Next Steps:
 Log in to your account: ${this.appUrl}/login
 
-⚠️ If you have any questions or didn't reset your password, please contact our support team immediately at ${
-      this.supportEmail
-    }
+⚠️ If you have any questions or didn't reset your password, please contact our support team immediately at ${this.supportEmail}
 
 Best regards,
 The ${this.companyName} Security Team
@@ -697,15 +620,9 @@ The ${this.companyName} Security Team
 © ${new Date().getFullYear()} ${this.companyName}. All rights reserved.
 This is an automated security notification.`;
 
-    return this.sendEmail({
-      to: userData.email,
-      subject,
-      html,
-      text,
-    });
+    return this.sendEmail({ to: userData.email, subject, html, text });
   }
 
-  // Suspicious Activity Alert
   async sendSuspiciousActivityAlert(userData) {
     const subject = `⚠️ Suspicious Password Reset Attempt - ${this.companyName}`;
     const html = `
@@ -715,17 +632,13 @@ This is an automated security notification.`;
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
           <h2>Hello ${userData.name},</h2>
-          <p>We detected a password reset attempt for your ${
-            this.companyName
-          } account.</p>
-          
+          <p>We detected a password reset attempt for your ${this.companyName} account.</p>
           <div style="background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 15px; margin: 15px 0;">
             <h4 style="color: #721c24;">🚨 Security Alert:</h4>
             <p style="color: #721c24;">
               If you didn't request this password reset, someone may be trying to access your account.
             </p>
           </div>
-          
           <div style="background: #fff3cd; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h4 style="color: #856404;">🛡️ Immediate Actions Required:</h4>
             <ul style="color: #856404; font-size: 14px;">
@@ -736,30 +649,21 @@ This is an automated security notification.`;
               <li>Contact support if you see unfamiliar activity</li>
             </ul>
           </div>
-          
           <div style="text-align: center; margin: 25px 0;">
-            <a href="${
-              this.appUrl
-            }/security" style="background: #DC143C; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+            <a href="${this.appUrl}/security" style="background: #DC143C; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
               🔒 Review Account Security
             </a>
           </div>
-          
           <p><strong>Contact our security team immediately if:</strong></p>
           <ul style="font-size: 14px;">
             <li>You notice any unauthorized activity</li>
             <li>You need help securing your account</li>
             <li>You have any security concerns</li>
           </ul>
-          
-          <p>Email: <a href="mailto:${this.supportEmail}">${
-      this.supportEmail
-    }</a></p>
+          <p>Email: <a href="mailto:${this.supportEmail}">${this.supportEmail}</a></p>
         </div>
         <div style="padding: 20px; text-align: center; color: #666; font-size: 14px;">
-          <p>© ${new Date().getFullYear()} ${
-      this.companyName
-    }. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} ${this.companyName}. All rights reserved.</p>
           <p>This is an automated security alert.</p>
         </div>
       </div>
@@ -796,15 +700,9 @@ The ${this.companyName} Security Team
 © ${new Date().getFullYear()} ${this.companyName}. All rights reserved.
 This is an automated security alert.`;
 
-    return this.sendEmail({
-      to: userData.email,
-      subject,
-      html,
-      text,
-    });
+    return this.sendEmail({ to: userData.email, subject, html, text });
   }
 
-  // Account Locked Alert (for too many failed attempts)
   async sendAccountLockedAlert(userData) {
     const subject = `🔒 Account Temporarily Locked - ${this.companyName}`;
     const html = `
@@ -814,56 +712,39 @@ This is an automated security alert.`;
         </div>
         <div style="padding: 20px; background: #f9f9f9;">
           <h2>Hello ${userData.name},</h2>
-          <p>Your ${
-            this.companyName
-          } account has been temporarily locked for security reasons.</p>
-          
+          <p>Your ${this.companyName} account has been temporarily locked for security reasons.</p>
           <div style="background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px; padding: 15px; margin: 15px 0;">
             <h4 style="color: #856404;">ℹ️ What Happened:</h4>
             <p style="color: #856404;">
               Multiple incorrect password attempts were detected on your account. 
               This is a security measure to protect your account from unauthorized access.
             </p>
-            <p style="color: #856404;"><strong>Lock Duration:</strong> ${
-              userData.lockDuration || "30 minutes"
-            }</p>
+            <p style="color: #856404;"><strong>Lock Duration:</strong> ${userData.lockDuration || "30 minutes"}</p>
           </div>
-          
           <div style="background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 15px 0;">
             <h4 style="color: #0056b3;">🔄 What to Do:</h4>
             <ul style="color: #0056b3; font-size: 14px;">
-              <li>Wait ${
-                userData.lockDuration || "30 minutes"
-              } for the lock to expire</li>
+              <li>Wait ${userData.lockDuration || "30 minutes"} for the lock to expire</li>
               <li>Use the "Forgot Password" option if you've forgotten your password</li>
               <li>Create a strong, unique password</li>
               <li>Consider using a password manager</li>
             </ul>
           </div>
-          
           <div style="text-align: center; margin: 25px 0;">
-            <a href="${
-              this.appUrl
-            }/reset-password" style="background: #FF8C00; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
+            <a href="${this.appUrl}/reset-password" style="background: #FF8C00; color: white; padding: 12px 30px; text-decoration: none; border-radius: 5px; font-weight: bold; display: inline-block;">
               🔑 Reset Password
             </a>
           </div>
-          
           <p><strong>If you didn't attempt to log in:</strong></p>
           <ul style="font-size: 14px;">
             <li>Contact our security team immediately</li>
             <li>Review your account activity</li>
             <li>Change your password after the lock expires</li>
           </ul>
-          
-          <p>Contact security: <a href="mailto:${this.supportEmail}">${
-      this.supportEmail
-    }</a></p>
+          <p>Contact security: <a href="mailto:${this.supportEmail}">${this.supportEmail}</a></p>
         </div>
         <div style="padding: 20px; text-align: center; color: #666; font-size: 14px;">
-          <p>© ${new Date().getFullYear()} ${
-      this.companyName
-    }. All rights reserved.</p>
+          <p>© ${new Date().getFullYear()} ${this.companyName}. All rights reserved.</p>
           <p>This is an automated security notification.</p>
         </div>
       </div>
@@ -873,9 +754,7 @@ This is an automated security alert.`;
 
 Hello ${userData.name},
 
-Your ${
-      this.companyName
-    } account has been temporarily locked for security reasons.
+Your ${this.companyName} account has been temporarily locked for security reasons.
 
 ℹ️ What Happened:
 Multiple incorrect password attempts were detected on your account. 
@@ -904,15 +783,51 @@ The ${this.companyName} Security Team
 © ${new Date().getFullYear()} ${this.companyName}. All rights reserved.
 This is an automated security notification.`;
 
-    return this.sendEmail({
-      to: userData.email,
-      subject,
-      html,
-      text,
-    });
+    return this.sendEmail({ to: userData.email, subject, html, text });
   }
 
-  // Promotional Email
+  // NEW — referenced by dispatcher.emailVerification and authController
+  async sendEmailVerification({ user, verifyUrl }) {
+    const subject = `Verify your email — ${this.companyName}`;
+    const html = `
+    <div style="max-width:600px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;">
+      <div style="background:#2E8B57;color:#fff;padding:20px;text-align:center;">
+        <h1>Verify Your Email</h1>
+      </div>
+      <div style="padding:20px;background:#f9f9f9;">
+        <h2>Hello ${user.firstName},</h2>
+        <p>Please confirm your email to activate all account features.</p>
+        <div style="text-align:center;margin:25px 0;">
+          <a href="${verifyUrl}"
+             style="background:#2E8B57;color:#fff;padding:12px 30px;
+                    text-decoration:none;border-radius:5px;font-weight:bold;
+                    display:inline-block;">✅ Verify Email</a>
+        </div>
+        <p>This link expires in 24 hours.</p>
+        <p>If you didn't create this account, ignore this email.</p>
+      </div>
+    </div>`;
+    return this.sendEmail({ to: user.email, subject, html });
+  }
+
+  // NEW — used by dispatcher.plantStaffInvited
+  async sendPlantStaffWelcome({ staff, plant }) {
+    const subject = `You've been added to ${plant.name} — ${this.companyName}`;
+    const html = `
+    <div style="max-width:600px;margin:0 auto;padding:20px;font-family:Arial,sans-serif;">
+      <div style="background:#2E8B57;color:#fff;padding:20px;text-align:center;">
+        <h1>Welcome to ${plant.name}</h1>
+      </div>
+      <div style="padding:20px;background:#f9f9f9;">
+        <h2>Hello ${staff.firstName},</h2>
+        <p>You've been added to <strong>${plant.name}</strong> (${plant.code})
+           as <strong>${staff.role}</strong>.</p>
+        <p>Log in to the plant portal to get started.</p>
+      </div>
+    </div>`;
+    return this.sendEmail({ to: staff.email, subject, html });
+  }
+
   async sendPromotionalEmail(user, promotion) {
     const subject = promotion.subject;
     const html = `
@@ -931,12 +846,7 @@ This is an automated security notification.`;
         </div>
       </div>
     `;
-
-    return this.sendEmail({
-      to: user.email,
-      subject,
-      html,
-    });
+    return this.sendEmail({ to: user.email, subject, html });
   }
 }
 

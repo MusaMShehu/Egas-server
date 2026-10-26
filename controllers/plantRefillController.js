@@ -4,6 +4,7 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const PlantRefillRequest = require('../models/PlantRefillRequest');
 const PlantRefillTransaction = require('../models/PlantRefillTransaction');
+const dispatcher = require("../services/notifications/notificationDispatcher");
 
 // ================================================================
 // @desc    List refill requests for the authenticated plant
@@ -137,19 +138,37 @@ exports.receiveCylinder = asyncHandler(async (req, res, next) => {
   });
 
   // Notify agent
+  // try {
+  //   const io = req.app.get('io');
+  //   const agentId = result.request.agentId;
+  //   if (io && agentId) {
+  //     io.to(`agent:${agentId}`).emit('refill_request.received', {
+  //       requestId: result.request._id,
+  //       requestNumber: result.request.requestNumber,
+  //       receivedAt: result.request.receivedAt,
+  //     });
+  //   }
+  // } catch (socketErr) {
+  //   console.error('Socket emit failed (received):', socketErr.message);
+  // }
+
   try {
-    const io = req.app.get('io');
+  const io = req.app.get("io");
+  if (io) {
     const agentId = result.request.agentId;
-    if (io && agentId) {
-      io.to(`agent:${agentId}`).emit('refill_request.received', {
+    if (agentId) {
+      io.to(`agent:${agentId}`).emit("refill_request.received", {
         requestId: result.request._id,
         requestNumber: result.request.requestNumber,
         receivedAt: result.request.receivedAt,
       });
     }
-  } catch (socketErr) {
-    console.error('Socket emit failed (received):', socketErr.message);
   }
+  dispatcher.refillRequestUpdate(result.request.agentId, result.request, "received");
+} catch (socketErr) {
+  console.error("Socket emit failed (received):", socketErr.message);
+}
+
 
   res.status(200).json({
     success: true,
@@ -199,29 +218,54 @@ exports.submitInspection = asyncHandler(async (req, res, next) => {
   });
 
   // Notify agent
+  // try {
+  //   const io = req.app.get('io');
+  //   const agentId = result.request.agentId;
+  //   if (io && agentId) {
+  //     const event = outcome === 'approved' ? 'refill_request.approved' : 'refill_request.rejected';
+  //     io.to(`agent:${agentId}`).emit(event, {
+  //       requestId: result.request._id,
+  //       requestNumber: result.request.requestNumber,
+  //       outcome,
+  //       rejectionReason: rejectionReason || null,
+  //     });
+  //   }
+  //   if (outcome === 'rejected') {
+  //     io.to('admin:ops').emit('refill_request.rejected', {
+  //       requestId: result.request._id,
+  //       plantId: req.plantId,
+  //       reason: rejectionReason,
+  //     });
+  //   }
+  // } catch (socketErr) {
+  //   console.error('Socket emit failed (inspection):', socketErr.message);
+  // }
+
   try {
-    const io = req.app.get('io');
-    const agentId = result.request.agentId;
-    if (io && agentId) {
-      const event = outcome === 'approved' ? 'refill_request.approved' : 'refill_request.rejected';
-      io.to(`agent:${agentId}`).emit(event, {
+  const io = req.app.get("io");
+  const agentId = result.request.agentId;
+  if (io) {
+    if (agentId) {
+      const ev = outcome === "approved" ? "refill_request.approved" : "refill_request.rejected";
+      io.to(`agent:${agentId}`).emit(ev, {
         requestId: result.request._id,
         requestNumber: result.request.requestNumber,
         outcome,
         rejectionReason: rejectionReason || null,
       });
     }
-    if (outcome === 'rejected') {
-      io.to('admin:ops').emit('refill_request.rejected', {
+    if (outcome === "rejected") {
+      io.to("admin:ops").emit("refill_request.rejected", {
         requestId: result.request._id,
         plantId: req.plantId,
         reason: rejectionReason,
       });
     }
-  } catch (socketErr) {
-    console.error('Socket emit failed (inspection):', socketErr.message);
   }
-
+  dispatcher.refillRequestUpdate(agentId, result.request, outcome);
+} catch (socketErr) {
+  console.error("Socket emit failed (inspection):", socketErr.message);
+}
   res.status(200).json({
     success: true,
     message: `Inspection ${outcome}`,
@@ -291,26 +335,50 @@ exports.confirmRefill = asyncHandler(async (req, res, next) => {
   });
 
   // Notify agent
+  // try {
+  //   const io = req.app.get('io');
+  //   const agentId = result.request.agentId;
+  //   if (io && agentId) {
+  //     io.to(`agent:${agentId}`).emit('refill_request.confirmed', {
+  //       requestId: result.request._id,
+  //       requestNumber: result.request.requestNumber,
+  //       plantConfirmedQuantity: result.request.plantConfirmedQuantity,
+  //       readyForCollection: true,
+  //     });
+  //   }
+  //   io.to('admin:ops').emit('refill_request.confirmed', {
+  //     requestId: result.request._id,
+  //     plantId: req.plantId,
+  //     variance: result.variance,
+  //     requiresDispute: result.requiresDispute,
+  //   });
+  // } catch (socketErr) {
+  //   console.error('Socket emit failed (confirmed):', socketErr.message);
+  // }
+
   try {
-    const io = req.app.get('io');
-    const agentId = result.request.agentId;
-    if (io && agentId) {
-      io.to(`agent:${agentId}`).emit('refill_request.confirmed', {
+  const io = req.app.get("io");
+  const agentId = result.request.agentId;
+  if (io) {
+    if (agentId) {
+      io.to(`agent:${agentId}`).emit("refill_request.confirmed", {
         requestId: result.request._id,
         requestNumber: result.request.requestNumber,
         plantConfirmedQuantity: result.request.plantConfirmedQuantity,
         readyForCollection: true,
       });
     }
-    io.to('admin:ops').emit('refill_request.confirmed', {
+    io.to("admin:ops").emit("refill_request.confirmed", {
       requestId: result.request._id,
       plantId: req.plantId,
       variance: result.variance,
       requiresDispute: result.requiresDispute,
     });
-  } catch (socketErr) {
-    console.error('Socket emit failed (confirmed):', socketErr.message);
   }
+  dispatcher.refillRequestUpdate(agentId, result.request, "confirmed");
+} catch (socketErr) {
+  console.error("Socket emit failed (confirmed):", socketErr.message);
+}
 
   res.status(200).json({
     success: true,

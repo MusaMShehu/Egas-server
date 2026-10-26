@@ -2,8 +2,8 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const adminAuth = require('../middleware/adminAuth');
-const NotificationService = require('../services/notificationService');
-const SendChampService = require('../services/sendchampService');
+const NotificationService = require('../services/notifications/notificationService');
+const SendChampService = require('../services/notifications/sendchampService');
 const WebhookController = require('../controllers/notificationWebhookController');
 const SMSLog = require('../models/SMSLogs');
 

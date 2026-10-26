@@ -1,7 +1,7 @@
 class SMSTemplates {
   // Account Related
   static accountCreated(user) {
-    return `Welcome ${user.firstName}! Your account has been created successfully. Thank you for joining us.`;
+    return `Welcome ${user.firstName}! Your e-Gas account has been created successfully. Thank you for joining us.`;
   }
 
   // Order Related

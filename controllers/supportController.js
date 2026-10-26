@@ -2,8 +2,8 @@ const SupportTicket = require("../models/SupportTicket");
 const User = require("../models/User");
 const ErrorResponse = require("../utils/errorResponse");
 const asyncHandler = require("../middleware/async");
-const NotificationService = require("../services/notificationService");
-const emailService = require("../services/emailService");
+const NotificationService = require("../services/notifications/notificationService");
+const emailService = require("../services/notifications/emailService");
 const cloudinary = require('../config/cloudinary');
 
 // @desc    Get all support tickets
@@ -34,346 +34,227 @@ exports.getTickets = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get single support ticket
+
+
+// @desc    Get a single support ticket
 // @route   GET /api/v1/support/:id
-// @access  Private
+// @access  Private (ticket owner or admin)
 exports.getTicket = asyncHandler(async (req, res, next) => {
-  const ticket = await SupportTicket.findById(req.params.id)
-    .populate("user", "firstName lastName email phone")
-    .populate("responses.user", "firstName lastName role");
+  const ticketId = req.params.id;
+
+  if (!ticketId) {
+    return next(new ErrorResponse("Ticket ID is required", 400));
+  }
+
+  if (!req.user || !req.user._id) {
+    return next(new ErrorResponse("Authentication required", 401));
+  }
+
+  // Find the ticket and populate related user information.
+  const ticket = await SupportTicket.findById(ticketId)
+    .populate("user", "firstName lastName email phone profileImage")
+    .populate("responses.user", "firstName lastName email role profileImage")
+    .populate("assignedTo", "firstName lastName email");
 
   if (!ticket) {
-    return next(new ErrorResponse(`No ticket with id ${req.params.id}`, 404));
+    return next(
+      new ErrorResponse(`No support ticket found with ID ${ticketId}`, 404)
+    );
   }
 
-  // Only owner or admin can access
-  if (
-    ticket.user._id.toString() !== req.user._id.toString() &&
-    req.user.role !== "admin"
-  ) {
-    return next(new ErrorResponse("Not authorized to access this ticket", 401));
+  // Normalize IDs to strings to avoid ObjectId-versus-string mismatches.
+  const ticketOwnerId =
+    ticket.user?._id?.toString() ||
+    ticket.user?.toString();
+
+  const currentUserId = req.user._id.toString();
+
+  // Permit only the ticket owner or an administrator.
+  const isOwner =
+    Boolean(ticketOwnerId) &&
+    ticketOwnerId === currentUserId;
+
+  const isAdmin = [
+    "admin",
+    "superadmin",
+    "super-admin",
+  ].includes(String(req.user.role || "").toLowerCase());
+
+  if (!isOwner && !isAdmin) {
+    return next(
+      new ErrorResponse(
+        "You are not authorized to access this ticket",
+        403
+      )
+    );
   }
 
-  res.status(200).json({ success: true, data: ticket });
+  return res.status(200).json({
+    success: true,
+    data: ticket,
+  });
 });
 
 
-// Get Support Ticket with Responses
-// Get Support Ticket with Responses
-// Get Support Ticket with Responses
-// Get Support Ticket with Responses
-// exports.getTicketWithResponses = asyncHandler(async (req, res, next) => {
-//   try {
-//     const ticket = await SupportTicket.findById(req.params._id)
-//       .populate({
-//         path: 'user',
-//         select: 'firstName lastName email phone profileImage'
-//       })
-//       .populate({
-//         path: 'responses.user',
-//         select: 'firstName lastName email profileImage role'
-//       })
-//       .populate({
-//         path: 'assignedTo',
-//         select: 'firstName lastName email'
-//       });
 
-//     if (!ticket) {
-//       return next(
-//         new ErrorResponse(`No ticket with the id of ${req.params._id}`, 404)
-//       );
-//     }
-
-//     // Check authorization
-//     if (ticket.user._id.toString() !== req.user._id && req.user.role !== "admin") {
-//       return next(
-//         new ErrorResponse(`Not authorized to view this ticket`, 401)
-//       );
-//     }
-
-//     // Format attachments for frontend
-//     const formattedTicket = {
-//       ...ticket.toObject(),
-//       images: ticket.images.map(img => ({
-//         url: img.secure_url || img.url,
-//         public_id: img.public_id,
-//         thumbnail: cloudinary.url(img.public_id, {
-//           width: 200,
-//           height: 200,
-//           crop: 'fill',
-//           quality: 'auto'
-//         })
-//       })),
-//       responses: ticket.responses.map(response => ({
-//         ...response.toObject(),
-//         attachments: response.attachments.map(att => ({
-//           url: att.secure_url || att.url,
-//           public_id: att.public_id,
-//           thumbnail: cloudinary.url(att.public_id, {
-//             width: 200,
-//             height: 200,
-//             crop: 'fill',
-//             quality: 'auto'
-//           })
-//         }))
-//       }))
-//     };
-
-//     res.status(200).json({
-//       success: true,
-//       data: formattedTicket
-//     });
-
-//   } catch (error) {
-//     console.error('Error fetching ticket:', error);
-//     next(error);
-//   }
-// });
-
-
-
-
+// @desc    Get a support ticket with its responses and attachments
+// @route   GET /api/v1/support/:id
+// @access  Private (ticket owner or admin)
 exports.getTicketWithResponses = asyncHandler(async (req, res, next) => {
-  try {
-    const ticketId = req.params._id || req.params.id;
-    const ticket = await SupportTicket.findById(ticketId)
-      .populate({
-        path: 'user',
-        select: 'firstName lastName email phone profileImage'
-      })
-      .populate({
-        path: 'responses.user',
-        select: 'firstName lastName email profileImage role'
-      })
-      .populate({
-        path: 'assignedTo',
-        select: 'firstName lastName email'
-      });
+  const ticketId = req.params.id || req.params._id;
 
-    if (!ticket) {
-      return next(
-        new ErrorResponse(`No ticket with the id of ${ticketId}`, 404)
-      );
-    }
+  if (!ticketId) {
+    return next(new ErrorResponse("Ticket ID is required", 400));
+  }
 
-    // Check authorization
-    if (ticket.user._id.toString() !== req.user._id && req.user.role !== "admin") {
-      return next(
-        new ErrorResponse(`Not authorized to view this ticket`, 401)
-      );
-    }
+  if (!req.user || !req.user._id) {
+    return next(new ErrorResponse("Authentication required", 401));
+  }
 
-    // Format images and attachments for frontend
-    const formattedTicket = {
-      ...ticket.toObject(),
-      images: ticket.images.map(img => ({
-        public_id: img.public_id,
-        url: img.secure_url || img.url,
-        thumbnail: img.secure_url ? cloudinary.url(img.public_id, {
-          width: 200,
-          height: 200,
-          crop: 'fill',
-          quality: 'auto'
-        }) : img.url
-      })),
-      responses: ticket.responses.map(response => ({
-        ...response.toObject(),
-        attachments: response.attachments.map(att => ({
-          public_id: att.public_id,
-          url: att.secure_url || att.url,
-          thumbnail: att.secure_url ? cloudinary.url(att.public_id, {
-            width: 200,
-            height: 200,
-            crop: 'fill',
-            quality: 'auto'
-          }) : att.url
-        }))
-      }))
-    };
-
-    res.status(200).json({
-      success: true,
-      data: formattedTicket
+  // Fetch the ticket and its related documents.
+  const ticket = await SupportTicket.findById(ticketId)
+    .populate({
+      path: "user",
+      select: "firstName lastName email phone profileImage",
+    })
+    .populate({
+      path: "responses.user",
+      select: "firstName lastName email profileImage role",
+    })
+    .populate({
+      path: "assignedTo",
+      select: "firstName lastName email",
     });
 
-  } catch (error) {
-    console.error('Error fetching ticket:', error);
-    next(error);
+  if (!ticket) {
+    return next(
+      new ErrorResponse(
+        `No support ticket found with ID ${ticketId}`,
+        404
+      )
+    );
   }
+
+  // Normalize the owner and authenticated-user IDs.
+  // This supports both populated and unpopulated ticket.user values.
+  const ticketOwnerId =
+    ticket.user?._id?.toString() ||
+    ticket.user?.toString();
+
+  const currentUserId = req.user._id.toString();
+
+  const isOwner =
+    Boolean(ticketOwnerId) &&
+    ticketOwnerId === currentUserId;
+
+  const isAdmin = [
+    "admin",
+    "superadmin",
+    "super-admin",
+  ].includes(String(req.user.role || "").toLowerCase());
+
+  // Enforce object-level authorization before returning ticket details.
+  if (!isOwner && !isAdmin) {
+    return next(
+      new ErrorResponse(
+        "You are not authorized to view this ticket",
+        403
+      )
+    );
+  }
+
+  // Safely format ticket images for the frontend.
+  const formattedImages = (ticket.images || []).map((img) => {
+    const imageUrl = img.secure_url || img.url;
+
+    let thumbnail = imageUrl;
+
+    if (img.public_id && img.secure_url) {
+      thumbnail = cloudinary.url(img.public_id, {
+        width: 200,
+        height: 200,
+        crop: "fill",
+        quality: "auto",
+        fetch_format: "auto",
+      });
+    }
+
+    return {
+      ...(
+        typeof img.toObject === "function"
+          ? img.toObject()
+          : img
+      ),
+      public_id: img.public_id,
+      url: imageUrl,
+      thumbnail,
+    };
+  });
+
+  // Safely format responses and their attachments.
+  const formattedResponses = (ticket.responses || []).map(
+    (response) => {
+      const responseData =
+        typeof response.toObject === "function"
+          ? response.toObject()
+          : response;
+
+      const formattedAttachments = (
+        response.attachments || []
+      ).map((attachment) => {
+        const attachmentUrl =
+          attachment.secure_url || attachment.url;
+
+        let thumbnail = attachmentUrl;
+
+        if (
+          attachment.public_id &&
+          attachment.secure_url
+        ) {
+          thumbnail = cloudinary.url(
+            attachment.public_id,
+            {
+              width: 200,
+              height: 200,
+              crop: "fill",
+              quality: "auto",
+              fetch_format: "auto",
+            }
+          );
+        }
+
+        return {
+          ...(
+            typeof attachment.toObject === "function"
+              ? attachment.toObject()
+              : attachment
+          ),
+          public_id: attachment.public_id,
+          url: attachmentUrl,
+          thumbnail,
+        };
+      });
+
+      return {
+        ...responseData,
+        attachments: formattedAttachments,
+      };
+    }
+  );
+
+  // Convert the Mongoose document to a plain object and replace
+  // the image/response properties with their formatted versions.
+  const formattedTicket = {
+    ...ticket.toObject(),
+    images: formattedImages,
+    responses: formattedResponses,
+  };
+
+  return res.status(200).json({
+    success: true,
+    data: formattedTicket,
+  });
 });
-
-
-// @desc    Create support ticket
-// @route   POST /api/v1/support
-// @access  Private
-// exports.createTicket = asyncHandler(async (req, res, next) => {
-//   if (!req.user || !req.user._id) {
-//     return next(new ErrorResponse("Not authorized to create a ticket", 401));
-//   }
-
-//   // Collect text fields from body
-//   const { subject, description, category } = req.body;
-
-//   // Collect uploaded files (if any)
-//   const attachments = req.files
-//     ? req.files.map((file) => `/uploads/support/${file.filename}`)
-//     : [];
-
-//   // Create ticket data
-//   const ticketData = {
-//     user: req.user._id,
-//     subject,
-//     description,
-//     category,
-//     attachments,
-//   };
-
-//   const ticket = await SupportTicket.create(ticketData);
-
-//   // ✅ SMS NOTIFICATION: Send ticket created notification to user
-//   try {
-//     const user = await User.findById(req.user._id);
-//     if (user && user.phone && user.phoneVerified) {
-//       await NotificationService.sendNotification(
-//         user.phone,
-//         `Support ticket #${
-//           ticket.ticketNumber || ticket._id
-//         } created successfully. Subject: "${subject}". We'll get back to you soon.`,
-//         "support_ticket_created",
-//         {
-//           userId: user._id,
-//           ticketId: ticket._id,
-//           ticketNumber:
-//             ticket.ticketNumber || `TKT-${ticket._id.toString().slice(-6)}`,
-//           subject: subject,
-//           category: category,
-//         }
-//       );
-//     }
-//   } catch (smsError) {
-//     console.error("Ticket creation SMS failed:", smsError);
-//     // Don't fail ticket creation if SMS fails
-//   }
-
-//   // ✅ SMS NOTIFICATION: Send alert to admins about new ticket (optional)
-//   try {
-//     if (process.env.SEND_ADMIN_ALERTS === "true") {
-//       const admins = await User.find({
-//         role: "admin",
-//         phoneVerified: true,
-//       }).select("phone");
-//       const adminPhones = admins
-//         .filter((admin) => admin.phone)
-//         .map((admin) => admin.phone);
-
-//       if (adminPhones.length > 0) {
-//         const user = await User.findById(req.user._id).select(
-//           "firstName lastName"
-//         );
-//         const userName = user ? `${user.firstName} ${user.lastName}` : "A user";
-
-//         await NotificationService.sendBulkPromotionalSMS(
-//           adminPhones,
-//           `📢 New Support Ticket! ${userName} created ticket #${
-//             ticket.ticketNumber || ticket._id
-//           }: "${subject}" (${category})`
-//         );
-//       }
-//     }
-//   } catch (adminSmsError) {
-//     console.error("Admin alert SMS failed:", adminSmsError);
-//   }
-
-//   res.status(201).json({
-//     success: true,
-//     data: ticket,
-//   });
-// });
-
-
-
-
-// exports.createTicket = asyncHandler(async (req, res) => {
-//   try {
-//     const images =
-//       req.files?.map((file) => ({
-//         public_id: file.public_id,
-//         url: file.path,
-//         secure_url: file.path.replace("http://", "https://"),
-//       })) || [];
-
-//     const ticket = new SupportTicket({
-//       userId: req.userId,
-//       subject: req.body.subject,
-//       message: req.body.message,
-//       images: images,
-//     });
-
-//     await ticket.save();
-
-//     // ✅ SMS NOTIFICATION: Send ticket created notification to user
-//     try {
-//       const user = await User.findById(req.user._id);
-//       if (user && user.phone && user.phoneVerified) {
-//         await NotificationService.sendNotification(
-//           user.phone,
-//           `Support ticket #${
-//             ticket.ticketNumber || ticket._id
-//           } created successfully. Subject: "${subject}". We'll get back to you soon.`,
-//           "support_ticket_created",
-//           {
-//             userId: user._id,
-//             ticketId: ticket._id,
-//             ticketNumber:
-//               ticket.ticketNumber || `TKT-${ticket._id.toString().slice(-6)}`,
-//             subject: subject,
-//             category: category,
-//           }
-//         );
-//       }
-//     } catch (smsError) {
-//       console.error("Ticket creation SMS failed:", smsError);
-//       // Don't fail ticket creation if SMS fails
-//     }
-
-//     // ✅ SMS NOTIFICATION: Send alert to admins about new ticket (optional)
-//     try {
-//       if (process.env.SEND_ADMIN_ALERTS === "true") {
-//         const admins = await User.find({
-//           role: "admin",
-//           phoneVerified: true,
-//         }).select("phone");
-//         const adminPhones = admins
-//           .filter((admin) => admin.phone)
-//           .map((admin) => admin.phone);
-
-//         if (adminPhones.length > 0) {
-//           const user = await User.findById(req.user._id).select(
-//             "firstName lastName"
-//           );
-//           const userName = user
-//             ? `${user.firstName} ${user.lastName}`
-//             : "A user";
-
-//           await NotificationService.sendBulkPromotionalSMS(
-//             adminPhones,
-//             `📢 New Support Ticket! ${userName} created ticket #${
-//               ticket.ticketNumber || ticket._id
-//             }: "${subject}" (${category})`
-//           );
-//         }
-//       }
-//     } catch (adminSmsError) {
-//       console.error("Admin alert SMS failed:", adminSmsError);
-//     }
-
-//     res.status(201).json(ticket);
-//   } catch (error) {
-//     res.status(500).json({ error: error.message });
-//   }
-// });
-
-
 
 
 exports.createTicket = asyncHandler(async (req, res, next) => {
@@ -470,55 +351,6 @@ exports.createTicket = asyncHandler(async (req, res, next) => {
 });
 
 
-
-
-
-// @desc    Add response to ticket
-// @route   PUT /api/v1/support/:id/response
-// @access  Private
-// exports.addResponse = asyncHandler(async (req, res, next) => {
-//   let ticket = await SupportTicket.findById(req.params._id);
-
-//   if (!ticket) {
-//     return next(
-//       new ErrorResponse(`No ticket with the id of ${req.params._id}`, 404)
-//     );
-//   }
-
-//   // Only ticket owner or admin can reply
-//   if (ticket.user.toString() !== req.user._id && req.user.role !== "admin") {
-//     return next(
-//       new ErrorResponse(`User ${req.user._id} not authorized to respond`, 401)
-//     );
-//   }
-
-//   // If admin replies and ticket is "open", move it to "in-progress"
-//   if (req.user.role === "admin" && ticket.status === "open") {
-//     ticket.status = "in-progress";
-//   }
-
-//   // Collect attachments (if any uploaded)
-//   const attachments = req.files
-//     ? req.files.map((file) => `/uploads/support/${file.filename}`)
-//     : [];
-
-//   // Push response
-//   ticket.responses.push({
-//     user: req.user._id,
-//     message: req.body.message,
-//     attachments,
-//   });
-
-//   await ticket.save();
-
-//   res.status(200).json({
-//     success: true,
-//     data: ticket,
-//   });
-// });
-
-
-
 exports.addResponse = asyncHandler(async (req, res, next) => {
   try {
     const ticket = await SupportTicket.findById(req.params._id || req.params.id);
@@ -529,14 +361,21 @@ exports.addResponse = asyncHandler(async (req, res, next) => {
       );
     }
 
-    // Only ticket owner or admin can reply
-    if (ticket.user.toString() !== req.user._id && req.user.role !== "admin") {
+    const isOwner = ticket.user.toString() === req.user._id.toString();
+    const isAdmin = req.user.role === 'admin' || req.user.role === 'superadmin' || req.user.role === 'super-admin';
+
+    if (!isOwner && !isAdmin) {
       return next(
         new ErrorResponse(`User ${req.user._id} not authorized to respond`, 401)
       );
     }
 
-    // Handle uploaded attachments
+    // Only truly closed tickets block replies. Resolved tickets can be
+    // reopened by the owner, and admins can always reply.
+    if (ticket.status === 'closed' && !isAdmin) {
+      return next(new ErrorResponse('This ticket is closed. Please open a new ticket.', 400));
+    }
+
     const attachments = req.files ? req.files.map((file) => ({
       public_id: file.filename || file.public_id,
       url: file.path,
@@ -547,34 +386,36 @@ exports.addResponse = asyncHandler(async (req, res, next) => {
       created_at: new Date().toISOString()
     })) : [];
 
-    // Create response object
     const response = {
       user: req.user._id,
       message: req.body.message || '',
-      attachments: attachments,
-      isAdminResponse: req.user.role === "admin",
-      createdAt: Date.now()
+      attachments,
+      isAdminResponse: isAdmin,
+      createdAt: Date.now(),
     };
 
-    // If admin replies and ticket is "open", move it to "in-progress"
-    if (req.user.role === "admin" && ticket.status === "open") {
-      ticket.status = "in-progress";
-      ticket.assignedTo = req.user._id;
+    // Status transition rules
+    if (isAdmin) {
+      if (ticket.status === 'open') {
+        ticket.status = 'in-progress';
+        ticket.assignedTo = req.user._id;
+      }
+    } else {
+      // Owner replied — if ticket was resolved, reopen to in-progress
+      if (ticket.status === 'resolved') {
+        ticket.status = 'in-progress';
+      }
     }
 
-    // Push response to ticket
     ticket.responses.push(response);
     ticket.updatedAt = Date.now();
-
     await ticket.save();
 
-    // Populate user details for response
     await ticket.populate({
       path: 'responses.user',
-      select: 'firstName lastName email profileImage role'
+      select: 'firstName lastName email profileImage role',
     });
 
-    // Get the newly added response
     const newResponse = ticket.responses[ticket.responses.length - 1];
 
     res.status(200).json({
@@ -585,140 +426,16 @@ exports.addResponse = asyncHandler(async (req, res, next) => {
         ticket: {
           _id: ticket._id,
           status: ticket.status,
-          updatedAt: ticket.updatedAt
-        }
-      }
+          updatedAt: ticket.updatedAt,
+        },
+      },
     });
-
   } catch (error) {
     console.error('Error adding response:', error);
     next(error);
   }
 });
 
-
-
-// exports.addResponse = asyncHandler(async (req, res, next) => {
-//   try {
-//     const ticket = await SupportTicket.findById(req.params._id);
-
-//     if (!ticket) {
-//       return next(
-//         new ErrorResponse(`No ticket with the id of ${req.params._id}`, 404)
-//       );
-//     }
-
-//     // Only ticket owner or admin can reply
-//     if (ticket.user.toString() !== req.user._id && req.user.role !== "admin") {
-//       return next(
-//         new ErrorResponse(`User ${req.user._id} not authorized to respond`, 401)
-//       );
-//     }
-
-//     // If admin replies and ticket is "open", move it to "in-progress"
-//     if (req.user.role === "admin" && ticket.status === "open") {
-//       ticket.status = "in-progress";
-//     }
-
-//     // Handle file uploads to Cloudinary
-//     let attachments = [];
-//     if (req.files && req.files.length > 0) {
-//       try {
-//         // Upload each file to Cloudinary
-//         const uploadPromises = req.files.map(file => {
-//           return cloudinary.uploader.upload(file.path, {
-//             folder: `egas/support/ticket_${ticket._id}/responses`,
-//             transformation: [
-//               { width: 800, height: 800, crop: 'limit' },
-//               { quality: 'auto:good' }
-//             ],
-//             public_id: `response_${Date.now()}_${Math.random().toString(36).substring(7)}`,
-//             resource_type: 'auto'
-//           });
-//         });
-
-//         // Wait for all uploads to complete
-//         const uploadResults = await Promise.all(uploadPromises);
-        
-//         // Format attachments for database
-//         attachments = uploadResults.map(result => ({
-//           public_id: result.public_id,
-//           url: result.secure_url,
-//           secure_url: result.secure_url,
-//           original_filename: result.original_filename,
-//           format: result.format,
-//           bytes: result.bytes,
-//           created_at: result.created_at
-//         }));
-
-//         // Clean up temporary files if they exist
-//         if (req.files[0].path && !req.files[0].path.includes('cloudinary')) {
-//           const fs = require('fs');
-//           req.files.forEach(file => {
-//             if (fs.existsSync(file.path)) {
-//               fs.unlinkSync(file.path);
-//             }
-//           });
-//         }
-
-//       } catch (uploadError) {
-//         console.error('Cloudinary upload failed:', uploadError);
-//         return next(
-//           new ErrorResponse('Failed to upload attachments. Please try again.', 500)
-//         );
-//       }
-//     }
-
-//     // Create response object
-//     const response = {
-//       user: req.user._id,
-//       message: req.body.message || '',
-//       attachments: attachments,
-//       isAdminResponse: req.user.role === "admin",
-//       createdAt: Date.now()
-//     };
-
-//     // Push response to ticket
-//     ticket.responses.push(response);
-
-//     // If admin responds and ticket is not resolved, update status
-//     if (req.user.role === "admin" && ticket.status !== "resolved") {
-//       ticket.status = "in-progress";
-//       ticket.assignedTo = req.user._id;
-//     }
-
-//     // Update ticket last updated timestamp
-//     ticket.updatedAt = Date.now();
-
-//     await ticket.save();
-
-//     // Populate user details for response
-//     await ticket.populate({
-//       path: 'responses.user',
-//       select: 'firstName lastName email profileImage role'
-//     });
-
-//     // Get the newly added response (last one)
-//     const newResponse = ticket.responses[ticket.responses.length - 1];
-
-//     res.status(200).json({
-//       success: true,
-//       message: 'Response added successfully',
-//       data: {
-//         response: newResponse,
-//         ticket: {
-//           _id: ticket._id,
-//           status: ticket.status,
-//           updatedAt: ticket.updatedAt
-//         }
-//       }
-//     });
-
-//   } catch (error) {
-//     console.error('Error adding response:', error);
-//     next(error);
-//   }
-// });
 
 // @desc    Update ticket status
 // @route   PUT /api/v1/support/:id/status
@@ -794,32 +511,58 @@ exports.getTicketStats = asyncHandler(async (req, res, next) => {
 // @desc    Close a ticket
 // @route   PUT /api/support/tickets/:id/close
 // @access  Private (ticket owner or admin)
+
 exports.closeTicket = asyncHandler(async (req, res, next) => {
-  const ticket = await SupportTicket.findById(req.params._id);
+  // The route uses /:id/close, so read req.params.id
+  const ticketId = req.params.id;
+
+  if (!ticketId) {
+    return next(new ErrorResponse('Ticket ID is required', 400));
+  }
+
+  const ticket = await SupportTicket.findById(ticketId);
 
   if (!ticket) {
     return next(
-      new ErrorResponse(`No ticket found with id of ${req.params._id}`, 404)
+      new ErrorResponse(`No ticket found with id of ${ticketId}`, 404)
     );
   }
 
-  // Only ticket owner or admin can close it
-  if (ticket.user.toString() !== req.user._id && req.user.role !== "admin") {
+  // Normalize IDs to strings before comparing them
+  const ticketOwnerId =
+    ticket.user?._id?.toString() || ticket.user?.toString();
+
+  const currentUserId = req.user?._id?.toString();
+
+  const isAdmin = ['admin', 'superadmin', 'super-admin'].includes(
+    req.user?.role?.toLowerCase()
+  );
+
+  // Only the ticket owner or an administrator may close the ticket
+  if (!isAdmin && (!currentUserId || ticketOwnerId !== currentUserId)) {
     return next(
       new ErrorResponse(
-        `User ${req.user._id} not authorized to close this ticket`,
-        401
+        'You are not authorized to close this ticket',
+        403
       )
     );
   }
 
-  // Update status to "closed"
-  ticket.status = "closed";
-  ticket.updatedAt = new Date();
+  // Avoid unnecessary updates if the ticket is already closed
+  if (ticket.status === 'closed') {
+    return res.status(200).json({
+      success: true,
+      message: 'Ticket is already closed',
+      data: ticket,
+    });
+  }
+
+  ticket.status = 'closed';
   await ticket.save();
 
-  res.status(200).json({
+  return res.status(200).json({
     success: true,
+    message: 'Ticket closed successfully',
     data: ticket,
   });
 });

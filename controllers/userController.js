@@ -78,61 +78,34 @@ exports.deleteUser = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Upload photo for user
-// @route   PUT /api/v1/users/:id/photo
-// @access  Private
-// exports.uploadUserPhoto = async (req, res) => {
-//   try {
-//     const userId = req.params.id;
-
-//     if (!req.file) {
-//       return res.status(400).json({
-//         success: false,
-//         message: "No image file uploaded.",
-//       });
-//     }
-
-//     const imagePath = `/uploads/${req.file.filename}`;
-
-//     const user = await User.findByIdAndUpdate(
-//       userId,
-//       { profilePic: imagePath },
-//       { new: true }
-//     );
-
-//     if (!user) {
-//       return res.status(404).json({
-//         success: false,
-//         message: "User not found.",
-//       });
-//     }
-
-//     res.status(200).json({
-//       success: true,
-//       message: "Profile picture uploaded successfully.",
-//       data: { profilePic: imagePath },
-//     });
-//   } catch (error) {
-//     console.error("Upload error:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Server error during upload.",
-//       error: error.message,
-//     });
-//   }
-// };
-
 // @desc Update user password
 // @route PUT /api/users/me/password
 // @access Private
+// exports.updatePassword = async (req, res) => {
+//   try {
+//     const { currentPassword, newPassword } = req.body;
+//     const isMatch = await req.user.comparePassword(currentPassword);
+//     if (!isMatch) return res.status(400).json({ message: "Current password is incorrect" });
+
+//     req.user.password = newPassword;
+//     await req.user.save();
+//     res.json({ message: "Password updated successfully" });
+//   } catch (err) {
+//     res.status(400).json({ message: "Failed to update password", error: err.message });
+//   }
+// };
+
 exports.updatePassword = async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
-    const isMatch = await req.user.comparePassword(currentPassword);
+    const user = await User.findById(req.user._id).select("+password");
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const isMatch = await user.matchPassword(currentPassword); // FIX: was comparePassword
     if (!isMatch) return res.status(400).json({ message: "Current password is incorrect" });
 
-    req.user.password = newPassword;
-    await req.user.save();
+    user.password = newPassword;
+    await user.save();
     res.json({ message: "Password updated successfully" });
   } catch (err) {
     res.status(400).json({ message: "Failed to update password", error: err.message });

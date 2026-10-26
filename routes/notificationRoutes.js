@@ -1,7 +1,7 @@
 // routes/notifications.js
 const express = require('express');
 const router = express.Router();
-const NotificationService = require('../services/notificationService');
+const NotificationService = require('../services/notifications/notificationService');
 const auth = require('../middleware/auth');
 const rateLimit = require('express-rate-limit');
 

@@ -5,7 +5,7 @@ const Order = require("../../models/Order");
 const ErrorResponse = require("../../utils/errorResponse");
 const asyncHandler = require("../../middleware/async");
 const mongoose = require("mongoose");
-const NotificationService = require("../../services/notificationService");
+const NotificationService = require("../../services/notifications/notificationService");
 
 // @desc    Get all subscriptions (Admin)
 // @route   GET /api/v1/admin/subscriptions

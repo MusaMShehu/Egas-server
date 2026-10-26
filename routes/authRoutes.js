@@ -25,7 +25,7 @@ router.post('/register', profileUpload.single('profileImage'), register);
 router.post('/register-mobile', profileUpload.single('profileImage'), registerMobile);
 router.post('/login', login);
 router.post('/login-mobile', loginMobile);
-router.get('/logout', logout);
+router.post('/logout', logout);
 router.get('/me', protect, getProfile);
 
 router.post('/refresh', refreshToken);

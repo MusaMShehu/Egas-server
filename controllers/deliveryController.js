@@ -8,6 +8,7 @@ const ErrorResponse = require("../utils/errorResponse");
 const asyncHandler = require("../middleware/async");
 const Remnant = require("../models/Remnant");
 const Notification = require("../models/Notification");
+const dispatcher = require("../services/notifications/notificationDispatcher");
 const {
   validateObjectId,
   auditLog,
@@ -17,11 +18,9 @@ const {
   customerDeliveryDTO,
   customerDeliveryTimeline,
   customerDeliveryListItemDTO,
-} = require('../middleware/dtoSanitizer');
-const RemnantLedgerService = require('../services/remnantLedgerService');
-const Cylinder = require('../models/Cylinder');
-
-
+} = require("../middleware/dtoSanitizer");
+const RemnantLedgerService = require("../services/remnantLedgerService");
+const Cylinder = require("../models/Cylinder");
 
 // @desc    Get deliveries by subscription with pause status
 // @route   GET /api/v1/deliveries/subscription/:subscriptionId
@@ -207,7 +206,6 @@ exports.syncDeliveryWithSubscription = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 // @desc    Customer confirms delivery
 // @route   PUT /api/v1/deliveries/:id/confirm
 // @access  Private
@@ -274,6 +272,13 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
+    try {
+      const user = await User.findById(userId);
+      if (user) dispatcher.orderDelivered(delivery, user);
+    } catch (e) {
+      console.error("confirmDelivery notif error:", e.message);
+    }
+
     res.status(200).json({
       success: true,
       message: "Delivery confirmed successfully",
@@ -288,17 +293,16 @@ exports.confirmDelivery = asyncHandler(async (req, res, next) => {
   }
 });
 
-
 exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
   const userId = req.user.id;
-  const { 
-    status, 
-    page = 1, 
+  const {
+    status,
+    page = 1,
     limit = 10,
-    sortBy = 'deliveryDate',
-    sortOrder = 'desc',
-    tab, 
-    deliveryDate
+    sortBy = "deliveryDate",
+    sortOrder = "desc",
+    tab,
+    deliveryDate,
   } = req.query;
 
   let filter = { userId };
@@ -309,33 +313,33 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
 
   if (tab) {
     switch (tab) {
-      case 'upcoming':
+      case "upcoming":
         // Upcoming: ONLY future deliveries that are not completed
         filter.deliveryDate = { $gte: now };
-        filter.status = { $nin: ['delivered', 'cancelled', 'failed'] };
+        filter.status = { $nin: ["delivered", "cancelled", "failed"] };
         break;
-      
-      case 'delivered':
+
+      case "delivered":
         // Delivered: ONLY deliveries with status 'delivered'
-        filter.status = 'delivered';
+        filter.status = "delivered";
         // Don't filter by date for delivered - show all delivered orders
         break;
-      
-      case 'overdue':
+
+      case "overdue":
         // Overdue: ONLY past deliveries that are not completed
         filter.deliveryDate = { $lt: now };
-        filter.status = { $nin: ['delivered', 'cancelled', 'failed'] };
+        filter.status = { $nin: ["delivered", "cancelled", "failed"] };
         break;
-      
+
       default:
         break;
     }
   }
 
   // Apply additional status filter only if provided AND not using a tab that already filters status
-  if (status && status !== 'all' && !tab) {
-    if (status.includes(',')) {
-      filter.status = { $in: status.split(',') };
+  if (status && status !== "all" && !tab) {
+    if (status.includes(",")) {
+      filter.status = { $in: status.split(",") };
     } else {
       filter.status = status;
     }
@@ -347,10 +351,10 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
     startDate.setHours(0, 0, 0, 0);
     const endDate = new Date(deliveryDate);
     endDate.setHours(23, 59, 59, 999);
-    
+
     filter.deliveryDate = {
       $gte: startDate,
-      $lte: endDate
+      $lte: endDate,
     };
   }
 
@@ -359,29 +363,29 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
 
   // Build sort object - FIXED sorting implementation
   let sort = {};
-  
+
   // Explicitly handle different sort fields
-  if (sortBy === 'deliveryDate') {
+  if (sortBy === "deliveryDate") {
     // For deliveryDate, we sort by the actual date
-    sort.deliveryDate = sortOrder === 'asc' ? 1 : -1;
-  } else if (sortBy === 'createdAt') {
-    sort.createdAt = sortOrder === 'asc' ? 1 : -1;
-  } else if (sortBy === 'status') {
+    sort.deliveryDate = sortOrder === "asc" ? 1 : -1;
+  } else if (sortBy === "createdAt") {
+    sort.createdAt = sortOrder === "asc" ? 1 : -1;
+  } else if (sortBy === "status") {
     // For status, we sort alphabetically
-    sort.status = sortOrder === 'asc' ? 1 : -1;
+    sort.status = sortOrder === "asc" ? 1 : -1;
   } else {
     // Default sort by deliveryDate descending (newest first)
     sort.deliveryDate = -1;
   }
 
-  console.log('Filter:', JSON.stringify(filter));
-  console.log('Sort:', sort);
-  console.log('Tab:', tab);
+  console.log("Filter:", JSON.stringify(filter));
+  console.log("Sort:", sort);
+  console.log("Tab:", tab);
 
   // Execute query with population
   const deliveries = await Delivery.find(filter)
-    .populate('subscriptionId', 'planName size frequency status')
-    .populate('deliveryAgent', 'firstName lastName phone')
+    .populate("subscriptionId", "planName size frequency status")
+    .populate("deliveryAgent", "firstName lastName phone")
     .sort(sort)
     .skip(skip)
     .limit(parseInt(limit));
@@ -395,21 +399,21 @@ exports.getMyDeliveries = asyncHandler(async (req, res, next) => {
     Delivery.countDocuments({
       userId,
       deliveryDate: { $gte: now },
-      status: { $nin: ['delivered', 'cancelled', 'failed'] }
+      status: { $nin: ["delivered", "cancelled", "failed"] },
     }),
-    
+
     // Delivered count
     Delivery.countDocuments({
       userId,
-      status: 'delivered'
+      status: "delivered",
     }),
-    
+
     // Overdue count
     Delivery.countDocuments({
       userId,
       deliveryDate: { $lt: now },
-      status: { $nin: ['delivered', 'cancelled', 'failed'] }
-    })
+      status: { $nin: ["delivered", "cancelled", "failed"] },
+    }),
   ]);
 
   // res.status(200).json({
@@ -462,11 +466,11 @@ exports.getDeliveryDetail = asyncHandler(async (req, res, next) => {
     _id: req.params.id,
     userId,
   })
-    .populate('subscriptionId', 'planName size frequency status')
-    .populate('deliveryAgent', 'firstName lastName phone');
+    .populate("subscriptionId", "planName size frequency status")
+    .populate("deliveryAgent", "firstName lastName phone");
 
   if (!delivery) {
-    return next(new ErrorResponse('Delivery not found', 404));
+    return next(new ErrorResponse("Delivery not found", 404));
   }
 
   res.status(200).json({
@@ -491,7 +495,6 @@ exports.getDeliveryDetail = asyncHandler(async (req, res, next) => {
     },
   });
 });
-
 
 // @desc    Customer confirms remnant entry
 // @route   PUT /api/v1/deliveries/remnant/:id/confirm
@@ -581,7 +584,6 @@ exports.confirmRemnantEntry = asyncHandler(async (req, res, next) => {
     );
   }
 });
-
 
 // @desc    Request delivery of accumulated remnant
 // @route   POST /api/v1/deliveries/remnant/request-delivery
@@ -756,6 +758,19 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     await session.commitTransaction();
     session.endSession();
 
+    try {
+      dispatcher.rawInApp({
+        userId,
+        title: "Remnant delivery requested",
+        message: `Your ${requestedKg}kg remnant delivery has been scheduled.`,
+        type: "delivery",
+        subType: "delivery_fulfilled",
+        relatedId: delivery[0]._id,
+      });
+    } catch (e) {
+      console.error("remnant notif error:", e.message);
+    }
+
     res.status(201).json({
       success: true,
       message: "Remnant delivery requested successfully",
@@ -781,7 +796,6 @@ exports.requestRemnantDelivery = asyncHandler(async (req, res, next) => {
     );
   }
 });
-
 
 // @desc    Get customer's remnant details
 // @route   GET /api/v1/deliveries/remnant/my-remnant
@@ -833,7 +847,6 @@ exports.getMyRemnant = asyncHandler(async (req, res, next) => {
     },
   });
 });
-
 
 // @desc    Get next upcoming delivery for user
 // @route   GET /api/v1/deliveries/next-delivery
@@ -908,7 +921,6 @@ exports.getNextDelivery = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse("Failed to fetch next delivery", 500));
   }
 });
-
 
 // Helper function to calculate delivery dates
 // Helper function to calculate delivery dates

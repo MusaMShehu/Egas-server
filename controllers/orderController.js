@@ -7,8 +7,8 @@ const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async');
 const paystack = require('../utils/paystack');
 const crypto = require('crypto');
-const NotificationService = require('../services/notificationService');
-const emailService = require('../services/emailService');
+const NotificationService = require('../services/notifications/notificationService');
+const emailService = require('../services/notifications/emailService');
 
 // const PAYSTACK_SECRET = process.env.PAYSTACK_SECRET_KEY;
 // const PAYSTACK_INITIALIZE_URL = "https://api.paystack.co/transaction/initialize";
