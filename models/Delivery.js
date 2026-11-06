@@ -235,13 +235,42 @@ const deliverySchema = new mongoose.Schema(
       index: true,
     },
 
-    plantWorkflowStatus: {
+    // plantWorkflowStatus: {
+    //   type: String,
+    //   enum: [
+    //     'not_started',                 // default — no plant workflow yet
+    //     'plant_selected',
+    //     'request_created',
+    //     'at_plant',
+    //     'inspection_pending',
+    //     'inspection_approved',
+    //     'inspection_rejected',
+    //     'refilling',
+    //     'plant_confirmed',
+    //     'cylinder_collected_from_plant',
+    //     'completed',
+    //     'escalated',
+    //   ],
+    //   default: 'not_started',
+    //   index: true,
+    // },
+
+        plantWorkflowStatus: {
       type: String,
       enum: [
-        'not_started',                 // default — no plant workflow yet
+        'not_started',
+        // ── Agent workflow (customer-visible) ──
+        'agent_collected_from_customer',     // pre-fill recorded
+        'at_plant',
+        'plant_inspection_passed',
+        'plant_inspection_rejected',
+        'plant_refilled_confirmed',
+        'agent_collected_from_plant',        // post-fill recorded
+        'remnant_credited',
+        'delivered_to_customer',
+        // ── Legacy/plant-workflow mirrors (kept for compatibility) ──
         'plant_selected',
         'request_created',
-        'at_plant',
         'inspection_pending',
         'inspection_approved',
         'inspection_rejected',
@@ -300,6 +329,80 @@ const deliverySchema = new mongoose.Schema(
       customerConfirmed: { type: Boolean, default: false },
       customerConfirmedAt: Date
     },
+
+        // ==================== PRE/POST FILL WEIGHTS (NEW) ====================
+    // Populated by the delivery-agent workflow, not the plant workflow.
+    // These fields are the source of truth for remnant math.
+    preFillWeight: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    preFillRecordedAt: {
+      type: Date,
+      default: null,
+    },
+    preFillRecordedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    preFillWeightRecordId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CylinderWeightRecord',
+      default: null,
+    },
+
+    postFillWeight: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    postFillRecordedAt: {
+      type: Date,
+      default: null,
+    },
+    postFillRecordedBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
+    postFillWeightRecordId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CylinderWeightRecord',
+      default: null,
+    },
+
+    // Snapshot of what the customer purchased for this delivery.
+    // Resolved as: delivery.requestedKg ?? planDetails.size ?? subscription.size
+    purchasedKg: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    // postFillWeight - preFillWeight
+    refilledKg: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    // max(0, purchasedKg - refilledKg)  — what we credit to the ledger.
+    remnantDeltaKg: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    // Diagnostic — populated only if plant over-filled (rawRemnant < 0).
+    overFillKg: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    remnantLedgerEntryId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CylinderRemnantLedger',
+      default: null,
+    },
     
     // Security fields
     lastModifiedBy: {
@@ -338,6 +441,10 @@ deliverySchema.index({ deliveryDate: 1, status: 1 });
 
 deliverySchema.index({ plantWorkflowStatus: 1 });
 deliverySchema.index({ cylinderId: 1 });
+
+deliverySchema.index({ preFillWeightRecordId: 1 });
+deliverySchema.index({ postFillWeightRecordId: 1 });
+deliverySchema.index({ remnantLedgerEntryId: 1 });
 
 // Virtual to check if delivery can be paused
 deliverySchema.virtual("canBePaused").get(function () {

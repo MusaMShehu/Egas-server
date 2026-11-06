@@ -21,7 +21,9 @@ const {
   getNextDelivery,
   getDeliveriesBySubscription,
   getDeliveryPauseHistory,
-  syncDeliveryWithSubscription
+  syncDeliveryWithSubscription,
+  recordPreFillWeight,
+  recordPostFillWeight,
 } = require("../controllers/deliveryManagementController");
 
 const { protect, authorize } = require("../../middleware/auth");
@@ -45,6 +47,19 @@ router.put("/:id/accept", protect, authorize("delivery"), acceptDelivery);
 router.put("/:id/out-for-delivery", protect, authorize("delivery"), markOutForDelivery);
 router.put("/:id/delivered", protect, authorize("delivery"), markAsDelivered);
 router.put("/:id/failed", protect, authorize("delivery"), markAsFailed);
+// Agent weight recording (pre/post fill)
+router.post(
+  '/:id/pre-fill-weight',
+  protect,
+  authorize('delivery'),
+  recordPreFillWeight
+);
+router.post(
+  '/:id/post-fill-weight',
+  protect,
+  authorize('delivery'),
+  recordPostFillWeight
+);
 
 // Customer routes
 router.get("/my-deliveries", protect, getMyDeliveries);

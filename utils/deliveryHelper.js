@@ -854,6 +854,60 @@ const calculateExpectedDeliveries = (subscription) => {
   };
 };
 
+/**
+ * Resolve the customer's purchased quantity for a delivery.
+ *
+ * Priority:
+ *   1. delivery.requestedKg          (remnant-only deliveries)
+ *   2. delivery.planDetails.size     ("6kg" / "12.5kg" / 6 / 12.5)
+ *   3. subscription.size
+ *
+ * Returns kg as a Number, or null if unresolvable.
+ *
+ * @param {Object} delivery
+ * @param {Object|null} subscription
+ * @returns {Number|null}
+ */
+const resolvePurchasedKg = (delivery, subscription = null) => {
+  if (!delivery) return null;
+
+  // 1. Remnant-only delivery
+  if (
+    typeof delivery.requestedKg === 'number' &&
+    Number.isFinite(delivery.requestedKg) &&
+    delivery.requestedKg > 0
+  ) {
+    return +delivery.requestedKg.toFixed(3);
+  }
+
+  // 2. planDetails.size
+  const fromPlan = parseKgField(delivery.planDetails?.size);
+  if (fromPlan !== null && fromPlan > 0) return fromPlan;
+
+  // 3. subscription.size
+  if (subscription) {
+    const fromSub = parseKgField(subscription.size);
+    if (fromSub !== null && fromSub > 0) return fromSub;
+  }
+
+  return null;
+};
+
+/**
+ * Parse a kg field like "6kg", "12.5 kg", 6, 12.5 → Number.
+ * Returns null on any unparseable input.
+ */
+const parseKgField = (input) => {
+  if (input === null || input === undefined) return null;
+  if (typeof input === 'number') {
+    return Number.isFinite(input) && input > 0 ? +input.toFixed(3) : null;
+  }
+  const match = String(input).match(/(\d+(\.\d+)?)/);
+  if (!match) return null;
+  const n = parseFloat(match[1]);
+  return Number.isFinite(n) && n > 0 ? +n.toFixed(3) : null;
+};
+
 module.exports = {
   generateDeliverySchedules,
   generateBatchDeliverySchedules,
@@ -867,5 +921,7 @@ module.exports = {
   calculateTotalPauseDuration,
   calculateExpectedDeliveries,
   getSubscriptionDeliveriesWithHistory,
-  syncDeliveryStatusWithSubscription
+  syncDeliveryStatusWithSubscription,
+  resolvePurchasedKg,
+  parseKgField,
 };

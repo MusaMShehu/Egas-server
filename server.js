@@ -43,6 +43,8 @@ const userHistoryRoutes = require("./routes/userHistoryRoutes");
 const smsRoutes = require("./routes/smsRoutes");
 const adminRoutes = require("./routes/adminRoutes");
 const customerCylinderRoutes = require('./routes/customerCylinderRoutes');
+const notificationRoutes = require("./routes/notificationRoutes");
+
 
 // Admin panel routes
 const adminDashboard = require("./adminPanel/routes/adminDashboardRoutes");
@@ -162,6 +164,7 @@ app.use("/api/v1/dashboard", dashboardRoutes);
 app.use("/api/v1/upload", uploadRoutes);
 app.use("/api/sms", smsRoutes);
 app.use('/api/v1/customer', customerCylinderRoutes);
+app.use("/api/v1/notifications", notificationRoutes);
 
 // Admin API Routes
 app.use(
@@ -209,7 +212,7 @@ app.use(
 app.use(
   "/api/v1/admin/delivery",
   protect,
-  authorize("admin", "superadmin", "super-admin"),
+  authorize("admin", "superadmin", "delivery", "super-admin"),
   adminDeliveryManagement,
 );
 app.use(
@@ -225,35 +228,35 @@ app.use(
   adminConfigRoutes,
 );
 app.use(
-  '/api/v1/admin',
+  '/api/v1/admin/refills',
   protect,
   authorize('admin', 'superadmin', 'super-admin'),
   adminRefillRoutes
 );
 
 app.use(
-  '/api/v1/admin',
+  '/api/v1/admin/cylinders',
   protect,
   authorize('admin', 'superadmin', 'super-admin'),
   adminCylinderRoutes
 );
 
 app.use(
-  '/api/v1/admin',
+  '/api/v1/admin/remnants',
   protect,
   authorize('admin', 'superadmin', 'super-admin'),
   adminRemnantRoutes
 );
 
 app.use(
-  '/api/v1/admin',
+  '/api/v1/admin/disputes',
   protect,
   authorize('admin', 'superadmin', 'super-admin'),
   adminDisputeRoutes
 );
 
 app.use(
-  '/api/v1/admin',
+  '/api/v1/admin/settlements',
   protect,
   authorize('admin', 'superadmin', 'super-admin'),
   adminSettlementRoutes
@@ -274,101 +277,118 @@ app.use(
 );
 
 // Socket.IO authentication middleware
+
 // io.use(async (socket, next) => {
 //   try {
 //     const token = socket.handshake?.auth?.token;
 //     if (!token) {
-//       return next(new Error("Authentication required"));
+//       return next(new Error('Authentication required'));
 //     }
 
-//     const authService = require("./services/authService");
+//     const authService = require('./services/authService');
 //     const verification = await authService.verifyAccessToken(token);
 
-//     if (verification.valid) {
-//       socket.userId = verification.decoded.userId;
-//       next();
-//     } else {
-//       next(new Error("Invalid token"));
+//     if (!verification.valid) {
+//       return next(new Error('Invalid token'));
 //     }
+
+//     const User = require('./models/User');
+//     const user = await User.findById(verification.decoded.userId)
+//       .select('_id role plantId')
+//       .lean();
+
+//     if (!user || !user.role) {
+//       return next(new Error('User not found'));
+//     }
+
+//     socket.userId = user._id.toString();
+//     socket.userRole = user.role;
+//     socket.plantId = user.plantId ? user.plantId.toString() : null;
+
+//     next();
 //   } catch (error) {
-//     next(new Error("Authentication failed"));
+//     console.error('Socket auth error:', error.message);
+//     next(new Error('Authentication failed'));
 //   }
-// })
+// });
+
+
+// io.on('connection', (socket) => {
+//   console.log(`User connected: ${socket.userId}`);
+//   // Personal user room (existing)
+//   socket.join(`user:${socket.userId}`);
+//   // Role-based rooms
+//   const userRole = socket.userRole || null; // populated by auth middleware
+//   const plantId = socket.plantId || null;
+//   // Agent personal room
+//   if (userRole === 'delivery') {
+//     socket.join(`agent:${socket.userId}`);
+//   }
+//   // Plant room
+//   if (plantId) {
+//     socket.join(`plant:${plantId}`);
+//   }
+//   // Admin ops room
+//   if (['admin', 'superadmin', 'super-admin', 'customer_care'].includes(userRole)) {
+//     socket.join('admin:ops');
+//   }
+//   // Order tracking (existing)
+//   socket.on('track-order', (orderId) => {
+//     socket.join(`order:${orderId}`);
+//   });
+//   socket.on('disconnect', () => {
+//     console.log(`User disconnected: ${socket.userId}`);
+//   });
+// });
+
+const cookie = require('cookie');
+const authService = require('./services/authService');
+const User = require('./models/User');
+
 io.use(async (socket, next) => {
   try {
-    const token = socket.handshake?.auth?.token;
+    // First check explicitly supplied token (mobile or other clients).
+    let token = socket.handshake?.auth?.token;
+
+    // Otherwise, read the HTTP-only accessToken cookie.
+    if (!token) {
+      const cookieHeader = socket.handshake?.headers?.cookie;
+
+      if (cookieHeader) {
+        const cookies = cookie.parse(cookieHeader);
+        token = cookies.accessToken;
+      }
+    }
+
     if (!token) {
       return next(new Error('Authentication required'));
     }
 
-    const authService = require('./services/authService');
     const verification = await authService.verifyAccessToken(token);
 
     if (!verification.valid) {
       return next(new Error('Invalid token'));
     }
 
-    const User = require('./models/User');
     const user = await User.findById(verification.decoded.userId)
-      .select('_id role plantId')
+      .select('_id role plantId isActive')
       .lean();
 
-    if (!user || !user.role) {
-      return next(new Error('User not found'));
+    if (!user || !user.isActive) {
+      return next(new Error('User not found or inactive'));
     }
 
     socket.userId = user._id.toString();
     socket.userRole = user.role;
-    socket.plantId = user.plantId ? user.plantId.toString() : null;
+    socket.plantId = user.plantId
+      ? user.plantId.toString()
+      : null;
 
     next();
   } catch (error) {
-    console.error('Socket auth error:', error.message);
+    console.error('[Socket Authentication Error]', error.message);
     next(new Error('Authentication failed'));
   }
-});
-// .on("connection", (socket) => {
-//   console.log(`User connected: ${socket.userId}`);
-
-//   // Join user to personal room
-//   socket.join(`user:${socket.userId}`);
-
-//   // Handle order tracking
-//   socket.on("track-order", (orderId) => {
-//     socket.join(`order:${orderId}`);
-//   });
-
-//   socket.on("disconnect", () => {
-//     console.log(`User disconnected: ${socket.userId}`);
-//   });
-// });
-
-io.on('connection', (socket) => {
-  console.log(`User connected: ${socket.userId}`);
-  // Personal user room (existing)
-  socket.join(`user:${socket.userId}`);
-  // Role-based rooms
-  const userRole = socket.userRole || null; // populated by auth middleware
-  const plantId = socket.plantId || null;
-  // Agent personal room
-  if (userRole === 'delivery') {
-    socket.join(`agent:${socket.userId}`);
-  }
-  // Plant room
-  if (plantId) {
-    socket.join(`plant:${plantId}`);
-  }
-  // Admin ops room
-  if (['admin', 'superadmin', 'super-admin', 'customer_care'].includes(userRole)) {
-    socket.join('admin:ops');
-  }
-  // Order tracking (existing)
-  socket.on('track-order', (orderId) => {
-    socket.join(`order:${orderId}`);
-  });
-  socket.on('disconnect', () => {
-    console.log(`User disconnected: ${socket.userId}`);
-  });
 });
 
 

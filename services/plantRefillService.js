@@ -11,6 +11,7 @@ const PlantService = require('./plantService');
 const CylinderService = require('./cylinderService');
 const ConfigService = require('./configService');
 const RemnantLedgerService = require('./remnantLedgerService');
+const CylinderWeightRecord = require('../models/CylinderWeightRecord');
 const {
   generateRequestNumber,
   generateTransactionNumber,
@@ -737,6 +738,129 @@ class PlantRefillService {
   // WRITE — RETRY WITH ANOTHER PLANT
   // =====================================================
 
+  // async retryWithAnotherPlant({
+  //   originalRequestId,
+  //   newPlantId,
+  //   agentId,
+  //   agentRole,
+  //   agentNotes = null,
+  //   req = null,
+  // }) {
+  //   const session = await mongoose.startSession();
+  //   session.startTransaction();
+
+  //   try {
+  //     const original = await PlantRefillRequest.findOne({
+  //       _id: originalRequestId,
+  //       agentId,
+  //     }).session(session);
+
+  //     if (!original) throw new ErrorResponse('Original request not found', 404);
+
+  //     if (original.status !== 'rejected') {
+  //       throw new ErrorResponse(
+  //         'Only rejected requests can be retried with another plant',
+  //         409
+  //       );
+  //     }
+
+  //     // Max attempts check
+  //     const maxAttempts = await ConfigService.getConfig(
+  //       'PLANT_MAX_RETRY_ATTEMPTS',
+  //       3
+  //     );
+  //     if (original.attemptNumber >= maxAttempts) {
+  //       throw new ErrorResponse(
+  //         `Maximum retry attempts (${maxAttempts}) reached. Escalate to E-GAS.`,
+  //         400
+  //       );
+  //     }
+
+  //     // New plant validation
+  //     const newPlant = await PartnerPlant.findOne({
+  //       _id: newPlantId,
+  //       isDeleted: false,
+  //     }).session(session);
+  //     if (!newPlant) throw new ErrorResponse('New plant not found', 404);
+  //     if (newPlant.status !== 'active') {
+  //       throw new ErrorResponse(`New plant is not active`, 400);
+  //     }
+
+  //     // Generate new request number
+  //     const requestNumber = await generateRequestNumber();
+  //     const price = await PlantService.getActivePrice(newPlant._id, session);
+
+  //     const [newRequest] = await PlantRefillRequest.create(
+  //       [
+  //         {
+  //           requestNumber,
+  //           deliveryId: original.deliveryId,
+  //           subscriptionId: original.subscriptionId,
+  //           customerId: original.customerId,
+  //           agentId: original.agentId,
+  //           plantId: newPlant._id,
+  //           cylinderId: original.cylinderId,
+  //           cylinderTag: original.cylinderTag,
+  //           cylinderSize: original.cylinderSize,
+  //           emptyWeight: original.emptyWeight,
+  //           measuredWeight: original.measuredWeight,
+  //           calculatedRemnant: original.calculatedRemnant,
+  //           requestedQuantity: original.requestedQuantity,
+  //           agentReportedQuantity: original.agentReportedQuantity,
+  //           pricePerKg: price?.pricePerKg ?? null,
+  //           priceAgreementId: price?._id ?? null,
+  //           status: 'created',
+  //           agentNotes: agentNotes || `Retry after rejection: ${original.rejectedReason}`,
+  //           attemptNumber: original.attemptNumber + 1,
+  //           previousRequestId: original._id,
+  //         },
+  //       ],
+  //       { session }
+  //     );
+
+  //     // Update delivery pointer to new request
+  //     await Delivery.findByIdAndUpdate(
+  //       original.deliveryId,
+  //       {
+  //         plantRefillRequestId: newRequest._id,
+  //         plantWorkflowStatus: 'request_created',
+  //       },
+  //       { session }
+  //     );
+
+  //     // Audit
+  //     await AuditService.log({
+  //       action: 'PLANT_REFILL_REQUEST_RETRY',
+  //       actorId: agentId,
+  //       actorRole,
+  //       entityType: 'PlantRefillRequest',
+  //       entityId: newRequest._id,
+  //       metadata: {
+  //         originalRequestId: original._id,
+  //         attemptNumber: newRequest.attemptNumber,
+  //       },
+  //       req,
+  //     });
+
+  //     await session.commitTransaction();
+
+  //     return { success: true, request: newRequest.toObject() };
+  //   } catch (error) {
+  //     await session.abortTransaction();
+  //     throw error;
+  //   } finally {
+  //     session.endSession();
+  //   }
+  // }
+
+
+
+    /**
+   * Retry a rejected refill request with another plant.
+   *
+   * Also supersedes the delivery's current pre-fill record so the agent
+   * can record a fresh one at the new plant.
+   */
   async retryWithAnotherPlant({
     originalRequestId,
     newPlantId,
@@ -763,7 +887,6 @@ class PlantRefillService {
         );
       }
 
-      // Max attempts check
       const maxAttempts = await ConfigService.getConfig(
         'PLANT_MAX_RETRY_ATTEMPTS',
         3
@@ -775,17 +898,39 @@ class PlantRefillService {
         );
       }
 
-      // New plant validation
       const newPlant = await PartnerPlant.findOne({
         _id: newPlantId,
         isDeleted: false,
       }).session(session);
       if (!newPlant) throw new ErrorResponse('New plant not found', 404);
       if (newPlant.status !== 'active') {
-        throw new ErrorResponse(`New plant is not active`, 400);
+        throw new ErrorResponse('New plant is not active', 400);
       }
 
-      // Generate new request number
+      // ---------- SUPERSEDE CURRENT PRE-FILL ----------
+      const delivery = await Delivery.findById(original.deliveryId).session(
+        session
+      );
+      if (!delivery) {
+        throw new ErrorResponse('Linked delivery not found', 404);
+      }
+
+      if (delivery.preFillWeightRecordId) {
+        // Mark the old pre-fill as superseded (allowed mutation per model guard).
+        await CylinderWeightRecord.updateOne(
+          { _id: delivery.preFillWeightRecordId, superseded: { $ne: true } },
+          { $set: { superseded: true } },
+          { session }
+        );
+
+        // Clear delivery's pre-fill pointers so a fresh pre-fill can be recorded.
+        delivery.preFillWeight = null;
+        delivery.preFillRecordedAt = null;
+        delivery.preFillRecordedBy = null;
+        delivery.preFillWeightRecordId = null;
+      }
+
+      // ---------- CREATE NEW REQUEST ----------
       const requestNumber = await generateRequestNumber();
       const price = await PlantService.getActivePrice(newPlant._id, session);
 
@@ -809,7 +954,9 @@ class PlantRefillService {
             pricePerKg: price?.pricePerKg ?? null,
             priceAgreementId: price?._id ?? null,
             status: 'created',
-            agentNotes: agentNotes || `Retry after rejection: ${original.rejectedReason}`,
+            agentNotes:
+              agentNotes ||
+              `Retry after rejection: ${original.rejectedReason || 'N/A'}`,
             attemptNumber: original.attemptNumber + 1,
             previousRequestId: original._id,
           },
@@ -817,17 +964,11 @@ class PlantRefillService {
         { session }
       );
 
-      // Update delivery pointer to new request
-      await Delivery.findByIdAndUpdate(
-        original.deliveryId,
-        {
-          plantRefillRequestId: newRequest._id,
-          plantWorkflowStatus: 'request_created',
-        },
-        { session }
-      );
+      // Repoint delivery to the new request; reset workflow to 'request_created'.
+      delivery.plantRefillRequestId = newRequest._id;
+      delivery.plantWorkflowStatus = 'request_created';
+      await delivery.save({ session });
 
-      // Audit
       await AuditService.log({
         action: 'PLANT_REFILL_REQUEST_RETRY',
         actorId: agentId,
@@ -837,6 +978,8 @@ class PlantRefillService {
         metadata: {
           originalRequestId: original._id,
           attemptNumber: newRequest.attemptNumber,
+          preFillSuperseded: true,
+          deliveryId: original.deliveryId,
         },
         req,
       });

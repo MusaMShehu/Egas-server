@@ -1,8 +1,8 @@
 // services/notificationService.js
 const admin = require('firebase-admin');
-const Notification = require('../models/Notification');
-const UserDevice = require('../models/UserDevice');
-const User = require('../models/User');
+const Notification = require('../../models/Notification');
+const UserDevice = require('../../models/UserDevice');
+const User = require('../../models/User');
 const axios = require('axios');
 
 // Initialize Firebase Admin if not already initialized

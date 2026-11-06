@@ -49,195 +49,6 @@ const clearTokenCookies = (res) => {
 // @desc    Register user
 // @route   POST /api/v1/auth/register
 // @access  Public
-// exports.register = asyncHandler(async (req, res, next) => {
-//   const session = await mongoose.startSession();
-//   session.startTransaction();
-
-//   try {
-//     const {
-//       firstName,
-//       lastName,
-//       email,
-//       password,
-//       phone,
-//       address,
-//       city,
-//       state,
-//       dob,
-//       gender,
-//       gps,
-//     } = req.body;
-
-//     // Check if user already exists
-//     const existingUser = await User.findOne({
-//       email: email.toLowerCase(),
-//     }).session(session);
-//     if (existingUser) {
-//       await session.abortTransaction();
-//       session.endSession();
-//       return next(new ErrorResponse("Email already registered", 400));
-//     }
-
-//     // Parse GPS coordinates if provided
-//     let gpsCoordinates = null;
-//     if (gps) {
-//       try {
-//         const parsed = typeof gps === "string" ? JSON.parse(gps) : gps;
-//         if (
-//           parsed.type === "Point" &&
-//           Array.isArray(parsed.coordinates) &&
-//           parsed.coordinates.length === 2
-//         ) {
-//           gpsCoordinates = parsed;
-//         }
-//       } catch (err) {
-//         // Invalid GPS, ignore
-//       }
-//     }
-
-//     // Handle profile image upload
-//     let profileImage = {
-//       public_id: null,
-//       url: null,
-//       secure_url: null,
-//     };
-
-//     if (req.file) {
-//       try {
-//         const uploadResult = await cloudinary.uploader.upload(req.file.path, {
-//           folder: `egas/users/${email.replace(/[^a-zA-Z0-9]/g, "_")}/profile`,
-//           transformation: [{ width: 400, height: 400, crop: "fill" }],
-//           quality: "auto:good",
-//         });
-
-//         profileImage = {
-//           public_id: uploadResult.public_id,
-//           url: uploadResult.secure_url,
-//           secure_url: uploadResult.secure_url,
-//         };
-//       } catch (uploadError) {
-//         console.error("Cloudinary upload failed:", uploadError);
-//       }
-//     }
-
-//     // Create user
-//     const user = await User.create(
-//       [
-//         {
-//           firstName,
-//           lastName,
-//           email: email.toLowerCase(),
-//           password,
-//           phone,
-//           address,
-//           city,
-//           state,
-//           dob: dob ? new Date(dob) : undefined,
-//           gender,
-//           gpsCoordinates,
-//           profileImage,
-//           role: "user",
-//           isActive: true,
-//           emailVerified: false,
-//           phoneVerified: false,
-//         },
-//       ],
-//       { session },
-//     );
-
-//     const newUser = user[0];
-
-//     // Create wallet
-//     await Wallet.create(
-//       [
-//         {
-//           userId: newUser._id,
-//           balance: 0,
-//           currency: "NGN",
-//         },
-//       ],
-//       { session },
-//     );
-
-//     await session.commitTransaction();
-//     session.endSession();
-
-//     // Generate tokens using authService
-//     const tokens = authService.generateTokens(newUser);
-
-//     // Set HTTP-only cookies
-//     setTokenCookies(res, tokens);
-
-//     // Send welcome email (async)
-//     if (emailService.sendAccountCreatedEmail) {
-//       emailService.sendAccountCreatedEmail(newUser).catch(console.error);
-//     }
-
-//     // Send SMS notification (async)
-//     if (notificationService.sendAccountCreated) {
-//       notificationService.sendAccountCreated(newUser).catch(console.error);
-//     }
-
-//     // Generate email verification token
-//     const verificationToken = authService.generateSecureToken();
-//     const hashedToken = authService.hashToken(verificationToken);
-
-//     // Store in Redis with 24h expiry
-//     if (redisClient && redisClient.isConnected) {
-//       await redisClient.set(
-//         `email_verify:${newUser._id}`,
-//         hashedToken,
-//         24 * 60 * 60,
-//       );
-
-//       // Send verification email (async)
-//       if (emailService.sendEmailVerification) {
-//         emailService
-//           .sendEmailVerification(newUser, verificationToken)
-//           .catch(console.error);
-//       }
-//     }
-
-//     // Remove password from output
-//     newUser.password = undefined;
-
-//     res.status(201).json({
-//       success: true,
-//       message: "Registration successful. Please verify your email.",
-//       data: {
-//         user: {
-//           id: newUser._id,
-//           firstName: newUser.firstName,
-//           lastName: newUser.lastName,
-//           email: newUser.email,
-//           phone: newUser.phone,
-//           profileImage: newUser.profileImage,
-//           role: newUser.role,
-//           emailVerified: newUser.emailVerified,
-//           phoneVerified: newUser.phoneVerified,
-//         },
-//         // Only return tokens in development for debugging
-//         ...(process.env.NODE_ENV === "development" && { tokens }),
-//       },
-//     });
-//   } catch (err) {
-//     await session.abortTransaction();
-//     session.endSession();
-
-//     if (err.code === 11000) {
-//       return next(new ErrorResponse("Email already exists", 400));
-//     }
-
-//     if (err.name === "ValidationError") {
-//       const messages = Object.values(err.errors).map((val) => val.message);
-//       return next(new ErrorResponse(messages.join(", "), 400));
-//     }
-
-//     console.error("Registration error:", err);
-//     return next(new ErrorResponse("Registration failed", 500));
-//   }
-// });
-
 exports.register = asyncHandler(async (req, res, next) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -401,103 +212,6 @@ exports.register = asyncHandler(async (req, res, next) => {
 // @desc    Login user
 // @route   POST /api/v1/auth/login
 // @access  Public
-// exports.login = asyncHandler(async (req, res, next) => {
-//   const { email, password } = req.body;
-
-//   if (!email || !password) {
-//     return next(new ErrorResponse("Please provide email and password", 400));
-//   }
-
-//   // Find user with password field
-//   const user = await User.findOne({
-//     email: email.toLowerCase(),
-//   }).select("+password +loginAttempts +lockUntil");
-
-//   if (!user) {
-//     // Prevent timing attacks
-//     await bcrypt.compare(password, "$2a$10$fakeHashForTimingAttackPrevention");
-//     return next(new ErrorResponse("Invalid credentials", 401));
-//   }
-
-//   // Check if account is locked
-//   if (user.lockUntil && user.lockUntil > Date.now()) {
-//     clearTokenCookies(res);
-//     const retryAfter = Math.ceil((user.lockUntil - Date.now()) / 1000);
-//     res.set("Retry-After", retryAfter);
-//     return next(
-//       new ErrorResponse(
-//         "Account locked due to too many failed attempts. Please try again later.",
-//         423,
-//       ),
-//     );
-//   }
-
-//   // Check password
-//   const isMatch = await user.matchPassword(password);
-
-//   if (!isMatch) {
-//     // Increment failed attempts
-//     user.loginAttempts = (user.loginAttempts || 0) + 1;
-
-//     if (user.loginAttempts >= 5) {
-//       user.lockUntil = Date.now() + 30 * 60 * 1000; // 30 minutes
-//       user.loginAttempts = 0;
-//     }
-
-//     await user.save({ validateBeforeSave: false });
-
-//     const attemptsLeft = 5 - user.loginAttempts;
-//     return next(
-//       new ErrorResponse(
-//         `Invalid credentials. ${attemptsLeft} attempt${attemptsLeft !== 1 ? "s" : ""} remaining.`,
-//         401,
-//       ),
-//     );
-//   }
-
-//   // Reset login attempts on success
-//   if (user.loginAttempts > 0 || user.lockUntil) {
-//     user.loginAttempts = 0;
-//     user.lockUntil = undefined;
-//     await user.save({ validateBeforeSave: false });
-//   }
-
-//   // Update last login
-//   user.lastLogin = new Date();
-//   user.lastLoginIP = req.ip;
-//   await user.save({ validateBeforeSave: false });
-
-//   // Generate tokens using authService
-//   const tokens = authService.generateTokens(user);
-
-//   // Set HTTP-only cookies - NOW setTokenCookies IS DEFINED ✓
-//   setTokenCookies(res, tokens);
-
-//   // Remove sensitive data
-//   user.password = undefined;
-//   user.loginAttempts = undefined;
-//   user.lockUntil = undefined;
-
-//   res.status(200).json({
-//     success: true,
-//     data: {
-//       user: {
-//         id: user._id,
-//         firstName: user.firstName,
-//         lastName: user.lastName,
-//         email: user.email,
-//         phone: user.phone,
-//         profileImage: user.profileImage,
-//         role: user.role,
-//         emailVerified: user.emailVerified,
-//         phoneVerified: user.phoneVerified,
-//       },
-//       // // Only return tokens in development
-//       // ...(process.env.NODE_ENV === "development" && { tokens }),
-//     },
-//   });
-// });
-
 exports.login = asyncHandler(async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password)
@@ -581,20 +295,65 @@ exports.login = asyncHandler(async (req, res, next) => {
   });
 });
 
+// exports.refreshToken = asyncHandler(async (req, res, next) => {
+//   let refreshToken;
+
+//   // Get refresh token from cookie first
+//   if (req.cookies?.refreshToken) {
+//     refreshToken = req.cookies.refreshToken;
+//   }
+
+//   // Optional fallback
+//   else if (req.body?.refreshToken) {
+//     refreshToken = req.body.refreshToken;
+//   }
+
+//   if (!refreshToken) {
+//     return next(new ErrorResponse("Refresh token required", 400));
+//   }
+
+//   try {
+//     const { userId } = await authService.refreshAccessToken(refreshToken);
+
+//     const user = await User.findById(userId).select("-password -__v");
+
+//     if (!user || !user.isActive) {
+//       return next(new ErrorResponse("User not found or inactive", 401));
+//     }
+
+//     await authService.revokeRefreshToken(userId, refreshToken);
+
+//     const tokens = await authService.generateTokens(user);
+
+//     setTokenCookies(res, tokens);
+
+//     res.status(200).json({
+//       success: true,
+//       message: "Token refreshed successfully",
+//       data: {
+//         user,
+//       },
+//     });
+//   } catch (error) {
+//     clearTokenCookies(res);
+
+//     return next(new ErrorResponse("Invalid refresh token", 401));
+//   }
+// });
+
+// AFTER
 exports.refreshToken = asyncHandler(async (req, res, next) => {
   let refreshToken;
 
-  // Get refresh token from cookie first
   if (req.cookies?.refreshToken) {
     refreshToken = req.cookies.refreshToken;
-  }
-
-  // Optional fallback
-  else if (req.body?.refreshToken) {
+  } else if (req.body?.refreshToken) {
     refreshToken = req.body.refreshToken;
   }
 
   if (!refreshToken) {
+    // Don't clear cookies on a missing refresh token — the user may simply
+    // be logged out, and the frontend will redirect to /auth on its own.
     return next(new ErrorResponse("Refresh token required", 400));
   }
 
@@ -604,25 +363,28 @@ exports.refreshToken = asyncHandler(async (req, res, next) => {
     const user = await User.findById(userId).select("-password -__v");
 
     if (!user || !user.isActive) {
+      clearTokenCookies(res);
       return next(new ErrorResponse("User not found or inactive", 401));
     }
 
-    await authService.revokeRefreshToken(userId, refreshToken);
-
-    const tokens = await authService.generateTokens(user);
+    // Rotate refresh token, but DO NOT revoke the old one yet.
+    // Revoke AFTER we know the new one has been set, to survive
+    // multi-tab races where two tabs refresh at the same time.
+    const tokens = authService.generateTokens(user);
 
     setTokenCookies(res, tokens);
+
+    // Now revoke the old refresh token.
+    await authService.revokeRefreshToken(userId, refreshToken);
 
     res.status(200).json({
       success: true,
       message: "Token refreshed successfully",
-      data: {
-        user,
-      },
+      data: { user },
     });
   } catch (error) {
+    // Only now clear cookies — the refresh token is genuinely invalid.
     clearTokenCookies(res);
-
     return next(new ErrorResponse("Invalid refresh token", 401));
   }
 });

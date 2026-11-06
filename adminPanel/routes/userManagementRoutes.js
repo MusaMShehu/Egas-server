@@ -2,6 +2,7 @@ const express = require('express');
 const {
   getUsers,
   getUser,
+  findUserByEmail,
   createUser,
   updateUser,
   deleteUser,
@@ -43,6 +44,9 @@ router.route('/:id')
   .get(getUser)
   .put(updateUser)
   .delete(deleteUser);
+
+router.route('/find-by-email')
+  .get(findUserByEmail);
 
 router.route('/:id/status')
   .patch(toggleUserStatus);

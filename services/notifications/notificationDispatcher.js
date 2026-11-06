@@ -1,486 +1,806 @@
 // services/notificationDispatcher.js
-//
-// Controllers ONLY call Dispatcher.* methods. Every method is non-throwing.
-// Internally each method enqueues into the notification queue (see notificationQueue.js).
-//
-const { enqueue } = require("./notificationQueue");
+const { enqueue } = require('./notificationQueue');
 
-// ---------- helpers ----------
+// ============================================================
+// CATEGORY → PREFERENCE MAPPING
+// ============================================================
+const CATEGORY_PREF = {
+  // Order family
+  order: 'orderUpdates',
+  order_created: 'orderUpdates',
+  order_confirmed: 'orderUpdates',
+  order_out_for_delivery: 'orderUpdates',
+  order_delivered: 'orderUpdates',
+  order_failed: 'orderUpdates',
+  order_cancelled: 'orderUpdates',
+
+  // Subscription family
+  subscription: 'deliveryNotifications',
+  subscription_created: 'deliveryNotifications',
+  subscription_delivery_reminder: 'deliveryNotifications',
+  subscription_fulfilled: 'deliveryNotifications',
+  subscription_ending_warning: 'deliveryNotifications',
+  subscription_paused: 'deliveryNotifications',
+  subscription_resumed: 'deliveryNotifications',
+  subscription_cancelled: 'deliveryNotifications',
+  subscription_renewal_due: 'deliveryNotifications',
+
+  // Delivery family
+  delivery: 'deliveryNotifications',
+  delivery_scheduled: 'deliveryNotifications',
+  delivery_fulfilled: 'deliveryNotifications',
+  delivery_failed: 'deliveryNotifications',
+  delivery_escalated: 'deliveryNotifications',
+  delivery_paused: 'deliveryNotifications',
+  delivery_resumed: 'deliveryNotifications',
+
+  // Refill / plant workflow
+  refill: 'deliveryNotifications',
+  refill_request_created: 'deliveryNotifications',
+  refill_request_received: 'deliveryNotifications',
+  refill_inspection_pending: 'deliveryNotifications',
+  refill_request_approved: 'deliveryNotifications',
+  refill_request_rejected: 'deliveryNotifications',
+  refill_quantity_recorded: 'deliveryNotifications',
+  refill_request_confirmed: 'deliveryNotifications',
+  refill_ready_for_collection: 'deliveryNotifications',
+  refill_collected_from_plant: 'deliveryNotifications',
+  refill_disputed: 'deliveryNotifications',
+
+  // Promotional
+  promotional: 'promotionalOffers',
+};
+
+// Channels/categories that MUST always send (security / transactional)
+const ALWAYS_SEND = new Set([
+  'account_created',
+  'email_verification',
+  'password_reset',
+  'password_reset_success',
+  'account_locked',
+  'suspicious_activity',
+  'wallet_topup_success',
+  'wallet_topup_failed',
+  'wallet_debited',
+  'wallet_credited',
+  'support_created',
+  'support_resolved',
+  'ticket_response',
+  'plant_approved',
+  'plant_suspended',
+  'plant_staff_invited',
+  'system_update',
+]);
+
+// ============================================================
+// HELPERS
+// ============================================================
+function plain(v) {
+  return JSON.parse(JSON.stringify(v, (k, val) => (typeof val === 'function' ? undefined : val)));
+}
+
 function fmtDate(d) {
-  if (!d) return "N/A";
+  if (!d) return 'N/A';
   try {
-    return new Date(d).toLocaleDateString("en-NG", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
+    return new Date(d).toLocaleDateString('en-NG', {
+      day: 'numeric', month: 'short', year: 'numeric',
     });
   } catch {
     return String(d);
   }
 }
 
-function firstNameOf(user) {
-  return user?.firstName || user?.name || "Customer";
+function name(user) {
+  return user?.firstName || user?.name || 'Customer';
 }
 
-// Safely JSON-serialize mongoose docs / arrays for the queue
-function plain(value) {
-  return JSON.parse(
-    JSON.stringify(value, (k, v) => (typeof v === "function" ? undefined : v))
-  );
+function prefsOf(user) {
+  const p = user?.notificationPreferences || {};
+  return {
+    orderUpdates: p.orderUpdates !== false,
+    deliveryNotifications: p.deliveryNotifications !== false,
+    promotionalOffers: p.promotionalOffers === true,
+    newsletter: p.newsletter === true,
+    channels: {
+      inApp: p.channels?.inApp !== false,
+      email: p.channels?.email !== false,
+      sms: p.channels?.sms !== false,
+      push: p.channels?.push !== false,
+    },
+    quietHours: p.quietHours || { enabled: false },
+  };
 }
 
-// Generic enqueuers (return {ok,jobId?}, never throw)
-function queueEmail(method, args, jobId = null) {
-  const opts = jobId ? { jobId } : {};
-  return enqueue("email", { method, args: plain(args) }, opts);
+function isAllowed(prefs, type, subType) {
+  if (ALWAYS_SEND.has(subType) || ALWAYS_SEND.has(type)) return true;
+  const key = CATEGORY_PREF[subType] || CATEGORY_PREF[type];
+  if (!key) return true;
+  return prefs[key] !== false;
 }
-function queueSms({ phone, message, type, userId, metadata }, jobId = null) {
-  if (!phone) return { ok: false, error: "no phone" };
-  const opts = jobId ? { jobId } : {};
-  return enqueue("sms", { phone, message, type, userId, metadata: metadata || {} }, opts);
-}
-function queueInApp(payload, jobId = null) {
-  if (!payload?.userId) return { ok: false, error: "no userId" };
-  const opts = jobId ? { jobId } : {};
-  return enqueue("in_app", payload, opts);
+
+function inQuietHours(prefs, now = new Date()) {
+  const q = prefs.quietHours;
+  if (!q?.enabled) return false;
+  const [sh, sm] = (q.start || '22:00').split(':').map(Number);
+  const [eh, em] = (q.end || '07:00').split(':').map(Number);
+  const mins = now.getHours() * 60 + now.getMinutes();
+  const s = sh * 60 + sm;
+  const e = eh * 60 + em;
+  // window may wrap midnight
+  if (s <= e) return mins >= s && mins < e;
+  return mins >= s || mins < e;
 }
 
 // ============================================================
-// PUBLIC DISPATCHER
+// LOW-LEVEL ENQUEUERS (never throw, respect gates)
 // ============================================================
-const Dispatcher = {
-  // ---------- ACCOUNT ----------
-  accountCreated(user) {
-    queueEmail("sendAccountCreatedEmail", [user]);
+function queueEmail(method, args, { jobId = null } = {}) {
+  try {
+    return enqueue('email', { method, args: plain(args) }, jobId ? { jobId } : {});
+  } catch (e) {
+    console.error('[dispatcher] email enqueue failed:', e.message);
+    return { ok: false };
+  }
+}
+
+function queueSms({ phone, message, type, userId, metadata }, { jobId = null } = {}) {
+  if (!phone) return { ok: false };
+  try {
+    return enqueue('sms', { phone, message, type, userId, metadata: metadata || {} }, jobId ? { jobId } : {});
+  } catch (e) {
+    console.error('[dispatcher] sms enqueue failed:', e.message);
+    return { ok: false };
+  }
+}
+
+function queueInApp(payload, { jobId = null } = {}) {
+  if (!payload?.userId) return { ok: false };
+  try {
+    return enqueue('in_app', payload, jobId ? { jobId } : {});
+  } catch (e) {
+    console.error('[dispatcher] in_app enqueue failed:', e.message);
+    return { ok: false };
+  }
+}
+
+function queuePush(payload, { jobId = null } = {}) {
+  if (!payload?.userId) return { ok: false };
+  try {
+    return enqueue('push', payload, jobId ? { jobId } : {});
+  } catch (e) {
+    console.error('[dispatcher] push enqueue failed:', e.message);
+    return { ok: false };
+  }
+}
+
+// ============================================================
+// HIGH-LEVEL: fan out one notification across all channels
+// ============================================================
+function fanout(user, opts) {
+  const prefs = prefsOf(user);
+  const { type, subType } = opts;
+  if (!isAllowed(prefs, type, subType)) return;
+
+  const quiet = inQuietHours(prefs);
+
+  // In-app (always allowed if channel is on)
+  if (prefs.channels.inApp) {
     queueInApp({
       userId: user._id,
-      title: "Welcome to E-Gas!",
-      message: "Your account has been created successfully.",
-      type: "account",
-      subType: "account_created",
-    });
-    // SMS: keep short, cheap
-    queueSms({
-      phone: user.phone,
-      type: "account_created",
+      title: opts.inAppTitle || opts.smsText || 'Notification',
+      message: opts.inAppMessage || opts.smsText || '',
+      type,
+      subType,
+      relatedId: opts.relatedId || null,
+      relatedModel: opts.relatedModel || null,
+      data: opts.data || {},
+      priority: opts.priority || 'medium',
+      sentVia: ['in_app'],
+      idempotencyKey: opts.idempotencyKey || null,
+    }, { jobId: opts.idempotencyKey });
+  }
+
+  // Push (FCM-style)
+  if (prefs.channels.push) {
+    queuePush({
       userId: user._id,
-      message: `Hello ${firstNameOf(user)}, welcome to E-Gas Online! Your account is ready.`,
+      title: opts.pushTitle || opts.inAppTitle || 'E-Gas',
+      body: opts.pushBody || opts.inAppMessage || opts.smsText || '',
+      type,
+      subType,
+      relatedId: opts.relatedId || null,
+      relatedModel: opts.relatedModel || null,
+      data: opts.data || {},
+    }, { jobId: opts.idempotencyKey ? `${opts.idempotencyKey}:push` : null });
+  }
+
+  // Email
+  if (prefs.channels.email && opts.email?.method) {
+    queueEmail(opts.email.method, opts.email.args || [], {
+      jobId: opts.idempotencyKey ? `${opts.idempotencyKey}:email` : null,
+    });
+  }
+
+  // SMS (skipped inside quiet hours for non-critical)
+  if (
+    prefs.channels.sms &&
+    opts.smsText &&
+    user?.phone &&
+    (!quiet || ALWAYS_SEND.has(subType))
+  ) {
+    queueSms(
+      {
+        phone: user.phone,
+        message: opts.smsText,
+        type: subType,
+        userId: user._id,
+      },
+      { jobId: opts.idempotencyKey ? `${opts.idempotencyKey}:sms` : null }
+    );
+  }
+}
+
+// ============================================================
+// PUBLIC DISPATCHER — one method per event
+// ============================================================
+const Dispatcher = {
+  // ==================== ACCOUNT / SECURITY ====================
+  accountCreated(user) {
+    fanout(user, {
+      type: 'account',
+      subType: 'account_created',
+      inAppTitle: 'Welcome to E-Gas!',
+      inAppMessage: 'Your account has been created successfully.',
+      smsText: `Hello ${name(user)}, welcome to E-Gas Online! Your account is ready.`,
+      email: { method: 'sendAccountCreatedEmail', args: [user] },
     });
   },
 
-  // ---------- ORDERS ----------
-  orderCreated(order, user) {
-    queueEmail("sendOrderCreatedEmail", [order, user]);
-    queueInApp({
-      userId: user._id,
-      title: `Order #${order.orderId} confirmed`,
-      message: `Your order for ${
-        order.products?.[0]?.productName || "gas"
-      } is being processed.`,
-      type: "order",
-      subType: "order_created",
-      relatedId: order._id,
-      relatedModel: "Order",
+  emailVerification(user, token) {
+    const verifyUrl = `${process.env.FRONTEND_URL || 'https://egas.com.ng'}/verify-email?token=${token}&id=${user._id}`;
+    fanout(user, {
+      type: 'account',
+      subType: 'email_verification',
+      inAppTitle: 'Verify your email',
+      inAppMessage: 'Please confirm your email to unlock all features.',
+      email: { method: 'sendEmailVerification', args: [{ user, verifyUrl }] },
     });
-    queueSms({
-      phone: user.phone,
-      type: "order_created",
-      userId: user._id,
-      message: `Hi ${firstNameOf(
-        user
-      )}, your order #${order.orderId} has been received. - E-Gas`,
+  },
+
+  passwordResetEmail(user, resetToken) {
+    const resetUrl = `${process.env.FRONTEND_URL || 'https://egas.com.ng'}/reset-password?token=${resetToken}&id=${user._id}`;
+    fanout(user, {
+      type: 'account',
+      subType: 'password_reset',
+      email: {
+        method: 'sendPasswordResetEmail',
+        args: [{ email: user.email, name: name(user), resetUrl, expiryTime: '10 minutes' }],
+      },
+      // No in-app / SMS / push for password reset (security — link only via email)
+    });
+  },
+
+  passwordResetSuccess(user, meta = {}) {
+    fanout(user, {
+      type: 'account',
+      subType: 'password_reset_success',
+      inAppTitle: 'Password changed',
+      inAppMessage: 'Your account password was reset successfully.',
+      email: {
+        method: 'sendPasswordResetSuccessEmail',
+        args: [{ email: user.email, name: name(user), ...meta }],
+      },
+    });
+  },
+
+  accountLocked(user, lockDuration = '30 minutes') {
+    fanout(user, {
+      type: 'account',
+      subType: 'account_locked',
+      inAppTitle: 'Account temporarily locked',
+      inAppMessage: `Account locked for ${lockDuration} due to failed login attempts.`,
+      email: {
+        method: 'sendAccountLockedAlert',
+        args: [{ email: user.email, name: name(user), lockDuration }],
+      },
+    });
+  },
+
+  suspiciousActivity(user, ctx = {}) {
+    fanout(user, {
+      type: 'account',
+      subType: 'suspicious_activity',
+      inAppTitle: 'Suspicious activity detected',
+      inAppMessage: 'Someone tried to reset your password. If this was you, ignore.',
+      email: {
+        method: 'sendSuspiciousActivityAlert',
+        args: [{ email: user.email, name: name(user), ...ctx }],
+      },
+    });
+  },
+
+  // ==================== ORDERS ====================
+  orderCreated(order, user) {
+    const key = `order_created:${order._id}`;
+    fanout(user, {
+      type: 'order',
+      subType: 'order_created',
+      idempotencyKey: key,
+      inAppTitle: `Order #${order.orderId} confirmed`,
+      inAppMessage: `Your order for ${order.products?.[0]?.productName || 'gas'} is being processed.`,
+      smsText: `Hi ${name(user)}, your order #${order.orderId} has been received. - E-Gas`,
+      relatedId: order._id,
+      relatedModel: 'Order',
+      email: { method: 'sendOrderCreatedEmail', args: [order, user] },
     });
   },
 
   orderConfirmed(order, user) {
-    queueEmail("sendOrderConfirmationEmail", [order, user]);
-    queueInApp({
-      userId: user._id,
-      title: `Order #${order.orderId} is being prepared`,
-      message: `Estimated delivery: ${order.estimatedDelivery || "soon"}.`,
-      type: "order",
-      subType: "order_confirmed",
+    const key = `order_confirmed:${order._id}`;
+    fanout(user, {
+      type: 'order',
+      subType: 'order_confirmed',
+      idempotencyKey: key,
+      inAppTitle: `Order #${order.orderId} is being prepared`,
+      inAppMessage: `Estimated delivery: ${order.estimatedDelivery || 'soon'}.`,
+      smsText: `Your order #${order.orderId} is being prepared. Est. delivery: ${order.estimatedDelivery || 'soon'}. - E-Gas`,
       relatedId: order._id,
-      relatedModel: "Order",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "order_confirmed",
-      userId: user._id,
-      message: `Your order #${order.orderId} is being prepared. Est. delivery: ${
-        order.estimatedDelivery || "soon"
-      }. - E-Gas`,
+      relatedModel: 'Order',
+      email: { method: 'sendOrderConfirmationEmail', args: [order, user] },
     });
   },
 
   orderOutForDelivery(order, user, deliveryContact) {
-    queueEmail("sendOrderOutForDeliveryEmail", [order, user]);
-    queueInApp({
-      userId: user._id,
-      title: `Order #${order.orderId} is on the way`,
-      message: `Delivery agent: ${order.deliveryAgent || "assigned"}.`,
-      type: "order",
-      subType: "order_out_for_delivery",
+    const key = `order_out:${order._id}`;
+    fanout(user, {
+      type: 'order',
+      subType: 'order_out_for_delivery',
+      idempotencyKey: key,
+      inAppTitle: `Order #${order.orderId} is on the way`,
+      inAppMessage: `Delivery agent: ${order.deliveryAgent || 'assigned'}.`,
+      smsText: `Your order #${order.orderId} is out for delivery. Agent: ${deliveryContact || 'on the way'}. - E-Gas`,
       relatedId: order._id,
-      relatedModel: "Order",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "order_out_for_delivery",
-      userId: user._id,
-      message: `Your order #${order.orderId} is out for delivery. Agent: ${
-        deliveryContact || "on the way"
-      }. - E-Gas`,
+      relatedModel: 'Order',
+      email: { method: 'sendOrderOutForDeliveryEmail', args: [order, user] },
     });
   },
 
   orderDelivered(order, user) {
-    queueEmail("sendOrderDeliveredEmail", [order, user]);
-    queueInApp({
-      userId: user._id,
-      title: `Order #${order.orderId} delivered`,
-      message: "Your order has been delivered successfully. Thank you!",
-      type: "order",
-      subType: "order_delivered",
+    const key = `order_delivered:${order._id}`;
+    fanout(user, {
+      type: 'order',
+      subType: 'order_delivered',
+      idempotencyKey: key,
+      inAppTitle: `Order #${order.orderId} delivered`,
+      inAppMessage: 'Your order has been delivered successfully. Thank you!',
+      smsText: `Your order #${order.orderId} has been delivered. Thank you! - E-Gas`,
       relatedId: order._id,
-      relatedModel: "Order",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "order_delivered",
-      userId: user._id,
-      message: `Your order #${order.orderId} has been delivered. Thank you! - E-Gas`,
+      relatedModel: 'Order',
+      email: { method: 'sendOrderDeliveredEmail', args: [order, user] },
     });
   },
 
-  // ---------- SUBSCRIPTIONS ----------
-  // FIX: use subscription.planName (not .plan.name)
-  // FIX: use subscription.nextDeliveryDate ?? subscription.endDate
+  // ==================== SUBSCRIPTIONS ====================
   subscriptionCreated(subscription, user) {
-    queueEmail("sendSubscriptionCreatedEmail", [subscription, user]);
-    queueInApp({
-      userId: user._id,
-      title: `Subscription activated — ${subscription.planName}`,
-      message: `Next delivery: ${fmtDate(
-        subscription.nextDeliveryDate || subscription.endDate
-      )}.`,
-      type: "subscription",
-      subType: "subscription_created",
+    const key = `sub_created:${subscription._id}`;
+    fanout(user, {
+      type: 'subscription',
+      subType: 'subscription_created',
+      idempotencyKey: key,
+      inAppTitle: `Subscription active — ${subscription.planName}`,
+      inAppMessage: `Next delivery: ${fmtDate(subscription.nextDeliveryDate || subscription.endDate)}.`,
+      smsText: `Hi ${name(user)}, your ${subscription.planName} subscription is active. - E-Gas`,
       relatedId: subscription._id,
-      relatedModel: "Subscription",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "subscription_created",
-      userId: user._id,
-      message: `Hi ${firstNameOf(user)}, your ${
-        subscription.planName
-      } subscription is active. - E-Gas`,
+      relatedModel: 'Subscription',
+      email: { method: 'sendSubscriptionCreatedEmail', args: [subscription, user] },
     });
   },
 
   subscriptionDeliveryReminder(subscription, user, deliveryDate) {
-    queueEmail("sendSubscriptionDeliveryReminder", [subscription, user]);
-    queueInApp({
-      userId: user._id,
-      title: "Delivery tomorrow",
-      message: `${subscription.planName} delivery is scheduled for tomorrow.`,
-      type: "subscription",
-      subType: "subscription_delivery_reminder",
+    const key = `sub_reminder:${subscription._id}:${fmtDate(deliveryDate)}`;
+    fanout(user, {
+      type: 'subscription',
+      subType: 'subscription_delivery_reminder',
+      idempotencyKey: key,
+      inAppTitle: 'Delivery tomorrow',
+      inAppMessage: `${subscription.planName} delivery is scheduled for tomorrow.`,
+      smsText: `Reminder: your ${subscription.planName} delivery is scheduled for ${fmtDate(deliveryDate)}. - E-Gas`,
       relatedId: subscription._id,
-      relatedModel: "Subscription",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "subscription_reminder",
-      userId: user._id,
-      message: `Reminder: your ${
-        subscription.planName
-      } delivery is scheduled for ${fmtDate(deliveryDate)}. - E-Gas`,
+      relatedModel: 'Subscription',
+      email: { method: 'sendSubscriptionDeliveryReminder', args: [subscription, user] },
     });
   },
 
   subscriptionDeliveryFulfilled(subscription, user, orderId) {
-    queueEmail("sendSubscriptionDeliveryFulfilled", [subscription, user]);
-    queueInApp({
-      userId: user._id,
-      title: "Subscription delivery completed",
-      message: `Your ${subscription.planName} delivery was completed.`,
-      type: "subscription",
-      subType: "subscription_fulfilled",
+    const key = `sub_fulfilled:${subscription._id}:${orderId || 'na'}`;
+    fanout(user, {
+      type: 'subscription',
+      subType: 'subscription_fulfilled',
+      idempotencyKey: key,
+      inAppTitle: 'Subscription delivery completed',
+      inAppMessage: `Your ${subscription.planName} delivery was completed.`,
+      smsText: `Your ${subscription.planName} delivery has been completed. Thank you! - E-Gas`,
       relatedId: orderId || subscription._id,
-      relatedModel: orderId ? "Order" : "Subscription",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "subscription_fulfilled",
-      userId: user._id,
-      message: `Your ${subscription.planName} delivery has been completed. Thank you! - E-Gas`,
+      relatedModel: orderId ? 'Order' : 'Subscription',
+      email: { method: 'sendSubscriptionDeliveryFulfilled', args: [subscription, user] },
     });
   },
 
   subscriptionEndingAlert(subscription, user, daysLeft) {
-    queueEmail("sendSubscriptionEndingAlert", [subscription, user, daysLeft]);
-    queueInApp({
-      userId: user._id,
-      title: `Subscription ends in ${daysLeft} days`,
-      message: "Renew now to keep your gas deliveries uninterrupted.",
-      type: "subscription",
-      subType: "subscription_ending_warning",
+    const key = `sub_ending:${subscription._id}:${daysLeft}`;
+    fanout(user, {
+      type: 'subscription',
+      subType: 'subscription_ending_warning',
+      idempotencyKey: key,
+      inAppTitle: `Subscription ends in ${daysLeft} days`,
+      inAppMessage: 'Renew now to keep your gas deliveries uninterrupted.',
+      smsText: `Your ${subscription.planName} subscription ends in ${daysLeft} days. Renew now! - E-Gas`,
       relatedId: subscription._id,
-      relatedModel: "Subscription",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "subscription_ending",
-      userId: user._id,
-      message: `Your ${subscription.planName} subscription ends in ${daysLeft} days. Renew now! - E-Gas`,
+      relatedModel: 'Subscription',
+      email: { method: 'sendSubscriptionEndingAlert', args: [subscription, user, daysLeft] },
     });
   },
 
   subscriptionPaused(subscription, user) {
-    queueEmail("sendSubscriptionPausedEmail", [subscription, user]);
-    queueInApp({
-      userId: user._id,
-      title: "Subscription paused",
-      message: "Your gas subscription has been paused as requested.",
-      type: "subscription",
-      subType: "subscription_paused",
+    const key = `sub_paused:${subscription._id}`;
+    fanout(user, {
+      type: 'subscription',
+      subType: 'subscription_paused',
+      idempotencyKey: key,
+      inAppTitle: 'Subscription paused',
+      inAppMessage: 'Your gas subscription has been paused as requested.',
+      smsText: `Your ${subscription.planName} subscription has been paused. - E-Gas`,
       relatedId: subscription._id,
-      relatedModel: "Subscription",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "subscription_paused",
-      userId: user._id,
-      message: `Your ${subscription.planName} subscription has been paused. - E-Gas`,
+      relatedModel: 'Subscription',
+      email: { method: 'sendSubscriptionPausedEmail', args: [subscription, user] },
     });
   },
 
   subscriptionResumed(subscription, user) {
-    queueEmail("sendSubscriptionResumedEmail", [subscription, user]);
-    queueInApp({
-      userId: user._id,
-      title: "Subscription resumed",
-      message: "Your regular delivery schedule has been restored.",
-      type: "subscription",
-      subType: "subscription_resumed",
+    const key = `sub_resumed:${subscription._id}`;
+    fanout(user, {
+      type: 'subscription',
+      subType: 'subscription_resumed',
+      idempotencyKey: key,
+      inAppTitle: 'Subscription resumed',
+      inAppMessage: 'Your regular delivery schedule has been restored.',
+      smsText: `Your ${subscription.planName} subscription is active again. Next delivery: ${fmtDate(subscription.nextDeliveryDate || subscription.endDate)}. - E-Gas`,
       relatedId: subscription._id,
-      relatedModel: "Subscription",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "subscription_resumed",
-      userId: user._id,
-      message: `Your ${
-        subscription.planName
-      } subscription is active again. Next delivery: ${fmtDate(
-        subscription.nextDeliveryDate || subscription.endDate
-      )}. - E-Gas`,
+      relatedModel: 'Subscription',
+      email: { method: 'sendSubscriptionResumedEmail', args: [subscription, user] },
     });
   },
 
   subscriptionCancelled(subscription, user) {
-    queueEmail("sendSubscriptionCancelledEmail", [subscription, user]);
-    queueInApp({
-      userId: user._id,
-      title: "Subscription cancelled",
-      message: "Your gas subscription has been cancelled.",
-      type: "subscription",
-      subType: "subscription_cancelled",
+    const key = `sub_cancelled:${subscription._id}`;
+    fanout(user, {
+      type: 'subscription',
+      subType: 'subscription_cancelled',
+      idempotencyKey: key,
+      inAppTitle: 'Subscription cancelled',
+      inAppMessage: 'Your gas subscription has been cancelled.',
+      smsText: `Your ${subscription.planName} subscription has been cancelled. Thank you. - E-Gas`,
       relatedId: subscription._id,
-      relatedModel: "Subscription",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "subscription_cancelled",
-      userId: user._id,
-      message: `Your ${subscription.planName} subscription has been cancelled. Thank you. - E-Gas`,
+      relatedModel: 'Subscription',
+      email: { method: 'sendSubscriptionCancelledEmail', args: [subscription, user] },
     });
   },
 
-  // ---------- WALLET ----------
-  // FIX: caller passes actual wallet.balance as `newBalance`
-  // FIX: dedupe via deterministic jobId (verify + webhook can both fire)
+  // ==================== DELIVERY ====================
+  deliveryScheduled(delivery, user) {
+    const key = `delivery_scheduled:${delivery._id}`;
+    fanout(user, {
+      type: 'delivery',
+      subType: 'delivery_scheduled',
+      idempotencyKey: key,
+      inAppTitle: 'Delivery scheduled',
+      inAppMessage: `Your delivery is scheduled for ${fmtDate(delivery.deliveryDate)}.`,
+      smsText: `Your delivery is scheduled for ${fmtDate(delivery.deliveryDate)}. - E-Gas`,
+      relatedId: delivery._id,
+      relatedModel: 'Delivery',
+    });
+  },
+
+  deliveryPaused(delivery, user) {
+    const key = `delivery_paused:${delivery._id}`;
+    fanout(user, {
+      type: 'delivery',
+      subType: 'delivery_paused',
+      idempotencyKey: key,
+      inAppTitle: 'Delivery paused',
+      inAppMessage: 'A scheduled delivery has been paused.',
+      relatedId: delivery._id,
+      relatedModel: 'Delivery',
+    });
+  },
+
+  deliveryResumed(delivery, user) {
+    const key = `delivery_resumed:${delivery._id}:${delivery.deliveryDate?.toISOString?.() || 'na'}`;
+    fanout(user, {
+      type: 'delivery',
+      subType: 'delivery_resumed',
+      idempotencyKey: key,
+      inAppTitle: 'Delivery resumed',
+      inAppMessage: `New delivery date: ${fmtDate(delivery.deliveryDate)}.`,
+      smsText: `Your delivery has been rescheduled to ${fmtDate(delivery.deliveryDate)}. - E-Gas`,
+      relatedId: delivery._id,
+      relatedModel: 'Delivery',
+    });
+  },
+
+  deliveryFailed(delivery, user, reason) {
+    const key = `delivery_failed:${delivery._id}`;
+    fanout(user, {
+      type: 'delivery',
+      subType: 'delivery_failed',
+      idempotencyKey: key,
+      inAppTitle: 'Delivery failed',
+      inAppMessage: reason ? `Reason: ${reason}` : 'We could not complete your delivery. We will retry.',
+      smsText: `We could not complete your delivery. ${reason || 'We will retry soon.'} - E-Gas`,
+      relatedId: delivery._id,
+      relatedModel: 'Delivery',
+    });
+  },
+
+  // ==================== REFILL (plant workflow) ====================
+  refillRequestCreated(agentId, request) {
+    queueInApp({
+      userId: agentId,
+      title: `Refill ${request.requestNumber} created`,
+      message: `Requested ${request.requestedQuantity}kg at plant.`,
+      type: 'refill',
+      subType: 'refill_request_created',
+      relatedId: request._id,
+      relatedModel: 'PlantRefillRequest',
+      priority: 'high',
+    }, { jobId: `refill_created:${request._id}` });
+  },
+
+  refillRequestReceived(agentId, request) {
+    queueInApp({
+      userId: agentId,
+      title: `Refill ${request.requestNumber} received`,
+      message: `Cylinder received at plant.`,
+      type: 'refill',
+      subType: 'refill_request_received',
+      relatedId: request._id,
+      relatedModel: 'PlantRefillRequest',
+    }, { jobId: `refill_received:${request._id}` });
+  },
+
+  refillInspectionPending(agentId, request) {
+    queueInApp({
+      userId: agentId,
+      title: `Refill ${request.requestNumber} — inspection`,
+      message: 'Cylinder is being inspected at the plant.',
+      type: 'refill',
+      subType: 'refill_inspection_pending',
+      relatedId: request._id,
+      relatedModel: 'PlantRefillRequest',
+    }, { jobId: `refill_inspect:${request._id}` });
+  },
+
+  refillRequestApproved(agentId, request) {
+    queueInApp({
+      userId: agentId,
+      title: `Refill ${request.requestNumber} approved`,
+      message: 'Cylinder passed inspection. Refilling will proceed.',
+      type: 'refill',
+      subType: 'refill_request_approved',
+      relatedId: request._id,
+      relatedModel: 'PlantRefillRequest',
+    }, { jobId: `refill_approved:${request._id}` });
+  },
+
+  refillRequestRejected(agentId, request, reason) {
+    queueInApp({
+      userId: agentId,
+      title: `Refill ${request.requestNumber} rejected`,
+      message: reason ? `Reason: ${reason}` : 'Cylinder failed inspection. Retry at another plant.',
+      type: 'refill',
+      subType: 'refill_request_rejected',
+      relatedId: request._id,
+      relatedModel: 'PlantRefillRequest',
+      priority: 'high',
+    }, { jobId: `refill_rejected:${request._id}` });
+  },
+
+  refillRequestConfirmed(agentId, request) {
+    queueInApp({
+      userId: agentId,
+      title: `Refill ${request.requestNumber} confirmed`,
+      message: `Ready for collection. ${request.plantConfirmedQuantity || ''}kg filled.`,
+      type: 'refill',
+      subType: 'refill_request_confirmed',
+      relatedId: request._id,
+      relatedModel: 'PlantRefillRequest',
+    }, { jobId: `refill_confirmed:${request._id}` });
+  },
+
+  refillCollectedFromPlant(plantUserId, request) {
+    queueInApp({
+      userId: plantUserId,
+      title: `Cylinder collected — ${request.requestNumber}`,
+      message: `Agent has collected the cylinder.`,
+      type: 'refill',
+      subType: 'refill_collected_from_plant',
+      relatedId: request._id,
+      relatedModel: 'PlantRefillRequest',
+    }, { jobId: `refill_collected:${request._id}` });
+  },
+
+  // ────────────────────────────────────────────────────────────
+// ADD inside the Dispatcher object literal, in the "REFILL"
+// section, e.g. right after refillCollectedFromPlant(...).
+// ────────────────────────────────────────────────────────────
+
+/**
+ * refillRequestUpdate — status-change fanout used by plantRefillController.
+ *
+ * Called from:
+ *   - plantRefillController.receiveCylinder
+ *   - plantRefillController.submitInspection
+ *   - plantRefillController.confirmRefill
+ *   - plantRefillController.collectFromPlant
+ *
+ * Fires an in-app notification to the agent (and SMS if the agent
+ * has a verified phone and the status is high-priority). Never throws.
+ */
+refillRequestUpdate(agentOrId, request, status) {
+  if (!agentOrId || !request || !status) return;
+
+  const titles = {
+    received:   'Cylinder received at plant',
+    approved:   'Refill approved — starting refill',
+    rejected:   'Refill rejected — retry at another plant',
+    confirmed:  'Refill confirmed — ready for collection',
+    collected:  'Cylinder collected',
+  };
+
+  const messages = {
+    received:   `Plant has your cylinder for ${request.requestNumber}.`,
+    approved:   `Inspection passed for ${request.requestNumber}. Refilling in progress.`,
+    rejected:   request.rejectedReason
+                  ? `Inspection rejected: ${request.rejectedReason}`
+                  : `Refill ${request.requestNumber} was rejected at the plant.`,
+    confirmed:  `${request.plantConfirmedQuantity || '?'}kg filled. Collect now.`,
+    collected:  `${request.requestNumber} collected. Proceed to customer.`,
+  };
+
+  const highPriority = status === 'rejected' || status === 'confirmed';
+
+  // Resolve agent id (accepts ObjectId, populated user, or string)
+  const agentId =
+    (typeof agentOrId === 'object' && agentOrId !== null
+      ? agentOrId._id || agentOrId.id
+      : agentOrId) || null;
+
+  if (!agentId) return;
+
+  queueInApp({
+    userId: agentId,
+    title: titles[status] || `Refill update: ${status}`,
+    message: messages[status] || `Refill ${request.requestNumber} is now ${status}.`,
+    type: 'refill',
+    subType: `refill_request_${status}`,
+    relatedId: request._id,
+    relatedModel: 'PlantRefillRequest',
+    priority: highPriority ? 'high' : 'medium',
+    sentVia: ['in_app'],
+    idempotencyKey: `refill_${status}:${request._id}`,
+  }, { jobId: `refill_${status}:${request._id}` });
+},
+
+  // ==================== WALLET ====================
   walletTopupSuccess(user, transaction, newBalance) {
-    const ref = transaction.id || transaction.reference || String(Date.now());
-    queueEmail("sendWalletTopupSuccess", [user, transaction], `wt_email:${ref}`);
-    queueInApp(
-      {
-        userId: user._id,
-        title: "Wallet top-up successful",
-        message: `₦${transaction.amount} was added to your wallet.`,
-        type: "wallet",
-        subType: "wallet_topup_success",
-        relatedId: transaction.id || transaction._id,
-        relatedModel: "Transaction",
-      },
-      `wt_inapp:${ref}`
-    );
-    queueSms(
-      {
-        phone: user.phone,
-        type: "wallet_topup",
-        userId: user._id,
-        message: `Wallet top-up of ₦${transaction.amount} successful. New balance: ₦${
-          newBalance ?? transaction.newBalance ?? "?"
-        }. - E-Gas`,
-      },
-      `wt_sms:${ref}`
-    );
+    const ref = transaction.id || transaction.reference || String(transaction._id || Date.now());
+    fanout(user, {
+      type: 'wallet',
+      subType: 'wallet_topup_success',
+      idempotencyKey: `wallet_topup:${ref}`,
+      inAppTitle: 'Wallet top-up successful',
+      inAppMessage: `₦${transaction.amount} was added to your wallet.`,
+      smsText: `Wallet top-up of ₦${transaction.amount} successful. New balance: ₦${newBalance ?? '?'}. - E-Gas`,
+      relatedId: transaction.id || transaction._id,
+      relatedModel: 'Transaction',
+      email: { method: 'sendWalletTopupSuccess', args: [user, transaction] },
+    });
   },
 
-  // ---------- SUPPORT ----------
-  supportResolved(ticket, user) {
-    queueEmail("sendSupportResolvedEmail", [ticket, user]);
-    queueInApp({
-      userId: user._id,
-      title: `Ticket ${ticket.ticketNumber} resolved`,
-      message: "Your support ticket has been resolved.",
-      type: "support",
-      subType: "support_resolved",
+  walletTopupFailed(user, reference, amount) {
+    fanout(user, {
+      type: 'wallet',
+      subType: 'wallet_topup_failed',
+      idempotencyKey: `wallet_topup_failed:${reference}`,
+      inAppTitle: 'Wallet top-up failed',
+      inAppMessage: `₦${amount} top-up could not be completed.`,
+      smsText: `Wallet top-up of ₦${amount} failed. Please try again. - E-Gas`,
+    });
+  },
+
+  // ==================== SUPPORT ====================
+  supportCreated(ticket, user) {
+    fanout(user, {
+      type: 'support',
+      subType: 'support_created',
+      inAppTitle: `Ticket ${ticket.ticketNumber || ticket.ticketId} created`,
+      inAppMessage: 'Our team will respond shortly.',
+      smsText: `Your support ticket ${ticket.ticketNumber || ticket.ticketId} has been created. We will respond shortly. - E-Gas`,
       relatedId: ticket._id,
-      relatedModel: "SupportTicket",
-    });
-    queueSms({
-      phone: user.phone,
-      type: "support_resolved",
-      userId: user._id,
-      message: `Hi ${firstNameOf(user)}, your support ticket ${
-        ticket.ticketNumber
-      } has been resolved. - E-Gas`,
+      relatedModel: 'SupportTicket',
     });
   },
 
-  // ---------- AUTH / SECURITY ----------
-  passwordResetEmail(user, resetToken) {
-    const resetUrl = `${
-      process.env.FRONTEND_URL || "https://egas.com.ng"
-    }/reset-password?token=${resetToken}&id=${user._id}`;
-    queueEmail("sendPasswordResetEmail", [
-      {
-        email: user.email,
-        name: firstNameOf(user),
-        resetUrl,
-        expiryTime: "10 minutes",
-      },
-    ]);
-  },
-
-  passwordResetSuccess(user, meta = {}) {
-    queueEmail("sendPasswordResetSuccessEmail", [
-      {
-        email: user.email,
-        name: firstNameOf(user),
-        ...meta,
-      },
-    ]);
-    queueInApp({
-      userId: user._id,
-      title: "Password changed",
-      message: "Your account password was reset successfully.",
-      type: "account",
-      subType: "system_update",
+  supportResolved(ticket, user) {
+    fanout(user, {
+      type: 'support',
+      subType: 'support_resolved',
+      idempotencyKey: `support_resolved:${ticket._id}`,
+      inAppTitle: `Ticket ${ticket.ticketNumber || ticket.ticketId} resolved`,
+      inAppMessage: 'Your support ticket has been resolved.',
+      smsText: `Hi ${name(user)}, your support ticket ${ticket.ticketNumber || ticket.ticketId} has been resolved. - E-Gas`,
+      relatedId: ticket._id,
+      relatedModel: 'SupportTicket',
+      email: { method: 'sendSupportResolvedEmail', args: [ticket, user] },
     });
   },
 
-  emailVerification(user, verificationToken) {
-    const verifyUrl = `${
-      process.env.FRONTEND_URL || "https://egas.com.ng"
-    }/verify-email?token=${verificationToken}&id=${user._id}`;
-    queueEmail("sendEmailVerification", [{ user, verifyUrl }]);
-  },
-
-  suspiciousActivity(user, ctx = {}) {
-    queueEmail("sendSuspiciousActivityAlert", [
-      { email: user.email, name: firstNameOf(user), ...ctx },
-    ]);
-  },
-
-  accountLocked(user, lockDuration = "30 minutes") {
-    queueEmail("sendAccountLockedAlert", [
-      { email: user.email, name: firstNameOf(user), lockDuration },
-    ]);
-  },
-
-  // ---------- PLANTS ----------
+  // ==================== PLANT / SYSTEM ====================
   plantApproved(plant, adminUser) {
     queueInApp({
       userId: plant.createdBy || adminUser?._id,
       title: `Plant ${plant.name} approved`,
       message: `Plant ${plant.name} (${plant.code}) is now active.`,
-      type: "system",
-      subType: "system_update",
+      type: 'system',
+      subType: 'plant_approved',
       relatedId: plant._id,
-    });
+    }, { jobId: `plant_approved:${plant._id}` });
   },
 
   plantSuspended(plant, reason) {
     queueInApp({
       userId: plant.createdBy,
       title: `Plant ${plant.name} suspended`,
-      message: reason ? `Reason: ${reason}` : "Your plant has been suspended.",
-      type: "system",
-      subType: "system_update",
+      message: reason ? `Reason: ${reason}` : 'Your plant has been suspended.',
+      type: 'system',
+      subType: 'plant_suspended',
       relatedId: plant._id,
-    });
+    }, { jobId: `plant_suspended:${plant._id}` });
   },
 
   plantStaffInvited(staff, plant) {
-    queueEmail("sendPlantStaffWelcome", [
-      { staff, plant },
-    ]);
-    queueInApp({
-      userId: staff._id,
-      title: "You have plant access",
-      message: `You've been added to ${plant.name} as ${staff.role}.`,
-      type: "account",
-      subType: "account_created",
+    fanout(staff, {
+      type: 'system',
+      subType: 'plant_staff_invited',
+      inAppTitle: 'You have plant access',
+      inAppMessage: `You've been added to ${plant.name} as ${staff.role}.`,
+      email: { method: 'sendPlantStaffWelcome', args: [{ staff, plant }] },
     });
   },
 
-  // ---------- REFILL / DELIVERY WORKFLOW (in-app only) ----------
-  refillRequestCreated(agentId, request) {
-    queueInApp({
-      userId: agentId,
-      title: `Refill ${request.requestNumber} created`,
-      message: `Requested ${request.requestedQuantity}kg at plant.`,
-      type: "delivery",
-      subType: "delivery_fulfilled",
-      relatedId: request._id,
+  // ==================== PROMOTIONAL ====================
+  promotional(user, { subject, title, message, ctaText, ctaLink, content, terms, subtitle }) {
+    fanout(user, {
+      type: 'promotional',
+      subType: 'promotional',
+      inAppTitle: title,
+      inAppMessage: subtitle || message || 'Check out our latest offer!',
+      email: {
+        method: 'sendPromotionalEmail',
+        args: [user, { subject, title, subtitle, message, ctaText, ctaLink, content, terms }],
+      },
     });
   },
 
-  refillRequestUpdate(agentId, request, label) {
-    queueInApp({
-      userId: agentId,
-      title: `Refill ${request.requestNumber} — ${label}`,
-      message: `Status: ${request.status}.`,
-      type: "delivery",
-      subType: "delivery_fulfilled",
-      relatedId: request._id,
-    });
+  // ==================== RAW ====================
+  rawSms({ phone, message, type, userId, metadata }, jobId) {
+    return queueSms({ phone, message, type, userId, metadata }, { jobId });
   },
-
-  deliveryEscalated(request, reason) {
-    // notify admins? in-app doc requires a specific userId. Skip unless you know an admin id.
-    console.warn("[dispatcher] delivery escalated:", request._id, reason);
-  },
-
-  // ---------- RAW / FALLBACK ----------
-  rawEmail({ to, subject, html, text }, jobId = null) {
-    return enqueue(
-      "email",
-      { method: null, args: null, __raw: { to, subject, html, text } },
-      jobId ? { jobId } : {}
-    );
-  },
-  rawSms(payload, jobId) {
-    return queueSms(payload, jobId);
+  rawEmail({ method, args }, jobId) {
+    return queueEmail(method, args, { jobId });
   },
   rawInApp(payload, jobId) {
-    return queueInApp(payload, jobId);
+    return queueInApp(payload, { jobId });
   },
 };
 

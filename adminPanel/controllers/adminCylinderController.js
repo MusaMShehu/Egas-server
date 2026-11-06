@@ -86,18 +86,24 @@ exports.getCylinder = asyncHandler(async (req, res, next) => {
 // @access  Private/Admin
 // ================================================================
 exports.getWeightHistory = asyncHandler(async (req, res, next) => {
-  const { page = 1, limit = 20 } = req.query;
+  const { page = 1, limit = 20, phase } = req.query;
   const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
+  const filter = { cylinderId: req.params.id };
+  if (phase && ['pre_fill', 'post_fill', 'standalone'].includes(phase)) {
+    filter.phase = phase;
+  }
+
   const [records, total] = await Promise.all([
-    CylinderWeightRecord.find({ cylinderId: req.params.id })
+    CylinderWeightRecord.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit, 10))
       .populate('recordedBy', 'firstName lastName role')
       .populate('deliveryId', 'deliveryDate status')
+      .populate('pairedWeightRecordId', 'measuredWeight phase createdAt') // NEW
       .lean(),
-    CylinderWeightRecord.countDocuments({ cylinderId: req.params.id }),
+    CylinderWeightRecord.countDocuments(filter),
   ]);
 
   res.status(200).json({

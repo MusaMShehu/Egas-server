@@ -120,6 +120,8 @@ const auditLogSchema = new mongoose.Schema(
         'CYLINDER_REGISTERED',
         'CYLINDER_UPDATED',
         'CYLINDER_WEIGHT_RECORDED',
+        'CYLINDER_PRE_FILL_RECORDED',
+        'CYLINDER_POST_FILL_RECORDED',
         'CYLINDER_CUSTODY_CHANGED',
         'CYLINDER_FLAGGED',
         'CYLINDER_RETIRED',

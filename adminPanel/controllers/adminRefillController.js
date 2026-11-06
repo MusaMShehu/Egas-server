@@ -165,7 +165,22 @@ exports.getDeliveryTimeline = asyncHandler(async (req, res, next) => {
     .populate('user', 'firstName lastName role')
     .lean();
 
-  res.status(200).json({
+  // res.status(200).json({
+  //   success: true,
+  //   data: {
+  //     delivery,
+  //     customer: delivery.userId,
+  //     agent: delivery.deliveryAgent,
+  //     cylinder: delivery.cylinderId || null,
+  //     subscription: delivery.subscriptionId || null,
+  //     plant: plant,
+  //     refillRequest: refillRequest,
+  //     transaction: transaction,
+  //     inspection: inspection,
+  //     auditTrail: auditTrail,
+  //   },
+  // });
+    res.status(200).json({
     success: true,
     data: {
       delivery,
@@ -178,6 +193,30 @@ exports.getDeliveryTimeline = asyncHandler(async (req, res, next) => {
       transaction: transaction,
       inspection: inspection,
       auditTrail: auditTrail,
+      // ── NEW: Pre/post fill weights (agent workflow, customer-facing remnant) ──
+      weights: {
+        preFill: delivery.preFillWeight != null
+          ? {
+              weight: delivery.preFillWeight,
+              recordedAt: delivery.preFillRecordedAt,
+              recordedBy: delivery.preFillRecordedBy,
+              recordId: delivery.preFillWeightRecordId,
+            }
+          : null,
+        postFill: delivery.postFillWeight != null
+          ? {
+              weight: delivery.postFillWeight,
+              recordedAt: delivery.postFillRecordedAt,
+              recordedBy: delivery.postFillRecordedBy,
+              recordId: delivery.postFillWeightRecordId,
+            }
+          : null,
+        purchasedKg: delivery.purchasedKg ?? null,
+        refilledKg: delivery.refilledKg ?? null,
+        remnantDeltaKg: delivery.remnantDeltaKg ?? null,
+        overFillKg: delivery.overFillKg ?? null,
+        remnantLedgerEntryId: delivery.remnantLedgerEntryId ?? null,
+      },
     },
   });
 });

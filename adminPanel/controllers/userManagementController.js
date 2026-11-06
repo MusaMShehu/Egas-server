@@ -109,6 +109,24 @@ exports.getUser = asyncHandler(async (req, res, next) => {
   });
 });
 
+
+// @desc    Find a user by email (for admin forms)
+// @route   GET /api/v1/admin/users/find-by-email?email=...
+// @access  Private/Admin
+exports.findUserByEmail = asyncHandler(async (req, res, next) => {
+  const email = String(req.query.email || '').trim().toLowerCase();
+  if (!email) {
+    return next(new ErrorResponse('email query param is required', 400));
+  }
+  const user = await User.findOne({ email }).select(
+    'firstName lastName email phone address city state isActive role'
+  ).lean();
+  if (!user) {
+    return next(new ErrorResponse('No user with that email', 404));
+  }
+  res.status(200).json({ success: true, data: user });
+});
+
 // @desc    Create new user (Admin)
 // @route   POST /api/v1/users
 // @access  Private/Admin

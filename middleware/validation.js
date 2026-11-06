@@ -98,6 +98,35 @@ const schemas = {
     orderStatus: Joi.string().valid('processing', 'in-transit', 'delivered', 'cancelled'),
   }).min(1),
 
+
+    recordPreFillWeight: Joi.object({
+    measuredWeight: Joi.number().positive().required().messages({
+      'number.base': 'measuredWeight must be a number',
+      'number.positive': 'measuredWeight must be greater than zero',
+      'any.required': 'measuredWeight is required',
+    }),
+    gpsCoordinates: Joi.object({
+      type: Joi.string().valid('Point').default('Point'),
+      coordinates: Joi.array().items(Joi.number()).length(2),
+    }).optional(),
+    photos: Joi.array().items(Joi.object()).optional(),
+    notes: Joi.string().max(500).allow('', null).optional(),
+  }),
+
+  recordPostFillWeight: Joi.object({
+    measuredWeight: Joi.number().positive().required().messages({
+      'number.base': 'measuredWeight must be a number',
+      'number.positive': 'measuredWeight must be greater than zero',
+      'any.required': 'measuredWeight is required',
+    }),
+    gpsCoordinates: Joi.object({
+      type: Joi.string().valid('Point').default('Point'),
+      coordinates: Joi.array().items(Joi.number()).length(2),
+    }).optional(),
+    photos: Joi.array().items(Joi.object()).optional(),
+    notes: Joi.string().max(500).allow('', null).optional(),
+  }),
+
   // Subscription schemas
   createSubscription: Joi.object({
     plan: Joi.string().required(),

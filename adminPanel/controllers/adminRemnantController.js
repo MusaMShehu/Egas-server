@@ -31,13 +31,14 @@ exports.listLedger = asyncHandler(async (req, res, next) => {
 
   const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
 
-  const [items, total] = await Promise.all([
+    const [items, total] = await Promise.all([
     CylinderRemnantLedger.find(filter)
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(parseInt(limit, 10))
       .populate('userId', 'firstName lastName email phone')
       .populate('performedBy', 'firstName lastName role')
+      .populate('deliveryId', '_id deliveryDate status') // NEW
       .lean(),
     CylinderRemnantLedger.countDocuments(filter),
   ]);

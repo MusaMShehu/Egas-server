@@ -152,6 +152,20 @@ const userSchema = new mongoose.Schema(
       deliveryNotifications: { type: Boolean, default: true },
       promotionalOffers: { type: Boolean, default: false },
       newsletter: { type: Boolean, default: false },
+
+      channels: {
+        inApp: { type: Boolean, default: true },
+        email: { type: Boolean, default: true },
+        sms: { type: Boolean, default: true },
+        push: { type: Boolean, default: true },
+      },
+
+      quietHours: {
+        enabled: { type: Boolean, default: false },
+        start: { type: String, default: "22:00" }, // HH:mm
+        end: { type: String, default: "07:00" },
+        timezone: { type: String, default: "Africa/Lagos" },
+      },
     },
   },
   {
