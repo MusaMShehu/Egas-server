@@ -4,6 +4,7 @@ const crypto = require("crypto");
 const Delivery = require("../../models/Delivery");
 const Subscription = require("../../models/Subscription");
 const User = require("../../models/User");
+const Cylinder = require("../../models/Cylinder");
 const ErrorResponse = require("../../utils/errorResponse");
 const asyncHandler = require("../../middleware/async");
 const Remnant = require("../../models/Remnant");
@@ -14,6 +15,7 @@ const {
   auditLog,
   rateLimiter,
 } = require("../../middleware/security");
+const auditService = require("../../services/auditService");
 
 // @desc    Get all delivery orders with filters
 // @route   GET /api/v1/deliveries
@@ -464,6 +466,13 @@ exports.markAsDelivered = asyncHandler(async (req, res, next) => {
           404,
         ),
       );
+    }
+
+    if (delivery.cylinderId && (!delivery.preFillWeight || !delivery.postFillWeight)) {
+      return next(new ErrorResponse(
+        'Cannot mark delivered without recording pre-fill and post-fill weights',
+        400
+      ));
     }
 
     if (delivery.status === "delivered") {
@@ -2055,6 +2064,107 @@ exports.recordPostFillWeight = asyncHandler(async (req, res, next) => {
       weightRecord: result.weightRecord,
       remnant: result.remnant,
     },
+  });
+});
+
+
+/**
+ * @desc    Assign an existing cylinder to a delivery
+ * @route   POST /api/v1/deliveries/:id/assign-cylinder
+ * @access  Private/DeliveryAgent
+ * Called by the agent before recording pre-fill weight.
+ * Verifies the cylinder belongs to the delivery's customer.
+ */
+exports.assignCylinderToDelivery = asyncHandler(async (req, res, next) => {
+  const { cylinderId } = req.body;
+  const deliveryId = req.params.id;
+
+  if (!cylinderId) {
+    return next(new ErrorResponse('cylinderId is required', 400));
+  }
+
+  const delivery = await Delivery.findOne({
+    _id: deliveryId,
+    deliveryAgent: req.user._id,
+  });
+
+  if (!delivery) {
+    return next(
+      new ErrorResponse(
+        'Delivery not found or not assigned to you',
+        404
+      )
+    );
+  }
+
+  // Cannot change cylinder once pre-fill is recorded
+  if (delivery.preFillWeight != null) {
+    return next(
+      new ErrorResponse(
+        'Cannot reassign cylinder after pre-fill weight is recorded',
+        409
+      )
+    );
+  }
+
+  const cylinder = await Cylinder.findOne({
+    _id: cylinderId,
+    isDeleted: false,
+  });
+
+  if (!cylinder) {
+    return next(new ErrorResponse('Cylinder not found', 404));
+  }
+
+  // Cylinder must belong to the customer receiving this delivery
+  if (cylinder.userId.toString() !== delivery.userId.toString()) {
+    return next(
+      new ErrorResponse(
+        "Cylinder does not belong to this delivery's customer",
+        400
+      )
+    );
+  }
+
+  // Cylinder must be in a weighable state
+  if (['retired', 'flagged', 'lost'].includes(cylinder.status)) {
+    return next(
+      new ErrorResponse(
+        `Cannot use a ${cylinder.status} cylinder`,
+        400
+      )
+    );
+  }
+
+  const previousCylinderId = delivery.cylinderId;
+
+  delivery.cylinderId = cylinder._id;
+  delivery.cylinderTag = cylinder.tagCode;
+  delivery.cylinderTareWeight = cylinder.emptyWeight;
+  delivery.measuredWeight = cylinder.lastMeasuredWeight || null;
+  delivery.calculatedRemnant = null;
+  await delivery.save();
+
+  await auditService.log({
+    action: 'CYLINDER_CUSTODY_CHANGED', // reuse closest enum
+    actorId: req.user._id,
+    actorRole: req.user.role,
+    entityType: 'Delivery',
+    entityId: delivery._id,
+    previousValue: { cylinderId: previousCylinderId },
+    newValue: { cylinderId: cylinder._id, cylinderTag: cylinder.tagCode },
+    metadata: {
+      event: 'assigned_to_delivery',
+      deliveryId: delivery._id,
+      cylinderId: cylinder._id,
+    },
+    req,
+  });
+
+  res.status(200).json({
+    success: true,
+    message: 'Cylinder assigned to delivery',
+    data: delivery.toObject(),
   });
 });
 

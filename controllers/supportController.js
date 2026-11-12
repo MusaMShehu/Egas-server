@@ -440,47 +440,101 @@ exports.addResponse = asyncHandler(async (req, res, next) => {
 // @desc    Update ticket status
 // @route   PUT /api/v1/support/:id/status
 // @access  Private/Admin
-exports.updateTicketStatus = asyncHandler(async (req, res, next) => {
-  const ticket = await SupportTicket.findById(req.params.id);
+// exports.updateTicketStatus = asyncHandler(async (req, res, next) => {
+//   const ticket = await SupportTicket.findById(req.params.id);
 
+//   if (!ticket) {
+//     return next(new ErrorResponse(`No ticket with id ${req.params.id}`, 404));
+//   }
+
+//   if (req.user.role !== "admin") {
+//     return next(new ErrorResponse("Only admins can update ticket status", 403));
+//   }
+
+//   ticket.status = req.body.status;
+//   await ticket.save();
+
+//   // ✅ SMS NOTIFICATION: Send ticket resolved notification to user
+//   if (req.body.status === "resolved" && oldStatus !== "resolved") {
+//     try {
+//       const user = ticket.user;
+//       // if (user && user.phone && user.phoneVerified) {
+//       await NotificationService.sendSupportResolved(ticket, user);
+//       // }
+//     } catch (smsError) {
+//       console.error("Ticket resolution SMS failed:", smsError);
+//     }
+//   }
+
+//   // ✅ EMAIL NOTIFICATION: Send support resolved email
+//   if (req.body.status === "resolved" && previousStatus !== "resolved") {
+//     setTimeout(async () => {
+//       try {
+//         const user = await User.findById(ticket.user._id);
+//         if (user) {
+//           await emailService.sendSupportResolvedEmail(ticket, user);
+//         }
+//       } catch (emailError) {
+//         console.error("Failed to send support resolved email:", emailError);
+//       }
+//     }, 0);
+//   }
+
+//   res.status(200).json({ success: true, data: ticket });
+// });
+
+// @desc    Update ticket status
+// @route   PUT /api/v1/support/:id/status
+// @access  Private/Admin
+exports.updateTicketStatus = asyncHandler(async (req, res, next) => {
+  if (req.user.role !== 'admin') {
+    return next(new ErrorResponse('Only admins can update ticket status', 403));
+  }
+
+  const { status } = req.body;
+  const validStatuses = ['open', 'in-progress', 'resolved', 'closed'];
+  if (!validStatuses.includes(status)) {
+    return next(new ErrorResponse('Invalid status value', 400));
+  }
+
+  const ticket = await SupportTicket.findById(req.params.id);
   if (!ticket) {
     return next(new ErrorResponse(`No ticket with id ${req.params.id}`, 404));
   }
 
-  if (req.user.role !== "admin") {
-    return next(new ErrorResponse("Only admins can update ticket status", 403));
-  }
-
-  ticket.status = req.body.status;
+  // ── FIX: capture previous status BEFORE overwriting ──
+  const previousStatus = ticket.status;
+  ticket.status = status;
+  ticket.updatedAt = new Date();
   await ticket.save();
 
-  // ✅ SMS NOTIFICATION: Send ticket resolved notification to user
-  if (req.body.status === "resolved" && oldStatus !== "resolved") {
+  // Notifications fired only on transition TO 'resolved'
+  if (status === 'resolved' && previousStatus !== 'resolved') {
     try {
-      const user = ticket.user;
-      // if (user && user.phone && user.phoneVerified) {
+      const user = ticket.user?.email
+        ? await User.findById(ticket.user._id || ticket.user)
+        : null;
       await NotificationService.sendSupportResolved(ticket, user);
-      // }
     } catch (smsError) {
-      console.error("Ticket resolution SMS failed:", smsError);
+      console.error('Ticket resolution SMS failed:', smsError);
     }
-  }
 
-  // ✅ EMAIL NOTIFICATION: Send support resolved email
-  if (req.body.status === "resolved" && previousStatus !== "resolved") {
     setTimeout(async () => {
       try {
-        const user = await User.findById(ticket.user._id);
+        const user = await User.findById(ticket.user?._id || ticket.user);
         if (user) {
           await emailService.sendSupportResolvedEmail(ticket, user);
         }
       } catch (emailError) {
-        console.error("Failed to send support resolved email:", emailError);
+        console.error('Failed to send support resolved email:', emailError);
       }
     }, 0);
   }
 
-  res.status(200).json({ success: true, data: ticket });
+  await ticket.populate('user', 'firstName lastName email phone');
+  await ticket.populate('responses.user', 'firstName lastName email');
+
+  res.status(200).json({ success: true, data: { ticket } });
 });
 
 // @desc    Get ticket statistics

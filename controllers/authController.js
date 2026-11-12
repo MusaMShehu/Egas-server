@@ -370,12 +370,15 @@ exports.refreshToken = asyncHandler(async (req, res, next) => {
     // Rotate refresh token, but DO NOT revoke the old one yet.
     // Revoke AFTER we know the new one has been set, to survive
     // multi-tab races where two tabs refresh at the same time.
+    // const tokens = authService.generateTokens(user);
+
     const tokens = authService.generateTokens(user);
+    await authService.revokeRefreshToken(userId, refreshToken);
 
     setTokenCookies(res, tokens);
 
     // Now revoke the old refresh token.
-    await authService.revokeRefreshToken(userId, refreshToken);
+    // await authService.revokeRefreshToken(userId, refreshToken);
 
     res.status(200).json({
       success: true,
@@ -732,11 +735,13 @@ exports.refreshTokenMobile = asyncHandler(async (req, res, next) => {
       return next(new ErrorResponse("User not found or inactive", 401));
     }
 
+    // await authService.revokeRefreshToken(userId, refreshToken);
+    // const tokens = await authService.generateTokens(user);
+
+    const tokens = authService.generateTokens(user);
     await authService.revokeRefreshToken(userId, refreshToken);
 
-    const tokens = await authService.generateTokens(user);
-
-    // setTokenCookies(res, tokens);
+    setTokenCookies(res, tokens);
 
     res.status(200).json({
       success: true,

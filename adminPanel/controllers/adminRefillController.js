@@ -2,11 +2,15 @@ const PlantRefillRequest = require('../../models/PlantRefillRequest');
 const PlantRefillTransaction = require('../../models/PlantRefillTransaction');
 const PlantInspection = require('../../models/PlantInspection');
 const Delivery = require('../../models/Delivery');
+// const Delivery = require('../../models/PartnerPlant');
+const PartnerPlant = require('../../models/PartnerPlant');
 const Cylinder = require('../../models/Cylinder');
 const PlantRefillService = require('../../services/plantRefillService');
 const ErrorResponse = require('../../utils/errorResponse');
 const asyncHandler = require('../../middleware/async');
 const AuditService = require('../../services/auditService');
+const AuditLog = require('../../models/AuditLog');
+
 
 // ================================================================
 // @desc    List all refill requests (admin, cross-plant)
@@ -129,6 +133,13 @@ exports.getDeliveryTimeline = asyncHandler(async (req, res, next) => {
 
   if (!delivery) return next(new ErrorResponse('Delivery not found', 404));
 
+  if (req.user.role === 'delivery') {
+    const assignedAgentId = delivery.deliveryAgent?._id || delivery.deliveryAgent;
+    if (!assignedAgentId || assignedAgentId.toString() !== req.user._id.toString()) {
+      return next(new ErrorResponse('Not authorized for this delivery', 403));
+    }
+  }
+
   // Load associated refill request (from delivery pointer)
   const refillRequest = delivery.plantRefillRequestId || null;
 
@@ -147,14 +158,13 @@ exports.getDeliveryTimeline = asyncHandler(async (req, res, next) => {
   // Load plant if we have one
   let plant = null;
   if (refillRequest?.plantId) {
-    const PartnerPlant = require('../models/PartnerPlant');
     plant = await PartnerPlant.findById(refillRequest.plantId)
       .select('name code status city state')
       .lean();
   }
 
   // Load AuditLog for this delivery
-  const AuditLog = require('../models/AuditLog');
+  
   const auditTrail = await AuditLog.find({
     $or: [
       { entityType: 'Delivery', entityId: delivery._id },
@@ -165,21 +175,7 @@ exports.getDeliveryTimeline = asyncHandler(async (req, res, next) => {
     .populate('user', 'firstName lastName role')
     .lean();
 
-  // res.status(200).json({
-  //   success: true,
-  //   data: {
-  //     delivery,
-  //     customer: delivery.userId,
-  //     agent: delivery.deliveryAgent,
-  //     cylinder: delivery.cylinderId || null,
-  //     subscription: delivery.subscriptionId || null,
-  //     plant: plant,
-  //     refillRequest: refillRequest,
-  //     transaction: transaction,
-  //     inspection: inspection,
-  //     auditTrail: auditTrail,
-  //   },
-  // });
+  
     res.status(200).json({
     success: true,
     data: {

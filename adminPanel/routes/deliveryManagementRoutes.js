@@ -24,7 +24,9 @@ const {
   syncDeliveryWithSubscription,
   recordPreFillWeight,
   recordPostFillWeight,
+  assignCylinderToDelivery
 } = require("../controllers/deliveryManagementController");
+const { getDeliveryTimeline } = require('../controllers/adminRefillController');
 
 const { protect, authorize } = require("../../middleware/auth");
 
@@ -60,6 +62,22 @@ router.post(
   authorize('delivery'),
   recordPostFillWeight
 );
+router.post(
+  '/:id/assign-cylinder',
+  protect,
+  authorize('delivery'),
+  assignCylinderToDelivery
+);
+router.get(
+  '/:id/agent-detail',
+  protect,
+  authorize('delivery'),
+  getDeliveryTimeline  
+);
+
+
+
+
 
 // Customer routes
 router.get("/my-deliveries", protect, getMyDeliveries);

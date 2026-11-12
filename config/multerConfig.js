@@ -47,8 +47,16 @@ const upload = multer({
     }
 });
 
-module.exports = {
-    uploadProfile: upload.single('profileImage'), // Use single for profile picture
-    uploadProduct: upload.array('images', 5), // For multiple product images
-    uploadSupport: upload.array('attachments', 3) // For support attachments
-};
+// module.exports = {
+//     uploadProfile: upload.single('profileImage'), // Use single for profile picture
+//     uploadProduct: upload.array('images', 5), // For multiple product images
+//     uploadSupport: upload.array('attachments', 3) // For support attachments
+// };
+
+// Pre-configured upload middleware
+upload.uploadProfile = upload.single('profileImage');
+upload.uploadCylinder = upload.array('images', 5);
+upload.uploadSupport = upload.array('attachments', 3);
+
+// Export the actual Multer instance
+module.exports = upload;

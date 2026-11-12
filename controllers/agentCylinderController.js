@@ -11,9 +11,70 @@ const asyncHandler = require('../middleware/async');
 // @route   POST /api/v1/agent/cylinders/register
 // @access  Private/DeliveryAgent
 // ================================================================
+// exports.registerCylinder = asyncHandler(async (req, res, next) => {
+//   const {
+//     tagCode,
+//     size,
+//     emptyWeight,
+//     customerId,
+//     brand,
+//     gpsCoordinates,
+//     photos,
+//     notes,
+//   } = req.body;
+
+//   if (!tagCode || !size || emptyWeight === undefined || emptyWeight === null) {
+//     return next(
+//       new ErrorResponse('tagCode, size, and emptyWeight are required', 400)
+//     );
+//   }
+
+//   // If no customerId provided, try to infer from delivery
+//   let resolvedCustomerId = customerId;
+
+//   if (!resolvedCustomerId) {
+//     return next(
+//       new ErrorResponse(
+//         'customerId is required. Provide customer or link a delivery.',
+//         400
+//       )
+//     );
+//   }
+
+//   // Validate customer exists
+//   const customer = await User.findById(resolvedCustomerId).select('_id role');
+//   if (!customer) {
+//     return next(new ErrorResponse('Customer not found', 404));
+//   }
+
+//   const result = await CylinderService.registerCylinder({
+//     tagCode,
+//     size,
+//     emptyWeight: parseFloat(emptyWeight),
+//     customerId: resolvedCustomerId,
+//     agentId: req.user._id,
+//     agentRole: req.user.role,
+//     brand: brand || null,
+//     gpsCoordinates: gpsCoordinates || null,
+//     photos: photos || [],
+//     notes: notes || null,
+//     req,
+//   });
+
+//   res.status(201).json({
+//     success: true,
+//     message: 'Cylinder registered successfully',
+//     data: {
+//       cylinder: result.cylinder,
+//       custodyRecord: result.custodyRecord,
+//     },
+//   });
+// });
+
+// controllers/agentCylinderController.js
+
 exports.registerCylinder = asyncHandler(async (req, res, next) => {
   const {
-    tagCode,
     size,
     emptyWeight,
     customerId,
@@ -23,35 +84,30 @@ exports.registerCylinder = asyncHandler(async (req, res, next) => {
     notes,
   } = req.body;
 
-  if (!tagCode || !size || emptyWeight === undefined || emptyWeight === null) {
+  // ── VALIDATION ──
+  if (!size || emptyWeight === undefined || emptyWeight === null) {
     return next(
-      new ErrorResponse('tagCode, size, and emptyWeight are required', 400)
+      new ErrorResponse('size and emptyWeight are required', 400)
     );
   }
-
-  // If no customerId provided, try to infer from delivery
-  let resolvedCustomerId = customerId;
-
-  if (!resolvedCustomerId) {
-    return next(
-      new ErrorResponse(
-        'customerId is required. Provide customer or link a delivery.',
-        400
-      )
-    );
+  if (!customerId) {
+    return next(new ErrorResponse('customerId is required', 400));
   }
 
   // Validate customer exists
-  const customer = await User.findById(resolvedCustomerId).select('_id role');
+  const customer = await User.findById(customerId).select('_id role firstName lastName').lean();
   if (!customer) {
     return next(new ErrorResponse('Customer not found', 404));
   }
+  if (customer.role !== 'user') {
+    return next(new ErrorResponse('Cylinders can only be registered for customers', 400));
+  }
 
+  // ── NO tagCode from client — server generates it ──
   const result = await CylinderService.registerCylinder({
-    tagCode,
     size,
     emptyWeight: parseFloat(emptyWeight),
-    customerId: resolvedCustomerId,
+    customerId,
     agentId: req.user._id,
     agentRole: req.user.role,
     brand: brand || null,
@@ -70,7 +126,6 @@ exports.registerCylinder = asyncHandler(async (req, res, next) => {
     },
   });
 });
-
 // ================================================================
 // @desc    Look up cylinder by tag code
 // @route   GET /api/v1/agent/cylinders/lookup/:tagCode
@@ -254,5 +309,48 @@ exports.getCylinderRemnant = asyncHandler(async (req, res, next) => {
       ledger: ledger.entries,
       pagination: ledger.pagination,
     },
+  });
+});
+
+
+
+// ================================================================
+// @desc    Get a customer's full remnant ledger (agent view)
+// @route   GET /api/v1/agent/cylinders/customer/:customerId/remnant
+// @access  Private/DeliveryAgent
+// ================================================================
+exports.getCustomerRemnant = asyncHandler(async (req, res, next) => {
+  const { customerId } = req.params;
+  const { page = 1, limit = 30 } = req.query;
+
+  const customer = await User.findById(customerId)
+    .select('firstName lastName phone email')
+    .lean();
+  if (!customer) {
+    return next(new ErrorResponse('Customer not found', 404));
+  }
+
+  const balance = await RemnantLedgerService.getUserBalance(customerId);
+  const eligibility = await RemnantLedgerService.checkEligibility(customerId);
+
+  const ledger = await RemnantLedgerService.getUserLedger(customerId, {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+  });
+
+  res.status(200).json({
+    success: true,
+    count: ledger.entries.length,
+    pagination: ledger.pagination,
+    customer: {
+      _id: customer._id,
+      firstName: customer.firstName,
+      lastName: customer.lastName,
+      phone: customer.phone,
+      email: customer.email,
+    },
+    currentBalance: balance,
+    eligibility,
+    data: ledger.entries,
   });
 });

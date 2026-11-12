@@ -273,14 +273,14 @@ const cylinderWeightRecordSchema = new mongoose.Schema(
       // LEGACY: registered tare. Not used for remnant math anymore.
       // Populated from cylinder.emptyWeight at time of weighing for reference only.
       type: Number,
-      required: true,
+      // required: true,
       min: [0, "Empty weight cannot be negative"],
     },
     calculatedLpg: {
       // LEGACY: measured - empty. Kept for old code paths.
       // For new post_fill records, use `remnantDeltaKg` instead.
       type: Number,
-      required: true,
+      // required: true,
       min: [0, "Calculated LPG cannot be negative"],
     },
 

@@ -5,6 +5,8 @@ const asyncHandler = require('../middleware/async');
 const PlantRefillRequest = require('../models/PlantRefillRequest');
 const PlantRefillTransaction = require('../models/PlantRefillTransaction');
 const dispatcher = require("../services/notifications/notificationDispatcher");
+const PlantInspection = require('../models/PlantInspection');
+
 
 // ================================================================
 // @desc    List refill requests for the authenticated plant
@@ -63,6 +65,7 @@ exports.listRequests = asyncHandler(async (req, res, next) => {
 // ================================================================
 exports.getRequest = asyncHandler(async (req, res, next) => {
   const request = await PlantRefillService.getById(req.params.id);
+  const inspection = await PlantInspection.findOne({ requestId: request._id }).lean();
 
   if (request.plantId._id.toString() !== req.plantId) {
     return next(new ErrorResponse('Not authorized for this plant', 403));
@@ -101,7 +104,12 @@ exports.getRequest = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-    data: sanitized,
+    // data: sanitized,
+    data: {
+    ...sanitized,
+    inspection: inspection || null,
+  },
+    
   });
 });
 
@@ -456,7 +464,8 @@ exports.getTransaction = asyncHandler(async (req, res, next) => {
     plantId: req.plantId,
   })
     .populate('plantStaffId', 'firstName lastName')
-    .populate('requestId')
+    // .populate('requestId')
+    .populate('requestId', 'requestNumber status')
     .lean();
 
   if (!transaction) {

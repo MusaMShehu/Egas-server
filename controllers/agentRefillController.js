@@ -1,3 +1,4 @@
+const User = require('../models/User');
 const PlantRefillService = require('../services/plantRefillService');
 const PlantService = require('../services/plantService');
 const ErrorResponse = require('../utils/errorResponse');
@@ -10,10 +11,49 @@ const PlantRefillRequest = require('../models/PlantRefillRequest');
 // @route   GET /api/v1/agent/plants/available
 // @access  Private/DeliveryAgent
 // ================================================================
-exports.getAvailablePlants = asyncHandler(async (req, res, next) => {
-  const { gps, maxDistanceKm, limit } = req.query;
+// exports.getAvailablePlants = asyncHandler(async (req, res, next) => {
+//   const { gps, maxDistanceKm, limit } = req.query;
 
-  // Parse GPS from query: "lng,lat"
+//   // Parse GPS from query: "lng,lat"
+//   let gpsCoords = null;
+//   if (gps && typeof gps === 'string' && gps.includes(',')) {
+//     const [lng, lat] = gps.split(',').map(Number);
+//     if (!Number.isNaN(lng) && !Number.isNaN(lat)) {
+//       gpsCoords = { type: 'Point', coordinates: [lng, lat] };
+//     }
+//   }
+
+//   if (!gpsCoords) {
+//     return next(
+//       new ErrorResponse(
+//         'GPS coordinates required as "gps=lng,lat" query parameter',
+//         400
+//       )
+//     );
+//   }
+
+//   const radius = maxDistanceKm ? parseInt(maxDistanceKm, 10) : undefined;
+//   const lim = limit ? parseInt(limit, 10) : undefined;
+
+//   const plants = await PlantService.findNearby(gpsCoords, {
+//     maxDistanceKm: radius || 30,
+//     limit: lim || 20,
+//     onlyOperational: true,
+//   });
+
+//   res.status(200).json({
+//     success: true,
+//     count: plants.length,
+//     data: plants,
+//   });
+// });
+
+// controllers/agentRefillController.js
+
+exports.getAvailablePlants = asyncHandler(async (req, res, next) => {
+  const { gps, maxDistanceKm, limit, city, state } = req.query;
+
+  // Parse GPS
   let gpsCoords = null;
   if (gps && typeof gps === 'string' && gps.includes(',')) {
     const [lng, lat] = gps.split(',').map(Number);
@@ -22,27 +62,36 @@ exports.getAvailablePlants = asyncHandler(async (req, res, next) => {
     }
   }
 
-  if (!gpsCoords) {
-    return next(
-      new ErrorResponse(
-        'GPS coordinates required as "gps=lng,lat" query parameter',
-        400
-      )
-    );
+  // ── FIX: don't hard-fail on missing GPS ──
+  // If no GPS, we still return plants by city/state — the agent may
+  // just be opening the app before location services warm up.
+  const radius = maxDistanceKm ? parseInt(maxDistanceKm, 10) : 50;
+  const lim = limit ? parseInt(limit, 10) : 20;
+
+  // Resolve city/state — from query, else from the agent's user record
+  let agentCity = city || null;
+  let agentState = state || null;
+
+  if (!agentCity || !agentState) {
+    const user = await User.findById(req.user._id)
+      .select('city state')
+      .lean();
+    agentCity = agentCity || user?.city || null;
+    agentState = agentState || user?.state || null;
   }
 
-  const radius = maxDistanceKm ? parseInt(maxDistanceKm, 10) : undefined;
-  const lim = limit ? parseInt(limit, 10) : undefined;
-
   const plants = await PlantService.findNearby(gpsCoords, {
-    maxDistanceKm: radius || 30,
-    limit: lim || 20,
-    onlyOperational: true,
+    maxDistanceKm: radius,
+    limit: lim,
+    onlyOperational: false, // ← changed: never hide closed plants by default
+    agentCity,
+    agentState,
   });
 
   res.status(200).json({
     success: true,
     count: plants.length,
+    usedFallback: plants.some((p) => p.searchSource && p.searchSource !== 'geospatial'),
     data: plants,
   });
 });

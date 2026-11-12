@@ -22,7 +22,9 @@ router.use(authorize('delivery', 'admin', 'superadmin', 'super-admin'));
 router.use(featureGuard('PARTNER_PLANT_WORKFLOW'));
 
 // Plant selection
-router.get('/plants/available', featureGuard('AGENT_PLANT_SELECTION'), getAvailablePlants);
+router.get('/plants/available', 
+  // featureGuard('AGENT_PLANT_SELECTION'), 
+  getAvailablePlants);
 
 // Refill requests
 router.post('/refill-requests', createRefillRequest);

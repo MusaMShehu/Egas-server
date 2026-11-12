@@ -32,7 +32,10 @@ class AuthService {
     );
 
     // Store refresh token in Redis (allow multiple devices)
-    this.storeRefreshToken(user._id.toString(), refreshToken);
+  this.storeRefreshToken(user._id.toString(), refreshToken).catch((err) => {
+    console.error('storeRefreshToken failed:', err.message);
+  });
+
 
     return {
       accessToken,

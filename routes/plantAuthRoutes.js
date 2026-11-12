@@ -5,7 +5,9 @@ const plantScope = require('../middleware/plantScope');
 
 const {
   login,
+  loginMobile,
   refresh,
+  refreshMobile,
   logout,
   me,
 } = require('../controllers/plantAuthController');
@@ -13,6 +15,9 @@ const {
 // Public
 router.post('/login', login);
 router.post('/refresh', refresh);
+
+router.post('/login-mobile', loginMobile);
+router.post('/refresh-mobile', refreshMobile);
 
 // Private (plant only)
 router.post('/logout', protect, plantScope({ requirePlant: true }), logout);

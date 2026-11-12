@@ -59,86 +59,302 @@ class PlantService {
    * @param {Object} gps        - { type: 'Point', coordinates: [lng, lat] }
    * @param {Object} options    - { maxDistanceKm, limit, onlyOperational }
    */
-  async findNearby(gps, { maxDistanceKm = 30, limit = 20, onlyOperational = true } = {}) {
-    if (
-      !gps ||
-      !Array.isArray(gps.coordinates) ||
-      gps.coordinates.length !== 2
-    ) {
-      throw new ErrorResponse('Valid GPS coordinates required', 400);
-    }
+  // async findNearby(gps, { maxDistanceKm = 30, limit = 20, onlyOperational = true } = {}) {
+  //   if (
+  //     !gps ||
+  //     !Array.isArray(gps.coordinates) ||
+  //     gps.coordinates.length !== 2
+  //   ) {
+  //     throw new ErrorResponse('Valid GPS coordinates required', 400);
+  //   }
 
-    const maxDistanceMeters = maxDistanceKm * 1000;
+  //   const maxDistanceMeters = maxDistanceKm * 1000;
 
-    // Aggregate with $geoNear for distance computation
-    const pipeline = [
-      {
-        $geoNear: {
-          near: {
-            type: 'Point',
-            coordinates: gps.coordinates.map(Number),
-          },
-          distanceField: 'distanceMeters',
-          maxDistance: maxDistanceMeters,
-          spherical: true,
-          query: {
-            status: 'active',
-            isDeleted: false,
-          },
-        },
-      },
-      {
-        $addFields: {
-          distanceKm: { $divide: ['$distanceMeters', 1000] },
-        },
-      },
-      { $sort: { distanceMeters: 1 } },
-      { $limit: limit },
-      {
-        $lookup: {
-          from: 'plantpriceagreements',
-          let: { plantId: '$_id' },
-          pipeline: [
-            {
-              $match: {
-                $expr: { $eq: ['$plantId', '$$plantId'] },
-                status: 'active',
-                effectiveFrom: { $lte: new Date() },
-                $or: [
-                  { effectiveTo: null },
-                  { effectiveTo: { $gte: new Date() } },
-                ],
-              },
+  //   // Aggregate with $geoNear for distance computation
+  //   const pipeline = [
+  //     {
+  //       $geoNear: {
+  //         near: {
+  //           type: 'Point',
+  //           coordinates: gps.coordinates.map(Number),
+  //         },
+  //         distanceField: 'distanceMeters',
+  //         maxDistance: maxDistanceMeters,
+  //         spherical: true,
+  //         query: {
+  //           status: 'active',
+  //           isDeleted: false,
+  //         },
+  //       },
+  //     },
+  //     {
+  //       $addFields: {
+  //         distanceKm: { $divide: ['$distanceMeters', 1000] },
+  //       },
+  //     },
+  //     { $sort: { distanceMeters: 1 } },
+  //     { $limit: limit },
+  //     {
+  //       $lookup: {
+  //         from: 'plantpriceagreements',
+  //         let: { plantId: '$_id' },
+  //         pipeline: [
+  //           {
+  //             $match: {
+  //               $expr: { $eq: ['$plantId', '$$plantId'] },
+  //               status: 'active',
+  //               effectiveFrom: { $lte: new Date() },
+  //               $or: [
+  //                 { effectiveTo: null },
+  //                 { effectiveTo: { $gte: new Date() } },
+  //               ],
+  //             },
+  //           },
+  //           { $sort: { effectiveFrom: -1 } },
+  //           { $limit: 1 },
+  //         ],
+  //         as: 'currentAgreement',
+  //       },
+  //     },
+  //     {
+  //       $addFields: {
+  //         currentPricePerKg: {
+  //           $ifNull: [{ $arrayElemAt: ['$currentAgreement.pricePerKg', 0] }, null],
+  //         },
+  //         currentlyOpen: this._operationalExpr(),
+  //       },
+  //     },
+  //     {
+  //       $project: {
+  //         currentAgreement: 0,
+  //       },
+  //     },
+  //   ];
+
+  //   let plants = await PartnerPlant.aggregate(pipeline);
+
+  //   if (onlyOperational) {
+  //     plants = plants.filter((p) => p.currentlyOpen);
+  //   }
+
+  //   return plants;
+  // }
+
+  // services/plantService.js
+
+/**
+ * Find nearby plants with graceful fallback.
+ *
+ * Search strategy (in order):
+ *   1. Geospatial within `maxDistanceKm` (default 50km)
+ *   2. Same city as agent
+ *   3. Same state as agent
+ *   4. All active plants (last resort)
+ *
+ * Returns plants with `distanceKm` (null if geospatial search failed),
+ * `currentlyOpen`, and `currentPricePerKg`.
+ */
+async findNearby(gps, options = {}) {
+  const {
+    maxDistanceKm = 50,
+    limit = 20,
+    onlyOperational = false, // ← changed default: never hide closed plants
+    agentCity = null,
+    agentState = null,
+    includeNonOperational = true,
+  } = options;
+
+  // Validate GPS
+  const hasValidGps =
+    gps &&
+    Array.isArray(gps.coordinates) &&
+    gps.coordinates.length === 2 &&
+    Number.isFinite(Number(gps.coordinates[0])) &&
+    Number.isFinite(Number(gps.coordinates[1]));
+
+  const maxDistanceMeters = maxDistanceKm * 1000;
+
+  // ─────────────────────────────────────────────────────
+  // STEP 1: Geospatial search
+  // ─────────────────────────────────────────────────────
+  let plants = [];
+
+  if (hasValidGps) {
+    try {
+      const pipeline = [
+        {
+          $geoNear: {
+            near: {
+              type: 'Point',
+              coordinates: gps.coordinates.map(Number),
             },
-            { $sort: { effectiveFrom: -1 } },
-            { $limit: 1 },
-          ],
-          as: 'currentAgreement',
-        },
-      },
-      {
-        $addFields: {
-          currentPricePerKg: {
-            $ifNull: [{ $arrayElemAt: ['$currentAgreement.pricePerKg', 0] }, null],
+            distanceField: 'distanceMeters',
+            maxDistance: maxDistanceMeters,
+            spherical: true,
+            query: { status: 'active', isDeleted: false },
           },
-          currentlyOpen: this._operationalExpr(),
         },
-      },
-      {
-        $project: {
-          currentAgreement: 0,
+        {
+          $addFields: {
+            distanceKm: { $divide: ['$distanceMeters', 1000] },
+          },
         },
-      },
-    ];
+        { $sort: { distanceMeters: 1 } },
+        { $limit: limit * 2 }, // get extra for the filter stage
+        {
+          $lookup: {
+            from: 'plantpriceagreements',
+            let: { plantId: '$_id' },
+            pipeline: [
+              {
+                $match: {
+                  $expr: { $eq: ['$plantId', '$$plantId'] },
+                  status: 'active',
+                  effectiveFrom: { $lte: new Date() },
+                  $or: [
+                    { effectiveTo: null },
+                    { effectiveTo: { $gte: new Date() } },
+                  ],
+                },
+              },
+              { $sort: { effectiveFrom: -1 } },
+              { $limit: 1 },
+            ],
+            as: 'currentAgreement',
+          },
+        },
+        {
+          $addFields: {
+            currentPricePerKg: {
+              $ifNull: [
+                { $arrayElemAt: ['$currentAgreement.pricePerKg', 0] },
+                null,
+              ],
+            },
+          },
+        },
+        { $project: { currentAgreement: 0 } },
+      ];
 
-    let plants = await PartnerPlant.aggregate(pipeline);
-
-    if (onlyOperational) {
-      plants = plants.filter((p) => p.currentlyOpen);
+      plants = await PartnerPlant.aggregate(pipeline);
+    } catch (err) {
+      // $geoNear failed — likely missing 2dsphere index or bad coords
+      console.warn(
+        '[PlantService.findNearby] geospatial search failed:',
+        err.message
+      );
+      plants = [];
     }
-
-    return plants;
   }
+
+  // Annotate currentlyOpen for geospatial results
+  plants = plants.map((p) => ({
+    ...p,
+    currentlyOpen: this._isCurrentlyOpen(p),
+    searchSource: 'geospatial',
+  }));
+
+  // ─────────────────────────────────────────────────────
+  // STEP 2: Fallback — same city
+  // ─────────────────────────────────────────────────────
+  if (plants.length === 0 && agentCity) {
+    const cityPlants = await PartnerPlant.find({
+      status: 'active',
+      isDeleted: false,
+      city: new RegExp(`^${escapeRegex(agentCity)}$`, 'i'),
+    })
+      .limit(limit)
+      .lean();
+
+    plants = cityPlants.map((p) => ({
+      ...p,
+      distanceKm: null,
+      distanceMeters: null,
+      currentlyOpen: this._isCurrentlyOpen(p),
+      currentPricePerKg: null, // would need lookup — acceptable for fallback
+      searchSource: 'city',
+    }));
+  }
+
+  // ─────────────────────────────────────────────────────
+  // STEP 3: Fallback — same state
+  // ─────────────────────────────────────────────────────
+  if (plants.length === 0 && agentState) {
+    const statePlants = await PartnerPlant.find({
+      status: 'active',
+      isDeleted: false,
+      state: new RegExp(`^${escapeRegex(agentState)}$`, 'i'),
+    })
+      .limit(limit)
+      .lean();
+
+    plants = statePlants.map((p) => ({
+      ...p,
+      distanceKm: null,
+      distanceMeters: null,
+      currentlyOpen: this._isCurrentlyOpen(p),
+      currentPricePerKg: null,
+      searchSource: 'state',
+    }));
+  }
+
+  // ─────────────────────────────────────────────────────
+  // STEP 4: Last resort — all active plants
+  // ─────────────────────────────────────────────────────
+  if (plants.length === 0) {
+    const allPlants = await PartnerPlant.find({
+      status: 'active',
+      isDeleted: false,
+    })
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .lean();
+
+    plants = allPlants.map((p) => ({
+      ...p,
+      distanceKm: null,
+      distanceMeters: null,
+      currentlyOpen: this._isCurrentlyOpen(p),
+      currentPricePerKg: null,
+      searchSource: 'all_active',
+    }));
+  }
+
+  // ─────────────────────────────────────────────────────
+  // STEP 5: Optional operational filter (explicit opt-in)
+  // ─────────────────────────────────────────────────────
+  if (onlyOperational) {
+    const operational = plants.filter((p) => p.currentlyOpen);
+    // Only filter if it wouldn't empty the list
+    if (operational.length > 0) {
+      plants = operational;
+    }
+  }
+
+  return plants.slice(0, limit);
+}
+
+/**
+ * Helper: check if a plant is currently open (pure function, no DB).
+ */
+_isCurrentlyOpen(plant) {
+  if (!plant || plant.status !== 'active') return false;
+
+  const now = new Date();
+  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const today = dayNames[now.getDay()];
+
+  const days = plant.operatingHours?.daysOpen || [];
+  if (!days.includes(today)) return false;
+
+  const current = `${String(now.getHours()).padStart(2, '0')}:${String(
+    now.getMinutes()
+  ).padStart(2, '0')}`;
+  const open = plant.operatingHours?.open || '00:00';
+  const close = plant.operatingHours?.close || '23:59';
+
+  return current >= open && current <= close;
+}
 
   // =====================================================
   // WRITE — CREATE / UPDATE
@@ -195,7 +411,11 @@ class PlantService {
         coordinates: gpsCoordinates.coordinates.map(Number),
       },
       serviceRadiusKm: serviceRadiusKm || 30,
-      operatingHours: operatingHours || undefined,
+      operatingHours: operatingHours || {
+        open: '00:00',
+        close: '23:59',
+        daysOpen: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+      },
       status: 'pending_approval',
       createdBy: adminId,
     });
@@ -477,27 +697,61 @@ class PlantService {
   // HELPERS
   // =====================================================
 
+  // _operationalExpr() {
+  //   // Aggregation expression — compute if currently within operating hours + day
+  //   return {
+  //     $let: {
+  //       vars: {
+  //         dayNames: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  //         currentDay: { $arrayElemAt: [['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], { $dayOfWeek: new Date() }] },
+  //         currentTime: {
+  //           $dateToString: { format: '%H:%M', date: new Date() },
+  //         },
+  //       },
+  //       in: {
+  //         $and: [
+  //           { $in: ['$$currentDay', { $ifNull: ['$operatingHours.daysOpen', []] }] },
+  //           { $gte: ['$$currentTime', { $ifNull: ['$operatingHours.open', '00:00'] }] },
+  //           { $lte: ['$$currentTime', { $ifNull: ['$operatingHours.close', '23:59'] }] },
+  //         ],
+  //       },
+  //     },
+  //   };
+  // }
+
   _operationalExpr() {
-    // Aggregation expression — compute if currently within operating hours + day
-    return {
-      $let: {
-        vars: {
-          dayNames: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
-          currentDay: { $arrayElemAt: [['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], { $dayOfWeek: new Date() }] },
-          currentTime: {
-            $dateToString: { format: '%H:%M', date: new Date() },
-          },
-        },
-        in: {
-          $and: [
-            { $in: ['$$currentDay', { $ifNull: ['$operatingHours.daysOpen', []] }] },
-            { $gte: ['$$currentTime', { $ifNull: ['$operatingHours.open', '00:00'] }] },
-            { $lte: ['$$currentTime', { $ifNull: ['$operatingHours.close', '23:59'] }] },
+  return {
+    $let: {
+      vars: {
+        currentDay: {
+          $arrayElemAt: [
+            // $dayOfWeek returns 1=Sun ... 7=Sat → index must map accordingly
+            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            { $dayOfWeek: new Date() },
           ],
         },
+        currentTime: {
+          $dateToString: {
+            format: '%H:%M',
+            date: new Date(),
+            timezone: 'Africa/Lagos',
+          },
+        },
       },
-    };
-  }
+      in: {
+        $and: [
+          { $in: ['$$currentDay', { $ifNull: ['$operatingHours.daysOpen', []] }] },
+          { $gte: ['$$currentTime', { $ifNull: ['$operatingHours.open', '00:00'] }] },
+          { $lte: ['$$currentTime', { $ifNull: ['$operatingHours.close', '23:59'] }] },
+        ],
+      },
+    },
+  };
+}
+}
+
+function escapeRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 module.exports = new PlantService();

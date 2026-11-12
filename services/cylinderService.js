@@ -85,129 +85,283 @@ class CylinderService {
    *
    * @returns {Object} { cylinder, custodyRecord }
    */
-  async registerCylinder({
-    tagCode,
-    size,
-    emptyWeight,
-    customerId,
-    agentId,
-    agentRole,
-    brand = null,
-    gpsCoordinates = null,
-    photos = [],
-    notes = null,
-    req = null,
-  }) {
-    if (!tagCode || !size || emptyWeight === undefined || emptyWeight === null) {
-      throw new ErrorResponse('tagCode, size, and emptyWeight are required', 400);
-    }
-    if (emptyWeight < 0) {
-      throw new ErrorResponse('emptyWeight must be >= 0', 400);
-    }
+  // async registerCylinder({
+  //   tagCode,
+  //   size,
+  //   emptyWeight,
+  //   customerId,
+  //   agentId,
+  //   agentRole,
+  //   brand = null,
+  //   gpsCoordinates = null,
+  //   photos = [],
+  //   notes = null,
+  //   req = null,
+  // }) {
+  //   if (!tagCode || !size || emptyWeight === undefined || emptyWeight === null) {
+  //     throw new ErrorResponse('tagCode, size, and emptyWeight are required', 400);
+  //   }
+  //   if (emptyWeight < 0) {
+  //     throw new ErrorResponse('emptyWeight must be >= 0', 400);
+  //   }
 
-    const normalizedTag = String(tagCode).toUpperCase().trim();
+  //   const normalizedTag = String(tagCode).toUpperCase().trim();
 
-    const session = await mongoose.startSession();
-    session.startTransaction();
+  //   const session = await mongoose.startSession();
+  //   session.startTransaction();
 
-    try {
-      // 1. Check duplicate (active tag)
-      const existing = await Cylinder.findOne({
-        tagCode: normalizedTag,
-        isDeleted: false,
-      }).session(session);
+  //   try {
+  //     // 1. Check duplicate (active tag)
+  //     const existing = await Cylinder.findOne({
+  //       tagCode: normalizedTag,
+  //       isDeleted: false,
+  //     }).session(session);
 
-      if (existing) {
-        throw new ErrorResponse(
-          `Cylinder tag ${normalizedTag} is already registered`,
-          409
-        );
-      }
+  //     if (existing) {
+  //       throw new ErrorResponse(
+  //         `Cylinder tag ${normalizedTag} is already registered`,
+  //         409
+  //       );
+  //     }
 
-      // 2. Validate customer exists
-      const customer = await User.findById(customerId).session(session).lean();
-      if (!customer) {
-        throw new ErrorResponse('Customer not found', 404);
-      }
+  //     // 2. Validate customer exists
+  //     const customer = await User.findById(customerId).session(session).lean();
+  //     if (!customer) {
+  //       throw new ErrorResponse('Customer not found', 404);
+  //     }
 
-      // 3. Create cylinder
-      const [cylinder] = await Cylinder.create(
-        [
-          {
-            tagCode: normalizedTag,
-            size: String(size).trim(),
-            brand,
-            userId: customerId,
-            registeredBy: agentId,
-            registeredAt: new Date(),
-            emptyWeight,
-            status: 'active',
-            currentCustodian: {
-              type: 'customer',
-              referenceId: customerId,
-              since: new Date(),
-            },
-            isDeleted: false,
-          },
-        ],
-        { session }
-      );
+  //     // 3. Create cylinder
+  //     const [cylinder] = await Cylinder.create(
+  //       [
+  //         {
+  //           tagCode: normalizedTag,
+  //           size: String(size).trim(),
+  //           brand,
+  //           userId: customerId,
+  //           registeredBy: agentId,
+  //           registeredAt: new Date(),
+  //           emptyWeight,
+  //           status: 'active',
+  //           currentCustodian: {
+  //             type: 'customer',
+  //             referenceId: customerId,
+  //             since: new Date(),
+  //           },
+  //           isDeleted: false,
+  //         },
+  //       ],
+  //       { session }
+  //     );
 
-      // 4. Create custody record — E-GAS → customer (registration handover)
-      const [custodyRecord] = await CylinderCustodyRecord.create(
-        [
-          {
-            cylinderId: cylinder._id,
-            tagCode: cylinder.tagCode,
-            fromCustodian: { type: 'egas', referenceId: null },
-            toCustodian: { type: 'customer', referenceId: customerId },
-            event: 'registered',
-            actorId: agentId,
-            actorRole: agentRole,
-            gpsCoordinates,
-            notes,
-            createdAt: new Date(),
-          },
-        ],
-        { session }
-      );
+  //     // 4. Create custody record — E-GAS → customer (registration handover)
+  //     const [custodyRecord] = await CylinderCustodyRecord.create(
+  //       [
+  //         {
+  //           cylinderId: cylinder._id,
+  //           tagCode: cylinder.tagCode,
+  //           fromCustodian: { type: 'egas', referenceId: null },
+  //           toCustodian: { type: 'customer', referenceId: customerId },
+  //           event: 'registered',
+  //           actorId: agentId,
+  //           actorRole: agentRole,
+  //           gpsCoordinates,
+  //           notes,
+  //           createdAt: new Date(),
+  //         },
+  //       ],
+  //       { session }
+  //     );
 
-      // 5. Link custody record to cylinder
-      cylinder.custodyHistory = [custodyRecord._id];
-      await cylinder.save({ session });
+  //     // 5. Link custody record to cylinder
+  //     cylinder.custodyHistory = [custodyRecord._id];
+  //     await cylinder.save({ session });
 
-      // 6. Audit
-      await AuditService.log({
-        action: 'CYLINDER_REGISTERED',
-        actorId: agentId,
-        actorRole: agentRole,
-        entityType: 'Cylinder',
-        entityId: cylinder._id,
-        newValue: {
-          tagCode: cylinder.tagCode,
-          size: cylinder.size,
-          emptyWeight: cylinder.emptyWeight,
-          customerId,
-        },
-        metadata: { gpsCoordinates, custodyRecordId: custodyRecord._id },
-        gpsCoordinates,
-        req,
-      });
+  //     // 6. Audit
+  //     await AuditService.log({
+  //       action: 'CYLINDER_REGISTERED',
+  //       actorId: agentId,
+  //       actorRole: agentRole,
+  //       entityType: 'Cylinder',
+  //       entityId: cylinder._id,
+  //       newValue: {
+  //         tagCode: cylinder.tagCode,
+  //         size: cylinder.size,
+  //         emptyWeight: cylinder.emptyWeight,
+  //         customerId,
+  //       },
+  //       metadata: { gpsCoordinates, custodyRecordId: custodyRecord._id },
+  //       gpsCoordinates,
+  //       req,
+  //     });
 
-      await session.commitTransaction();
+  //     await session.commitTransaction();
 
-      return {
-        success: true,
-        cylinder: cylinder.toObject(),
-        custodyRecord: custodyRecord.toObject(),
-      };
-    } catch (error) {
-      await session.abortTransaction();
-      throw error;
-    } finally {
-      session.endSession();
-    }
+  //     return {
+  //       success: true,
+  //       cylinder: cylinder.toObject(),
+  //       custodyRecord: custodyRecord.toObject(),
+  //     };
+  //   } catch (error) {
+  //     await session.abortTransaction();
+  //     throw error;
+  //   } finally {
+  //     session.endSession();
+  //   }
+  // }
+
+  
+
+/**
+ * Generate a unique cylinder tag for a customer.
+ * Format: EG-CYL-{F}{L}-{4 digits}
+ * Example: Alice Okafor → EG-CYL-AO-4821
+ */
+_generateTagCode(firstName, lastName) {
+  const F = String(firstName || 'X').trim().toUpperCase().replace(/[^A-Z]/g, '')[0] || 'X';
+  const L = String(lastName || 'X').trim().toUpperCase().replace(/[^A-Z]/g, '')[0] || 'X';
+  const digits = String(Math.floor(1000 + Math.random() * 9000));
+  return `EG-CYL-${F}${L}-${digits}`;
+}
+
+/**
+ * Generate a guaranteed-unique tag.
+ * Tries up to 10 times; if all collide, appends a 2-digit suffix
+ * (e.g. EG-CYL-AO-4821-37) so we never fail registration.
+ */
+async _generateUniqueTagCode(firstName, lastName, session = null) {
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const tagCode = this._generateTagCode(firstName, lastName);
+    const query = Cylinder.findOne({ tagCode, isDeleted: false });
+    if (session) query.session(session);
+    const existing = await query.lean();
+    if (!existing) return tagCode;
   }
+
+  // Fallback: append a random 2-digit suffix
+  const base = this._generateTagCode(firstName, lastName);
+  const suffix = Math.floor(10 + Math.random() * 90);
+  return `${base}-${suffix}`;
+}
+
+/**
+ * Register a new cylinder for a customer.
+ * IMPORTANT: tag is generated server-side. Client-supplied `tagCode` is IGNORED.
+ * @returns {Object} { cylinder, custodyRecord }
+ */
+async registerCylinder({
+  size,
+  emptyWeight,
+  customerId,
+  agentId,
+  agentRole,
+  brand = null,
+  gpsCoordinates = null,
+  photos = [],
+  notes = null,
+  req = null,
+}) {
+  if (!size || emptyWeight === undefined || emptyWeight === null) {
+    throw new ErrorResponse('size and emptyWeight are required', 400);
+  }
+  if (emptyWeight < 0) {
+    throw new ErrorResponse('emptyWeight must be >= 0', 400);
+  }
+
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    // 1. Load customer
+    const customer = await User.findById(customerId).session(session).lean();
+    if (!customer) {
+      throw new ErrorResponse('Customer not found', 404);
+    }
+
+    // 2. Generate unique tag from customer's name
+    const tagCode = await this._generateUniqueTagCode(
+      customer.firstName,
+      customer.lastName,
+      session
+    );
+
+    // 3. Create cylinder
+    const [cylinder] = await Cylinder.create(
+      [
+        {
+          tagCode,
+          size: String(size).trim(),
+          brand,
+          userId: customerId,
+          registeredBy: agentId,
+          registeredAt: new Date(),
+          emptyWeight,
+          status: 'active',
+          currentCustodian: {
+            type: 'customer',
+            referenceId: customerId,
+            since: new Date(),
+          },
+          isDeleted: false,
+        },
+      ],
+      { session }
+    );
+
+    // 4. Custody record — E-GAS → customer
+    const [custodyRecord] = await CylinderCustodyRecord.create(
+      [
+        {
+          cylinderId: cylinder._id,
+          tagCode: cylinder.tagCode,
+          fromCustodian: { type: 'egas', referenceId: null },
+          toCustodian: { type: 'customer', referenceId: customerId },
+          event: 'registered',
+          actorId: agentId,
+          actorRole: agentRole,
+          gpsCoordinates,
+          notes,
+          createdAt: new Date(),
+        },
+      ],
+      { session }
+    );
+
+    // 5. Link history
+    cylinder.custodyHistory = [custodyRecord._id];
+    await cylinder.save({ session });
+
+    // 6. Audit
+    await AuditService.log({
+      action: 'CYLINDER_REGISTERED',
+      actorId: agentId,
+      actorRole: agentRole,
+      entityType: 'Cylinder',
+      entityId: cylinder._id,
+      newValue: {
+        tagCode: cylinder.tagCode,
+        size: cylinder.size,
+        emptyWeight: cylinder.emptyWeight,
+        customerId,
+      },
+      metadata: { gpsCoordinates, custodyRecordId: custodyRecord._id },
+      gpsCoordinates,
+      req,
+    });
+
+    await session.commitTransaction();
+
+    return {
+      success: true,
+      cylinder: cylinder.toObject(),
+      custodyRecord: custodyRecord.toObject(),
+    };
+  } catch (error) {
+    await session.abortTransaction();
+    throw error;
+  } finally {
+    session.endSession();
+  }
+}
 
   // =====================================================
   // WRITE — CUSTODY TRANSFER

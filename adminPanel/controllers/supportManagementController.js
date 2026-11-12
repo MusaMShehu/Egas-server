@@ -710,61 +710,101 @@ exports.deleteSupportTicket = asyncHandler(async (req, res, next) => {
 // @desc    Bulk update ticket status
 // @route   PATCH /api/v1/admin/support-tickets/bulk/status
 // @access  Private/Admin
+// exports.bulkUpdateTicketStatus = asyncHandler(async (req, res, next) => {
+//   const { ticketIds, status } = req.body;
+
+//   if (!ticketIds || !Array.isArray(ticketIds) || ticketIds.length === 0) {
+//     return next(new ErrorResponse("Ticket IDs array is required", 400));
+//   }
+
+//   // Validate status
+//   const validStatuses = ["open", "in-progress", "resolved", "closed"];
+//   if (!validStatuses.includes(status)) {
+//     return next(new ErrorResponse("Invalid status value", 400));
+//   }
+
+//   const result = await SupportTicket.updateMany(
+//     { _id: { $in: ticketIds } },
+//     {
+//       $set: {
+//         status,
+//         updatedAt: new Date(),
+//       },
+//     }
+//   );
+
+//   // ✅ SMS NOTIFICATION: Send ticket resolved notification to user
+//   if (req.body.status === "resolved" && oldStatus !== "resolved") {
+//     try {
+//       const user = ticket.user;
+//       // if (user && user.phone && user.phoneVerified) {
+//       await NotificationService.sendSupportResolved(ticket, user);
+//       // }
+//     } catch (smsError) {
+//       console.error("Ticket resolution SMS failed:", smsError);
+//     }
+//   }
+
+//   // ✅ EMAIL NOTIFICATION: Send support resolved email
+//   if (req.body.status === "resolved" && previousStatus !== "resolved") {
+//     setTimeout(async () => {
+//       try {
+//         const user = await User.findById(ticket.user._id);
+//         if (user) {
+//           await emailService.sendSupportResolvedEmail(ticket, user);
+//         }
+//       } catch (emailError) {
+//         console.error("Failed to send support resolved email:", emailError);
+//       }
+//     }, 0);
+//   }
+
+//   res.status(200).json({
+//     success: true,
+//     message: `${result.modifiedCount} tickets updated to ${status} status`,
+//     data: {
+//       modifiedCount: result.modifiedCount,
+//     },
+//   });
+// });
+
 exports.bulkUpdateTicketStatus = asyncHandler(async (req, res, next) => {
   const { ticketIds, status } = req.body;
 
-  if (!ticketIds || !Array.isArray(ticketIds) || ticketIds.length === 0) {
-    return next(new ErrorResponse("Ticket IDs array is required", 400));
+  if (!Array.isArray(ticketIds) || ticketIds.length === 0) {
+    return next(new ErrorResponse('Ticket IDs array is required', 400));
   }
 
-  // Validate status
-  const validStatuses = ["open", "in-progress", "resolved", "closed"];
+  const validStatuses = ['open', 'in-progress', 'resolved', 'closed'];
   if (!validStatuses.includes(status)) {
-    return next(new ErrorResponse("Invalid status value", 400));
+    return next(new ErrorResponse('Invalid status value', 400));
   }
+
+  // ── FIX: fetch tickets first to send notifications per-user ──
+  const tickets = await SupportTicket.find({
+    _id: { $in: ticketIds },
+    status: { $ne: 'resolved' }, // only those transitioning
+  }).populate('user', 'firstName lastName email phone');
 
   const result = await SupportTicket.updateMany(
     { _id: { $in: ticketIds } },
-    {
-      $set: {
-        status,
-        updatedAt: new Date(),
-      },
-    }
+    { $set: { status, updatedAt: new Date() } }
   );
 
-  // ✅ SMS NOTIFICATION: Send ticket resolved notification to user
-  if (req.body.status === "resolved" && oldStatus !== "resolved") {
-    try {
-      const user = ticket.user;
-      // if (user && user.phone && user.phoneVerified) {
-      await NotificationService.sendSupportResolved(ticket, user);
-      // }
-    } catch (smsError) {
-      console.error("Ticket resolution SMS failed:", smsError);
-    }
-  }
-
-  // ✅ EMAIL NOTIFICATION: Send support resolved email
-  if (req.body.status === "resolved" && previousStatus !== "resolved") {
-    setTimeout(async () => {
+  if (status === 'resolved') {
+    for (const ticket of tickets) {
       try {
-        const user = await User.findById(ticket.user._id);
-        if (user) {
-          await emailService.sendSupportResolvedEmail(ticket, user);
-        }
-      } catch (emailError) {
-        console.error("Failed to send support resolved email:", emailError);
+        await NotificationService.sendSupportResolved(ticket, ticket.user);
+      } catch (smsError) {
+        console.error('Bulk ticket resolution SMS failed:', smsError);
       }
-    }, 0);
+    }
   }
 
   res.status(200).json({
     success: true,
     message: `${result.modifiedCount} tickets updated to ${status} status`,
-    data: {
-      modifiedCount: result.modifiedCount,
-    },
+    data: { modifiedCount: result.modifiedCount },
   });
 });
 

@@ -11,6 +11,7 @@ const {
   getCustomerCylinders,
   getWeightHistory,
   getCylinderRemnant,
+  getCustomerRemnant
 } = require('../controllers/agentCylinderController');
 
 // All routes: authenticated + agent/admin
@@ -39,5 +40,9 @@ router.get('/:id/weight-history', validateObjectId('id'), getWeightHistory);
 
 // Remnant ledger (cylinder-scoped)
 router.get('/:id/remnant', validateObjectId('id'), getCylinderRemnant);
+
+// agentCylinderRoutes.js
+router.get('/customer/:customerId/remnant', getCustomerRemnant);
+
 
 module.exports = router;

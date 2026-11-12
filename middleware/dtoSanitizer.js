@@ -92,20 +92,46 @@ const sanitizePlantWorkflowForCustomer = (internalStatus) => {
   if (!internalStatus || internalStatus === 'not_started') return null;
 
   // Only expose "neutral" phases that don't reveal plant operations
+  // const mapping = {
+  //   not_started: null,
+  //   plant_selected: 'preparing',
+  //   request_created: 'preparing',
+  //   at_plant: 'preparing',
+  //   inspection_pending: 'preparing',
+  //   inspection_approved: 'preparing',
+  //   inspection_rejected: 'preparing', // Customer sees "preparing" (agent handles internally)
+  //   refilling: 'preparing',
+  //   plant_confirmed: 'ready',
+  //   cylinder_collected_from_plant: 'out_for_delivery',
+  //   completed: null,
+  //   escalated: null, // Customer sees existing delivery.status
+  // };
+
   const mapping = {
-    not_started: null,
-    plant_selected: 'preparing',
-    request_created: 'preparing',
-    at_plant: 'preparing',
-    inspection_pending: 'preparing',
-    inspection_approved: 'preparing',
-    inspection_rejected: 'preparing', // Customer sees "preparing" (agent handles internally)
-    refilling: 'preparing',
-    plant_confirmed: 'ready',
-    cylinder_collected_from_plant: 'out_for_delivery',
-    completed: null,
-    escalated: null, // Customer sees existing delivery.status
-  };
+  not_started: null,
+
+  // ── Legacy plant workflow ──
+  plant_selected: 'preparing',
+  request_created: 'preparing',
+  at_plant: 'preparing',
+  inspection_pending: 'preparing',
+  inspection_approved: 'preparing',
+  inspection_rejected: 'preparing',
+  refilling: 'preparing',
+  plant_confirmed: 'ready',
+  cylinder_collected_from_plant: 'out_for_delivery',
+  completed: null,
+  escalated: null,
+
+  // ── New agent workflow ──
+  agent_collected_from_customer: 'preparing',
+  plant_inspection_passed: 'preparing',
+  plant_inspection_rejected: 'preparing',
+  plant_refilled_confirmed: 'ready',
+  agent_collected_from_plant: 'out_for_delivery',
+  remnant_credited: 'out_for_delivery',
+  delivered_to_customer: null,
+};
 
   return mapping[internalStatus] || null;
 };

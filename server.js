@@ -41,7 +41,6 @@ const dashboardRoutes = require("./routes/userDashboardRoutes");
 const uploadRoutes = require("./routes/uploadRoutes");
 const userHistoryRoutes = require("./routes/userHistoryRoutes");
 const smsRoutes = require("./routes/smsRoutes");
-const adminRoutes = require("./routes/adminRoutes");
 const customerCylinderRoutes = require('./routes/customerCylinderRoutes');
 const notificationRoutes = require("./routes/notificationRoutes");
 
@@ -263,12 +262,13 @@ app.use(
 );
 
 // DELIVERY AGENT
-app.use('/api/v1/agent', agentRefillRoutes);
 app.use('/api/v1/agent/cylinders', agentCylinderRoutes);
+app.use('/api/v1/agent', agentRefillRoutes);
+
 
 // Plant portal
-app.use('/api/v1/plant', plantRoutes);
 app.use('/api/v1/plant/auth', plantAuthRoutes);
+app.use('/api/v1/plant', plantRoutes);
 app.use(
   '/api/v1/admin/plants',
   protect,
@@ -276,84 +276,68 @@ app.use(
   adminPlantRoutes
 );
 
-// Socket.IO authentication middleware
+
+// const cookie = require('cookie');
+// const authService = require('./services/authService');
+// const User = require('./models/User');
 
 // io.use(async (socket, next) => {
 //   try {
-//     const token = socket.handshake?.auth?.token;
+//     // First check explicitly supplied token (mobile or other clients).
+//     let token = socket.handshake?.auth?.token;
+
+//     // Otherwise, read the HTTP-only accessToken cookie.
+//     if (!token) {
+//       const cookieHeader = socket.handshake?.headers?.cookie;
+
+//       if (cookieHeader) {
+//         const cookies = cookie.parse(cookieHeader);
+//         token = cookies.accessToken;
+//       }
+//     }
+
 //     if (!token) {
 //       return next(new Error('Authentication required'));
 //     }
 
-//     const authService = require('./services/authService');
 //     const verification = await authService.verifyAccessToken(token);
 
 //     if (!verification.valid) {
 //       return next(new Error('Invalid token'));
 //     }
 
-//     const User = require('./models/User');
 //     const user = await User.findById(verification.decoded.userId)
-//       .select('_id role plantId')
+//       .select('_id role plantId isActive')
 //       .lean();
 
-//     if (!user || !user.role) {
-//       return next(new Error('User not found'));
+//     if (!user || !user.isActive) {
+//       return next(new Error('User not found or inactive'));
 //     }
 
 //     socket.userId = user._id.toString();
 //     socket.userRole = user.role;
-//     socket.plantId = user.plantId ? user.plantId.toString() : null;
+//     socket.plantId = user.plantId
+//       ? user.plantId.toString()
+//       : null;
 
 //     next();
 //   } catch (error) {
-//     console.error('Socket auth error:', error.message);
+//     console.error('[Socket Authentication Error]', error.message);
 //     next(new Error('Authentication failed'));
 //   }
 // });
 
-
-// io.on('connection', (socket) => {
-//   console.log(`User connected: ${socket.userId}`);
-//   // Personal user room (existing)
-//   socket.join(`user:${socket.userId}`);
-//   // Role-based rooms
-//   const userRole = socket.userRole || null; // populated by auth middleware
-//   const plantId = socket.plantId || null;
-//   // Agent personal room
-//   if (userRole === 'delivery') {
-//     socket.join(`agent:${socket.userId}`);
-//   }
-//   // Plant room
-//   if (plantId) {
-//     socket.join(`plant:${plantId}`);
-//   }
-//   // Admin ops room
-//   if (['admin', 'superadmin', 'super-admin', 'customer_care'].includes(userRole)) {
-//     socket.join('admin:ops');
-//   }
-//   // Order tracking (existing)
-//   socket.on('track-order', (orderId) => {
-//     socket.join(`order:${orderId}`);
-//   });
-//   socket.on('disconnect', () => {
-//     console.log(`User disconnected: ${socket.userId}`);
-//   });
-// });
-
+// ── Socket.IO authentication ──────────────────────────────────
 const cookie = require('cookie');
 const authService = require('./services/authService');
 const User = require('./models/User');
 
 io.use(async (socket, next) => {
   try {
-    // First check explicitly supplied token (mobile or other clients).
     let token = socket.handshake?.auth?.token;
 
-    // Otherwise, read the HTTP-only accessToken cookie.
     if (!token) {
       const cookieHeader = socket.handshake?.headers?.cookie;
-
       if (cookieHeader) {
         const cookies = cookie.parse(cookieHeader);
         token = cookies.accessToken;
@@ -365,7 +349,6 @@ io.use(async (socket, next) => {
     }
 
     const verification = await authService.verifyAccessToken(token);
-
     if (!verification.valid) {
       return next(new Error('Invalid token'));
     }
@@ -380,15 +363,46 @@ io.use(async (socket, next) => {
 
     socket.userId = user._id.toString();
     socket.userRole = user.role;
-    socket.plantId = user.plantId
-      ? user.plantId.toString()
-      : null;
+    socket.plantId = user.plantId ? user.plantId.toString() : null;
 
     next();
   } catch (error) {
     console.error('[Socket Authentication Error]', error.message);
     next(new Error('Authentication failed'));
   }
+});
+
+// ── Socket.IO connection handler ──────────────────────────────
+io.on('connection', (socket) => {
+  const { userId, userRole, plantId } = socket;
+  console.log(`[socket] connect user=${userId} role=${userRole}`);
+
+  // Personal room — every authenticated user gets one
+  socket.join(`user:${userId}`);
+
+  // Role-based rooms
+  if (userRole === 'delivery') {
+    socket.join(`agent:${userId}`);
+  }
+
+  if (plantId) {
+    socket.join(`plant:${plantId}`);
+  }
+
+  if (['admin', 'superadmin', 'super-admin', 'customer_care'].includes(userRole)) {
+    socket.join('admin:ops');
+  }
+
+  // Order tracking (existing feature)
+  socket.on('track-order', (orderId) => {
+    if (typeof orderId === 'string' && orderId.length > 0) {
+      socket.join(`order:${orderId}`);
+    }
+  });
+
+  socket.on('disconnect', (reason) => {
+    console.log(`[socket] disconnect user=${userId} reason=${reason}`);
+  });
 });
 
 
